@@ -1,0 +1,2 @@
+data_dir = /Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed
+output_dir = /usr/local/web/ILAB/data/results/umap

@@ -26,15 +26,15 @@ def restructure_for_training( band_data: xa.DataArray ) -> xa.DataArray:
     return training_data
 
 if __name__ == '__main__':
+    from hyperclass.util.config import Configuration
+    config = Configuration()
     c0 = (1000,1000)
     c1 = (2000,2000)
     subsampling = 5
     ndims = 3
 
-    data_dir = "/Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed"
-    output_dir = "/usr/local/web/ILAB/data/results/umap"
-    input_file = os.path.join( data_dir, f"ang20170720t004130.{c0[0]}-{c0[1]}_{c1[0]}-{c1[1]}.nc" )
-    output_file = os.path.join( output_dir, f"umap-model.ang20170720t004130.{c0[0]}-{c1[1]}_{c1[0]}-{c1[1]}.s-{subsampling}.d-{ndims}.pkl" )
+    input_file = os.path.join( config['data_dir'], f"ang20170720t004130.{c0[0]}-{c0[1]}_{c1[0]}-{c1[1]}.nc" )
+    output_file = os.path.join( config['output_dir'], f"umap-model.ang20170720t004130.{c0[0]}-{c1[1]}_{c1[0]}-{c1[1]}.s-{subsampling}.d-{ndims}.pkl" )
 
     t0 = time.time()
     bands: xa.DataArray = read( input_file, c0, c1 )
