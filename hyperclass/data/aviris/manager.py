@@ -33,14 +33,34 @@ class DataManager:
 
     def read_subtile( self, base_filename: str, c0: Tuple, c1: Tuple, iband = -1 ) -> xa.DataArray:
         subtile_filename =self.subtile_file( base_filename, c0, c1 )
-        return self.read_input_raster( subtile_filename, iband )
+        result = self.read_input_raster( subtile_filename, iband )
+        result.name = f"{base_filename}: Band {iband+1}" if( iband >= 0 ) else base_filename
+        return result
 
     def subtile_file( self, base_filename: str, c0: Tuple, c1: Tuple  ) -> str:
         if base_filename.endswith(".tif"): base_filename = base_filename[:-4]
         return f"{base_filename}.{c0[0]}-{c0[1]}_{c1[0]}-{c1[1]}"
 
-    def plot_raster(self, raster: xa.DataArray, vrange ):
+    def plot_raster(self, raster: xa.DataArray, vrange, **kwargs ):
         fig, ax = plt.subplots(1,1)
-        img = ax.imshow( raster.data, vmin=vrange[0], vmax=vrange[1], cmap="jet" )
+        title = kwargs.get( 'title', raster.name )
+        x = raster.coords[ raster.dims[1] ]
+        y = raster.coords[ raster.dims[0] ]
+        try:
+            xstep = (x[1] - x[0]) / 2.0
+        except IndexError: xstep = .1
+        try:
+            ystep = (y[1] - y[0]) / 2.0
+        except IndexError: ystep = .1
+        left, right = x[0] - xstep, x[-1] + xstep
+        bottom, top = y[-1] + ystep, y[0] - ystep
+        defaults = {'origin': 'upper', 'interpolation': 'nearest'}
+        if not hasattr(ax, 'projection'): defaults['aspect'] = 'auto'
+        defaults.update(kwargs)
+        if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
+        else:                               defaults['extent'] = [left, right, top, bottom]
+
+        img = ax.imshow( raster.data, vmin=vrange[0], vmax=vrange[1], cmap="jet", **defaults )
+        ax.set_title(title)
         fig.colorbar(img, ax=ax)
         plt.show()
