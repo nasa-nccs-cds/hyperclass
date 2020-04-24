@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     t0 = time.time()
     mapper = pickle.load( open( map_file, "rb" ) )
-    points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 ).
+    points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 )
     t1 = time.time()
     print( f"Completed map load in {(t1-t0)} sec, Now transforming data")
 

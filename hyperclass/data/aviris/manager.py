@@ -25,7 +25,7 @@ class Tile:
         return ( y0, y0+self.block_shape[0] ), ( x0, x0+self.block_shape[1] )
 
     @property
-    def nBlocks(self) -> List[int,int]:
+    def nBlocks(self) -> List[ List[int] ]:
         return [ self.data.shape[i+1]//self.block_shape[i] for i in [1,2] ]
 
     def getBlock( self, iy: int, ix: int ) -> xa.DataArray:
@@ -48,12 +48,12 @@ class Tile:
         print(f"  -> Using {point_data.shape[0]} valid samples out of {normalized_raster.shape[1] * normalized_raster.shape[2]} pixels")
         return point_data
 
-    @classmethod
-    def getBandPointData(cls, band_data: xa.DataArray, subsampling: int = 1 ) -> xa.DataArray:
-        training_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return training_data[::subsampling]
+    def getBandPointData( self, iband: int, subsampling: int = 1 ) -> xa.DataArray:
+        band_data: xa.DataArray = self.data[iband]
+        point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
+        return point_data[::subsampling]
 
-    def getTilePointData( self, subsampling: int = 1 ) -> xa.DataArray
+    def getTilePointData( self, subsampling: int = 1 ) -> xa.DataArray:
         point_data = self.getPointData( self.data )
         return point_data[::subsampling]
 

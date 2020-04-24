@@ -3,29 +3,27 @@ import umap, time, pickle
 import umap.plot
 from typing import List, Union, Tuple, Optional
 from hyperclass.data.aviris.manager import DataManager
+from hyperclass.umap.manager import UMAPManager
 import os, math
 
-# Fit UMAP to hyperspectral data
+# Fit UMAP to hyperspectral data and view embedding
 
 if __name__ == '__main__':
-    c0 = (1000,1000)
-    c1 = (2000,2000)
-    subsampling = 10
+    tile_shape = (1000,1000)
+    block_shape = ( 250, 250 )
+    tile_index = [1,1]
+    subsampling = 5
     ndims = 3
-    n_neighbors = 30
-    file_name = "ang20170720t004130_corr_v2p9"
+    image_name = "ang20170720t004130_corr_v2p9"
+    color_band = 200
+    vrange = [3,10]
 
-    dm = DataManager()
-    output_file = os.path.join( dm.config['output_dir'], f"umap-model.ang20170720t004130.{c0[0]}-{c1[1]}_{c1[0]}-{c1[1]}.s-{subsampling}.d-{ndims}.nn-{n_neighbors}.pkl" )
+    dm = DataManager( image_name, tile_shape, block_shape )
+    tile = dm.getTile( *tile_index )
+    umgr = UMAPManager( tile, subsampling, n_components=ndims )
+    umgr.view_model( color_band=color_band, vrange=vrange )
 
-    t0 = time.time()
-    raster: xa.DataArray = dm.read_subtile( file_name, c0, c1 )
-    training_data: xa.DataArray = dm.restructure_for_training( raster, subsampling )
 
-    t1 = time.time()
-    print( f"Completed data prep in {(t1-t0)} sec, Now fitting umap to {ndims} dims with {training_data.shape[0]} samples")
-    mapper = umap.UMAP( n_components=ndims, n_neighbors=n_neighbors ).fit( training_data )
-    t2 = time.time()
-    print( f"Completed umap fitting in {(t2-t1)} sec, saving to file {output_file}")
-    pickle.dump( mapper, open( output_file, 'wb' ) )
+
+
 
