@@ -2,7 +2,7 @@ import xarray as xa
 import umap, time, pickle
 import numpy as np
 from typing import List, Union, Tuple, Optional
-from hyperclass.plot.points import datashade_points, point_cloud_3d
+from hyperclass.umap.manager import UMAPManager
 import os, math
 
 # overlay regions of a UMAP embedding in geographic space
@@ -25,16 +25,16 @@ if __name__ == '__main__':
     color_band = 200
     subsampling = 5
     ndims = 3
+    file_name = "ang20170720t004130_corr_v2p9"
 
-    data_file = os.path.join( config['data_dir'], f"ang20170720t004130.{c0[0]}-{c0[1]}_{c1[0]}-{c1[1]}.nc" )
-    mapping_file = os.path.join( config['output_dir'], f"umap-model.ang20170720t004130.{c0[0]}-{c1[1]}_{c1[0]}-{c1[1]}.s-{subsampling}.d-{ndims}.pkl" )
-
-    band_data: xa.DataArray = get_band_data( data_file, color_band )
+    mgr = UMAPManager()
+    map_file = os.path.join( mgr.dm.config['output_dir'], f"umap-model.ang20170720t004130.{c0[0]}-{c1[1]}_{c1[0]}-{c1[1]}.s-{subsampling}.d-{ndims}.pkl" )
+    band_data: xa.DataArray = mgr.dm.read_subtile( file_name, c0, c1, color_band )
     index_array = get_index_data( band_data.values,  subsampling )
 
     t0 = time.time()
-    mapper = pickle.load( open( mapping_file, "rb" ) )
-    points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 )
+    mapper = pickle.load( open( map_file, "rb" ) )
+    points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 ).
     t1 = time.time()
     print( f"Completed map load in {(t1-t0)} sec, Now transforming data")
 
