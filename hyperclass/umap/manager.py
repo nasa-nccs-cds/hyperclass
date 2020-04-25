@@ -41,7 +41,7 @@ class UMAPManager:
 
     def _fit( self ):
         t0 = time.time()
-        training_data: xa.DataArray = self.tile.getTilePointData( self.subsampling )
+        training_data: xa.DataArray = self.tile.getTilePointData( self.subsampling, normalize = True )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.conf['n_components']} dims with {training_data.shape[0]} samples")
         self.mapper.fit( training_data.data )
@@ -66,6 +66,27 @@ class UMAPManager:
         else:
             point_cloud_3d( model_data, **plot_parms )
 
+    def transform_block( self, iy: int, ix: int, **kwargs ) -> xa.DataArray:
+        t0 = time.time()
+        plot = kwargs.get( 'plot', False )
+        point_data: xa.DataArray = self.tile.getBlockPointData( iy, ix, normalize = True )
+        transformed_data: np.ndarray = self.mapper.transform( point_data )
+        t1 = time.time()
+        print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
+        block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs)
+        if plot:
+            color_band = kwargs.pop( 'color_band', 200 )
+            self.view_transform( block_model, values=point_data[:,color_band], **kwargs )
+        return block_model
 
 
-
+    def view_transform( self, model_data: xa.DataArray,  **kwargs ):
+        vrange = kwargs.pop( 'vrange', None )
+        plot_parms = dict( cmap="jet", **kwargs )
+        if vrange is not None:
+            plot_parms['vmin'] = vrange[0]
+            plot_parms['vmax'] = vrange[1]
+        if model_data.shape[1] == 2:
+            datashade_points( model_data, **plot_parms )
+        else:
+            point_cloud_3d( model_data, **plot_parms )

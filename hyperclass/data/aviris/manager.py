@@ -42,23 +42,29 @@ class Tile:
 
     @classmethod
     def getPointData(cls, raster: xa.DataArray ) -> xa.DataArray:
-        normalized_raster = cls.normalize( raster )
-        point_data = normalized_raster.stack(samples=normalized_raster.dims[1:]).transpose().dropna(dim='samples', how='any')
+        point_data = raster.stack(samples=raster.dims[1:]).transpose().dropna(dim='samples', how='any')
         print(f" Creating point data: shape = {point_data.shape}, dims = {point_data.dims}")
-        print(f"  -> Using {point_data.shape[0]} valid samples out of {normalized_raster.shape[1] * normalized_raster.shape[2]} pixels")
+        print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
         return point_data
 
-    def getBandPointData( self, iband: int, subsampling: int = 1 ) -> xa.DataArray:
+    def getBandPointData( self, iband: int, subsampling: int = 1  ) -> xa.DataArray:
         band_data: xa.DataArray = self.data[iband]
         point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
         return point_data[::subsampling]
 
-    def getTilePointData( self, subsampling: int = 1 ) -> xa.DataArray:
-        point_data = self.getPointData( self.data )
+    def getTilePointData( self, subsampling: int = 1, normalize = False ) -> xa.DataArray:
+        raster = self.normalize( self.data ) if normalize else self.data
+        point_data = self.getPointData( raster )
         return point_data[::subsampling]
 
-    def getBlockPointData( self, iy: int, ix: int ) -> xa.DataArray:
-        return self.getPointData( self.getBlock(iy,ix) )
+    def getBlockPointData( self, iy: int, ix: int, normalize = False ) -> xa.DataArray:
+        raster = self.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
+        return self.getPointData( raster )
+
+    def plotBlock(self, iy, ix, **kwargs ):
+        block_data = self.getBlock( iy, ix )
+        color_band = kwargs.pop( 'color_band', 200 )
+        self.dm.plotRaster( block_data[color_band], **kwargs )
 
 class DataManager:
 
@@ -143,7 +149,7 @@ class DataManager:
         defaults = {'origin': 'upper', 'interpolation': 'nearest'}
         if not hasattr(ax, 'projection'): defaults['aspect'] = 'auto'
         defaults['cmap'] = "jet"
-        vrange = kwargs.get( 'vrange', None )
+        vrange = kwargs.pop( 'vrange', None )
         if vrange is not None:
             defaults['vmin'] = vrange[0]
             defaults['vmax'] = vrange[1]
