@@ -6,11 +6,10 @@ from hyperclass.data.aviris.manager import DataManager
 from hyperclass.umap.manager import UMAPManager
 import os, math
 
-# Fit UMAP to hyperspectral data and view embedding
+# Fit UMAP-transform a block of data and view the embedding
 
 if __name__ == '__main__':
-    tile_shape = (1000,1000)
-    block_shape = ( 250, 250 )
+
     tile_index = [1,1]
     subsampling = 5
     ndims = 3
@@ -20,7 +19,7 @@ if __name__ == '__main__':
     dm = DataManager( image_name )
     tile = dm.getTile( *tile_index )
     umgr = UMAPManager( tile, subsampling, n_components=ndims )
-    embedded_data = umgr.transform_block( 0, 0, plot = True, color_band=color_band )
+    umgr.transform_block( 0, 0, plot = True, color_band=color_band )
 
 
 

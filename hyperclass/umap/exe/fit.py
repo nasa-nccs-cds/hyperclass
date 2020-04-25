@@ -9,19 +9,17 @@ import os, math
 # Fit UMAP to hyperspectral data and view embedding
 
 if __name__ == '__main__':
-    tile_shape = (1000,1000)
-    block_shape = ( 250, 250 )
+
     tile_index = [1,1]
     subsampling = 5
     ndims = 3
     image_name = "ang20170720t004130_corr_v2p9"
     color_band = 200
-    vrange = [3,10]
 
-    dm = DataManager( image_name, tile_shape, block_shape )
+    dm = DataManager( image_name )
     tile = dm.getTile( *tile_index )
     umgr = UMAPManager( tile, subsampling, n_components=ndims )
-    umgr.view_model( color_band=color_band, vrange=vrange )
+    umgr.view_model( color_band=color_band )
 
 
 

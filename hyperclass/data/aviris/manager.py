@@ -10,7 +10,17 @@ class Tile:
     def __init__(self, data_manager: "DataManager", iy: int, ix: int, **kwargs ):
         self.dm = data_manager
         self.tile_coords = (iy,ix)
-        self.data: xa.DataArray = self.dm.getTileData( iy,ix )
+        self._data: xa.DataArray = None
+
+    @property
+    def data(self) -> xa.DataArray:
+        if self._data is None:
+            self._data: xa.DataArray = self.dm.getTileData(*self.tile_coords)
+        return self._data
+
+    @property
+    def name(self) -> str:
+        return f"{self.dm.image_name}.{self.dm.tile_shape[0]}-{self.dm.tile_shape[1]}_{self.tile_coords[0]}-{self.tile_coords[0]}"
 
     @property
     def file_path(self) -> str:
@@ -62,22 +72,17 @@ class Tile:
         raster = self.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
         return dict( raster = raster, points = self.getPointData( raster ) )
 
-    # def getBlockIndexArray( self, iy: int, ix ) -> np.ndarray:
-    #     self.getBlock(iy, ix)
-    #     indices: np.ndarray = np.extract( np.isfinite( band_data.flatten() ), np.arange(0, band_data.size) )
-    #     return indices[::subsampling]
-    #     points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 )
-
     def plotBlock(self, iy, ix, **kwargs ):
         block_data = self.normalize(  self.getBlock( iy, ix ) )
         color_band = kwargs.pop( 'color_band', 200 )
         self.dm.plotRaster( block_data[color_band], **kwargs )
+        return block_data
 
 class DataManager:
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         self.config = Configuration( **kwargs )
-        self.image_name = image_name
+        self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
         self.tile_shape = self.config.getShape( 'tile_shape' )
         self.block_shape = self.config.getShape( 'block_shape' )
         self.tiles = {}
@@ -102,7 +107,7 @@ class DataManager:
         full_input_bands: xa.DataArray = self.readGeotiff(self.image_name)
         ybounds, xbounds = self.getTileBounds( iy, ix )
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
-        tile_filename = self.tileFilePath(self.image_name, iy, ix)
+        tile_filename = self.tileFileName(iy, ix)
         output_filepath = self.writeGeotiff(tile_raster, tile_filename)
         tile_raster.attrs['file_path'] = output_filepath
         tile_raster.attrs['tile_coords'] =(iy,ix)
@@ -126,8 +131,8 @@ class DataManager:
             return None
 
     def readTileFile( self, iy: int, ix: int, iband = -1 ) -> Optional[xa.DataArray]:
-        print(f"Reading tile file {self.image_name}")
-        tile_filename =self.tileFilePath(self.image_name, iy, ix)
+        tile_filename =self.tileFileName(iy, ix)
+        print(f"Reading tile file {tile_filename}")
         tile_raster: Optional[xa.DataArray] = self.readGeotiff(tile_filename, iband)
         if tile_raster is not None:
             nodata_value = tile_raster.attrs.get('data_ignore_value', -9999)
@@ -135,14 +140,23 @@ class DataManager:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
         return tile_raster
 
-    def tileFilePath(self, base_filename: str, iy: int, ix: int) -> str:
-        if base_filename.endswith(".tif"): base_filename = base_filename[:-4]
-        return f"{base_filename}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
+    def tileFileName(self, iy: int, ix: int) -> str:
+        return f"{self.image_name}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
+
+    @classmethod
+    def rescaleRaster(cls, raster: xa.DataArray, rescale: Tuple[float] ) -> xa.DataArray:
+        vmin = raster.min( dim=raster.dims[:2], skipna=True )
+        vmax = raster.max(dim=raster.dims[:2], skipna=True )
+        scale = (rescale[1]-rescale[0])/(vmax-vmin)
+        return  (raster - vmin)*scale + rescale[0]
 
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
-        fig, ax = plt.subplots(1,1)
+        ax = kwargs.pop( 'ax', None )
+        showplot = ( ax is None )
+        if showplot: fig, ax = plt.subplots(1,1)
         title = kwargs.get( 'title', raster.name )
+        rescale = kwargs.pop( 'rescale', None )
         x = raster.coords[ raster.dims[1] ]
         y = raster.coords[ raster.dims[0] ]
         try:
@@ -162,7 +176,11 @@ class DataManager:
         defaults.update(kwargs)
         if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
         else:                               defaults['extent'] = [left, right, top, bottom]
+        if rescale is not None:
+            raster = cls.rescaleRaster( raster, rescale )
         img = ax.imshow( raster.data, **defaults )
         ax.set_title(title)
-        fig.colorbar(img, ax=ax)
-        plt.show()
+        if raster.ndim == 2:
+            ax.figure.colorbar(img, ax=ax)
+        if showplot: plt.show()
+

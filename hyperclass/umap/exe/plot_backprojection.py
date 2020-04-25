@@ -17,20 +17,15 @@ if __name__ == '__main__':
     fig, ax = plt.subplots( 1, 2 )
     dm = DataManager( image_name )
     tile = dm.getTile( *tile_index )
-    umgr = UMAPManager( tile, subsampling, n_components=ndims )
 
-    embedded_data: Dict[str,xa.DataArray] = umgr.transform_block( 0, 0 )
+    raster = dm.readGeotiff( f"raster-{tile.name}" )
+    bp = dm.readGeotiff( f"bp-{tile.name}"  )
 
-    block_raster = tile.plotBlock( 0, 0, ax=ax[0], color_band = color_band )
-    dm.plotRaster( embedded_data['raster'].transpose('y','x','model'), rescale=[0,1], ax=ax[1] )
+    dm.plotRaster( raster[color_band], ax=ax[0] )
 
-    dm.writeGeotiff( block_raster, f"raster-{tile.name}")
-    dm.writeGeotiff(  embedded_data['raster'], f"bp-{tile.name}" )
+    bp_raster = bp.transpose('y','x','band').isel( band=[1,2,0])
+    dm.plotRaster( bp_raster, rescale=[0,1], ax=ax[1] )
 
     plt.show()
-
-
-
-
 
 
