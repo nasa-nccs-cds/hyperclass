@@ -1,2 +1,4 @@
 data_dir = /Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed
 output_dir = /usr/local/web/ILAB/data/results/umap
+tile_shape = 1000, 1000
+block_shape = 250, 250

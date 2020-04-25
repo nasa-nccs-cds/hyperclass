@@ -16,12 +16,11 @@ if __name__ == '__main__':
     ndims = 3
     image_name = "ang20170720t004130_corr_v2p9"
     color_band = 200
-    vrange = [0,1]
 
-    dm = DataManager( image_name, tile_shape, block_shape )
+    dm = DataManager( image_name )
     tile = dm.getTile( *tile_index )
     umgr = UMAPManager( tile, subsampling, n_components=ndims )
-    embedded_data = umgr.transform_block( 0, 0, plot = True, color_band=color_band, vrange=vrange )
+    embedded_data = umgr.transform_block( 0, 0, plot = True, color_band=color_band )
 
 
 

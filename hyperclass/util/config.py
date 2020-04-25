@@ -41,4 +41,8 @@ class Configuration:
     def __iadd__(self, other: Dict  ):
         self._parms.update( other )
 
+    def getShape(self, key: str ):
+        values = self._parms[key].split(",")
+        return [ int(v) for v in values ]
+
 

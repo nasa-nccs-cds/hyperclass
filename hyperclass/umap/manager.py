@@ -66,26 +66,28 @@ class UMAPManager:
         else:
             point_cloud_3d( model_data, **plot_parms )
 
-    def transform_block( self, iy: int, ix: int, **kwargs ) -> xa.DataArray:
+    def transform_block( self, iy: int, ix: int, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
         plot = kwargs.get( 'plot', False )
-        point_data: xa.DataArray = self.tile.getBlockPointData( iy, ix, normalize = True )
+        block_data: xa.Dataset = self.tile.getBlockPointData( iy, ix )
+        point_data = block_data['points']
         transformed_data: np.ndarray = self.mapper.transform( point_data )
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
-        block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs)
+        block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs,
+                                    coords=dict( samples=point_data.coords['samples'], model=np.arange(0,transformed_data.shape[1]) ) )
         if plot:
             color_band = kwargs.pop( 'color_band', 200 )
-            self.view_transform( block_model, values=point_data[:,color_band], **kwargs )
-        return block_model
+            color_data = point_data[:,color_band]
+            self.view_transform( block_model, values=color_data, **kwargs )
 
+        raster = block_data['raster']
+        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
+        new_raster = block_model.reindex(samples=transposed_raster.samples)
+        return  dict( raster=new_raster.transpose().unstack(), points=block_model )
 
     def view_transform( self, model_data: xa.DataArray,  **kwargs ):
-        vrange = kwargs.pop( 'vrange', None )
         plot_parms = dict( cmap="jet", **kwargs )
-        if vrange is not None:
-            plot_parms['vmin'] = vrange[0]
-            plot_parms['vmax'] = vrange[1]
         if model_data.shape[1] == 2:
             datashade_points( model_data, **plot_parms )
         else:

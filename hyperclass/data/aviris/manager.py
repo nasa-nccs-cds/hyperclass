@@ -1,6 +1,6 @@
 from hyperclass.util.config import Configuration
 import xarray as xa
-from typing import List, Union, Tuple, Optional
+from typing import List, Union, Tuple, Optional, Dict
 import matplotlib.pyplot as plt
 import os, math
 import rioxarray as rio
@@ -36,50 +36,57 @@ class Tile:
 
     @classmethod
     def normalize(cls, raster: xa.DataArray):
-        meanval = raster.mean(dim=raster.dims[1:], skipna=True)
-        std = raster.std(dim=raster.dims[1:], skipna=True)
+        meanval = raster.mean(dim=raster.dims[-2:], skipna=True)
+        std = raster.std(dim=raster.dims[-2:], skipna=True)
         return (raster - meanval) / std
 
     @classmethod
     def getPointData(cls, raster: xa.DataArray ) -> xa.DataArray:
-        point_data = raster.stack(samples=raster.dims[1:]).transpose().dropna(dim='samples', how='any')
+        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
+        point_data = transposed_raster.dropna(dim='samples', how='any')
         print(f" Creating point data: shape = {point_data.shape}, dims = {point_data.dims}")
         print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
         return point_data
 
-    def getBandPointData( self, iband: int, subsampling: int = 1  ) -> xa.DataArray:
+    def getBandPointData( self, iband: int, subsampling: int = 1  ) -> Dict[str,xa.DataArray]:
         band_data: xa.DataArray = self.data[iband]
         point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return point_data[::subsampling]
+        return dict( raster = band_data, points = point_data[::subsampling] )
 
-    def getTilePointData( self, subsampling: int = 1, normalize = False ) -> xa.DataArray:
+    def getTilePointData( self, subsampling: int = 1, normalize = True ) -> Dict[str,xa.DataArray]:
         raster = self.normalize( self.data ) if normalize else self.data
         point_data = self.getPointData( raster )
-        return point_data[::subsampling]
+        return dict( raster = raster, points = point_data[::subsampling] )
 
-    def getBlockPointData( self, iy: int, ix: int, normalize = False ) -> xa.DataArray:
+    def getBlockPointData( self, iy: int, ix: int, normalize = True ) -> Dict[str,xa.DataArray]:
         raster = self.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
-        return self.getPointData( raster )
+        return dict( raster = raster, points = self.getPointData( raster ) )
+
+    # def getBlockIndexArray( self, iy: int, ix ) -> np.ndarray:
+    #     self.getBlock(iy, ix)
+    #     indices: np.ndarray = np.extract( np.isfinite( band_data.flatten() ), np.arange(0, band_data.size) )
+    #     return indices[::subsampling]
+    #     points = np.concatenate( ( index_array.reshape(index_array.size, 1), mapper.embedding_ ),  axis = 1 )
 
     def plotBlock(self, iy, ix, **kwargs ):
-        block_data = self.getBlock( iy, ix )
+        block_data = self.normalize(  self.getBlock( iy, ix ) )
         color_band = kwargs.pop( 'color_band', 200 )
         self.dm.plotRaster( block_data[color_band], **kwargs )
 
 class DataManager:
 
-    def __init__(self, image_name: str, tile_shape: Tuple[int,int], block_shape: Tuple[int,int], **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
+    def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         self.config = Configuration( **kwargs )
         self.image_name = image_name
-        self.tile_shape = tile_shape
-        self.block_shape = block_shape
+        self.tile_shape = self.config.getShape( 'tile_shape' )
+        self.block_shape = self.config.getShape( 'block_shape' )
         self.tiles = {}
 
     def getTileBounds(self, iy: int, ix: int ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
         y0, x0 = iy*self.tile_shape[0], ix*self.tile_shape[1]
         return ( y0, y0+self.tile_shape[0] ), ( x0, x0+self.tile_shape[1] )
 
-    def getTile(self, iy: int, ix: int ):
+    def getTile(self, iy: int, ix: int ) -> Tile:
         cached_tile: Tile = self.tiles.get( (iy,ix), None )
         if cached_tile is not None: return cached_tile
         new_tile = Tile( self, iy, ix )
@@ -146,9 +153,8 @@ class DataManager:
         except IndexError: ystep = .1
         left, right = x[0] - xstep, x[-1] + xstep
         bottom, top = y[-1] + ystep, y[0] - ystep
-        defaults = {'origin': 'upper', 'interpolation': 'nearest'}
+        defaults = dict( origin= 'upper', interpolation= 'nearest', vmin=-1, vmax=1, cmap="jet" )
         if not hasattr(ax, 'projection'): defaults['aspect'] = 'auto'
-        defaults['cmap'] = "jet"
         vrange = kwargs.pop( 'vrange', None )
         if vrange is not None:
             defaults['vmin'] = vrange[0]

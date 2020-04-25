@@ -137,7 +137,7 @@ def _embed_datashader_in_an_axis(datashader_image, ax):
     return ax
 
 def point_cloud_3d( points, values= None, vrange = None, **kwargs ):
-    marker = dict( size=1 )
+    marker = dict( size=1, cmin=-1, cmax=1 )
     if values is not None:
         marker['color'] = values
         marker['colorscale'] = kwargs.get( 'cmap','jet' )

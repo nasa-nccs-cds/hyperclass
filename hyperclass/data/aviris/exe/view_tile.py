@@ -8,7 +8,7 @@ file_name = "ang20170720t004130_corr_v2p9"
 
 dm = DataManager()
 raster = dm.read_subtile( file_name, c0, c1, iband )
-dm.plot_raster( raster, [-3,10] )
+dm.plot_raster( raster )
 
 #app = qglue( )
 
