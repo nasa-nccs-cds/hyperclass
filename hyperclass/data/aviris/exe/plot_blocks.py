@@ -10,11 +10,10 @@ if __name__ == '__main__':
     tile_index = [1,1]
     block_index = [0,0]
     image_name = "ang20170720t004130_corr_v2p9"
-    color_band = 200
 
     dm = DataManager( image_name )
     tile: Tile = dm.getTile( *tile_index )
-    tile.plotBlock( *block_index, color_band=color_band )
+    tile.plotBlock( *block_index, band_range = [13,27] )
 
 
 

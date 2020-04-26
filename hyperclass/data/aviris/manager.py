@@ -45,12 +45,6 @@ class Tile:
         return block_raster
 
     @classmethod
-    def normalize(cls, raster: xa.DataArray):
-        meanval = raster.mean(dim=raster.dims[-2:], skipna=True)
-        std = raster.std(dim=raster.dims[-2:], skipna=True)
-        return (raster - meanval) / std
-
-    @classmethod
     def getPointData(cls, raster: xa.DataArray ) -> xa.DataArray:
         transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
         point_data = transposed_raster.dropna(dim='samples', how='any')
@@ -64,18 +58,25 @@ class Tile:
         return dict( raster = band_data, points = point_data[::subsampling] )
 
     def getTilePointData( self, subsampling: int = 1, normalize = True ) -> Dict[str,xa.DataArray]:
-        raster = self.normalize( self.data ) if normalize else self.data
+        raster = self.dm.normalize( self.data ) if normalize else self.data
         point_data = self.getPointData( raster )
         return dict( raster = raster, points = point_data[::subsampling] )
 
     def getBlockPointData( self, iy: int, ix: int, normalize = True ) -> Dict[str,xa.DataArray]:
-        raster = self.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
+        raster = self.dm.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
         return dict( raster = raster, points = self.getPointData( raster ) )
 
     def plotBlock(self, iy, ix, **kwargs ):
-        block_data = self.normalize(  self.getBlock( iy, ix ) )
-        color_band = kwargs.pop( 'color_band', 200 )
-        self.dm.plotRaster( block_data[color_band], **kwargs )
+        block_data = self.dm.normalize(  self.getBlock( iy, ix ) )
+        color_band = kwargs.pop( 'color_band', None )
+        band_range = kwargs.pop('band_range', None)
+        if color_band is not None:
+            plot_data = block_data[color_band]
+        elif band_range is not None:
+            plot_data = block_data.isel( band=slice( band_range[0], band_range[1] ) ).mean(dim="band", skipna=True)
+        else:
+            plot_data =  self.dm.getRGB(block_data)
+        self.dm.plotRaster( plot_data, **kwargs )
         return block_data
 
 class DataManager:
@@ -113,6 +114,15 @@ class DataManager:
         tile_raster.attrs['tile_coords'] =(iy,ix)
         return tile_raster
 
+    @classmethod
+    def getRGB(cls, raster_data: xa.DataArray ) -> xa.DataArray:
+        b = raster_data.isel( band=slice( 13, 27 ) ).mean(dim="band", skipna=True)
+        g = raster_data.isel( band=slice( 29, 44 ) ).mean(dim="band", skipna=True)
+        r = raster_data.isel( band=slice( 51, 63 ) ).mean(dim="band", skipna=True)
+        rgb: xa.DataArray = xa.concat( [r,g,b], 'band' )
+        return cls.rescale( rgb, (0,1) ).transpose('y','x','band')
+
+
     def writeGeotiff(self, raster_data: xa.DataArray, filename: str) -> str:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         output_file = os.path.join(self.config['data_dir'], filename )
@@ -144,18 +154,30 @@ class DataManager:
         return f"{self.image_name}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
 
     @classmethod
-    def rescaleRaster(cls, raster: xa.DataArray, rescale: Tuple[float] ) -> xa.DataArray:
+    def rescale(cls, raster: xa.DataArray, rescale: Tuple[float,float] ) -> xa.DataArray:
         vmin = raster.min( dim=raster.dims[:2], skipna=True )
         vmax = raster.max(dim=raster.dims[:2], skipna=True )
         scale = (rescale[1]-rescale[0])/(vmax-vmin)
         return  (raster - vmin)*scale + rescale[0]
 
     @classmethod
+    def normalize(cls, raster: xa.DataArray, center = True, scale = 1.0 ):
+        std = raster.std(dim=raster.dims[-2:], skipna=True)
+        if center:
+            meanval = raster.mean(dim=raster.dims[-2:], skipna=True)
+            centered= raster - meanval
+        else:
+            centered = raster
+        result =  centered * scale / std
+        result.attrs = raster.attrs
+        return result
+
+    @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
         ax = kwargs.pop( 'ax', None )
         showplot = ( ax is None )
         if showplot: fig, ax = plt.subplots(1,1)
-        title = kwargs.get( 'title', raster.name )
+        title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
         x = raster.coords[ raster.dims[1] ]
         y = raster.coords[ raster.dims[0] ]
@@ -177,7 +199,7 @@ class DataManager:
         if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
         else:                               defaults['extent'] = [left, right, top, bottom]
         if rescale is not None:
-            raster = cls.rescaleRaster( raster, rescale )
+            raster = cls.rescale( raster, rescale )
         img = ax.imshow( raster.data, **defaults )
         ax.set_title(title)
         if raster.ndim == 2:
