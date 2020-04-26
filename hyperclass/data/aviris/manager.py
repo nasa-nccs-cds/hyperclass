@@ -1,9 +1,19 @@
 from hyperclass.util.config import Configuration
 import xarray as xa
+import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import matplotlib.pyplot as plt
 import os, math
 import rioxarray as rio
+
+def get_color_bounds( color_values: List[float] ) -> List[float]:
+    color_bounds = []
+    for iC, cval in enumerate( color_values ):
+        if iC == 0: color_bounds.append( cval - 0.5 )
+        else: color_bounds.append( (cval + color_values[iC-1])/2.0 )
+    color_bounds.append( color_values[-1] + 0.5 )
+    return color_bounds
 
 class Tile:
 
@@ -52,18 +62,19 @@ class Tile:
         print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
         return point_data
 
-    def getBandPointData( self, iband: int, subsampling: int = 1  ) -> Dict[str,xa.DataArray]:
+    def getBandPointData( self, iband: int, subsampling: int = 1, normalize = 1.0, **kwargs  ) -> Dict[str,xa.DataArray]:
         band_data: xa.DataArray = self.data[iband]
+        band_data = self.dm.normalize(band_data, normalize) if normalize else band_data
         point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
         return dict( raster = band_data, points = point_data[::subsampling] )
 
-    def getTilePointData( self, subsampling: int = 1, normalize = True ) -> Dict[str,xa.DataArray]:
-        raster = self.dm.normalize( self.data ) if normalize else self.data
+    def getTilePointData( self, subsampling: int = 1, normalize = 1.0 ) -> Dict[str,xa.DataArray]:
+        raster = self.dm.normalize( self.data, normalize ) if normalize else self.data
         point_data = self.getPointData( raster )
         return dict( raster = raster, points = point_data[::subsampling] )
 
-    def getBlockPointData( self, iy: int, ix: int, normalize = True ) -> Dict[str,xa.DataArray]:
-        raster = self.dm.normalize(  self.getBlock(iy,ix) ) if normalize else  self.getBlock(iy,ix)
+    def getBlockPointData( self, iy: int, ix: int, normalize = 1.0 ) -> Dict[str,xa.DataArray]:
+        raster = self.dm.normalize(  self.getBlock(iy,ix), normalize ) if normalize else  self.getBlock(iy,ix)
         return dict( raster = raster, points = self.getPointData( raster ) )
 
     def plotBlock(self, iy, ix, **kwargs ):
@@ -161,7 +172,7 @@ class DataManager:
         return  (raster - vmin)*scale + rescale[0]
 
     @classmethod
-    def normalize(cls, raster: xa.DataArray, center = True, scale = 1.0 ):
+    def normalize(cls, raster: xa.DataArray, scale = 1.0, center = True ):
         std = raster.std(dim=raster.dims[-2:], skipna=True)
         if center:
             meanval = raster.mean(dim=raster.dims[-2:], skipna=True)
@@ -174,9 +185,11 @@ class DataManager:
 
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
+        from matplotlib.colorbar import Colorbar
         ax = kwargs.pop( 'ax', None )
         showplot = ( ax is None )
         if showplot: fig, ax = plt.subplots(1,1)
+        colors = kwargs.pop('colors', None )
         title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
         x = raster.coords[ raster.dims[1] ]
@@ -189,7 +202,18 @@ class DataManager:
         except IndexError: ystep = .1
         left, right = x[0] - xstep, x[-1] + xstep
         bottom, top = y[-1] + ystep, y[0] - ystep
-        defaults = dict( origin= 'upper', interpolation= 'nearest', vmin=-1, vmax=1, cmap="jet" )
+        defaults = dict( origin= 'upper', interpolation= 'nearest' )
+        cbar_kwargs = {}
+        if colors is  None:
+            defaults.update( dict( vmin=-1, vmax=1, cmap="jet" ) )
+        else:
+            rgbs = [ cval[2] for cval in colors ]
+            cmap: ListedColormap = ListedColormap( rgbs )
+            color_values = [ float(cval[0]) for cval in colors]
+            color_bounds = get_color_bounds(color_values)
+            norm = mpl.colors.BoundaryNorm( color_bounds, len( colors )  )
+            cbar_kwargs.update( dict( cmap=cmap, norm=norm, boundaries=color_bounds, ticks=color_values, spacing='proportional' ) )
+            defaults.update( dict( cmap=cmap, norm=norm ) )
         if not hasattr(ax, 'projection'): defaults['aspect'] = 'auto'
         vrange = kwargs.pop( 'vrange', None )
         if vrange is not None:
@@ -203,6 +227,7 @@ class DataManager:
         img = ax.imshow( raster.data, **defaults )
         ax.set_title(title)
         if raster.ndim == 2:
-            ax.figure.colorbar(img, ax=ax)
+            cbar: Colorbar = ax.figure.colorbar(img, ax=ax, **cbar_kwargs )
+            if colors is not None:
+                cbar.set_ticklabels( [ cval[1] for cval in colors ] )
         if showplot: plt.show()
-

@@ -21,6 +21,7 @@ setup(name='geoproc',
       long_description_content_type="text/markdown",
       packages=find_packages(),
       install_requires=list(install_requires),
+      data_files=[ ('hyperclass/util', [ 'hyperclass/util/config_template.txt' ] ) ],
       classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",

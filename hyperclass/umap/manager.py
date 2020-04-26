@@ -60,7 +60,7 @@ class UMAPManager:
         model_data = self.mapper.embedding_
         plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
-            band_data: Dict[str,xa.DataArray] = self.tile.getBandPointData( color_band, self.subsampling )
+            band_data: Dict[str,xa.DataArray] = self.tile.getBandPointData( color_band, self.subsampling, rescale = [ -1, 1 ] )
             plot_parms['values'] = band_data['points']
         if model_data.shape[1] == 2:
             datashade_points( model_data, **plot_parms )
