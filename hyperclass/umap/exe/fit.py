@@ -17,11 +17,12 @@ if __name__ == '__main__':
     min_dist = 0.01
     image_name = "ang20170720t004130_corr_v2p9"
     color_band = 35
+    reduction_axes = 1
 
     dm = DataManager( image_name )
     tile = dm.getTile( *tile_index )
     umgr = UMAPManager( tile, subsampling, n_components=n_dims, n_neighbors=n_links, min_dist=min_dist )
-    umgr.view_model( color_band=color_band )
+    umgr.view_model( color_band=color_band, reduction_axes=reduction_axes )
 
 
 

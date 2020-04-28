@@ -57,6 +57,7 @@ class UMAPManager:
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
+        reduction_axes =  kwargs.pop( 'reduction_axes', 0 )
         model_data = self.mapper.embedding_
         plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
@@ -64,8 +65,12 @@ class UMAPManager:
             plot_parms['values'] = band_data['points']
         if model_data.shape[1] == 2:
             datashade_points( model_data, **plot_parms )
-        else:
+        elif model_data.shape[1] == 3:
             point_cloud_3d( model_data, **plot_parms )
+        else:
+            xmodel_data = xa.DataArray( model_data, dims=["samples","band"], coords=dict(samples=range(model_data.shape[0]),band=range(model_data.shape[1])))
+            point_cloud_3d( xmodel_data.drop_sel(band=reduction_axes).values, **plot_parms )
+
 
     def transform_block( self, iy: int, ix: int, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()

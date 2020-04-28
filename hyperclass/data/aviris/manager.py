@@ -231,3 +231,4 @@ class DataManager:
             if colors is not None:
                 cbar.set_ticklabels( [ cval[1] for cval in colors ] )
         if showplot: plt.show()
+        return img
