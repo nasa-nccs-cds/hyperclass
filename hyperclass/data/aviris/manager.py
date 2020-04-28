@@ -192,6 +192,7 @@ class DataManager:
         colors = kwargs.pop('colors', None )
         title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
+        colorbar = kwargs.pop( 'colorbar', True )
         x = raster.coords[ raster.dims[1] ]
         y = raster.coords[ raster.dims[0] ]
         try:
@@ -226,7 +227,7 @@ class DataManager:
             raster = cls.rescale( raster, rescale )
         img = ax.imshow( raster.data, **defaults )
         ax.set_title(title)
-        if raster.ndim == 2:
+        if colorbar and (raster.ndim == 2):
             cbar: Colorbar = ax.figure.colorbar(img, ax=ax, **cbar_kwargs )
             if colors is not None:
                 cbar.set_ticklabels( [ cval[1] for cval in colors ] )

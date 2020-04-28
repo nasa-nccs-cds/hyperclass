@@ -207,17 +207,20 @@ class PageSlider(matplotlib.widgets.Slider):
 
 class LabelingConsole:
 
-    def __init__(self, tile: Tile, **kwargs ):
+    def __init__(self, tile: Tile, class_labels, **kwargs ):
         self._debug = False
+        block = kwargs.pop( 'block', None )
+        self.class_labels: Dict[str,int] = self.getClassLabelDict( class_labels )
         self.tile = tile
-        self.plot_title = None
+        block_data = tile.data if block is None else tile.getBlock( *block )
+        self.data = tile.dm.normalize( block_data )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes = None
         self.figure: Figure = plt.figure()
-        self.plot_grid: GridSpec = self.figure.add_gridspec( 3, 2 )
         self.image: AxesImage = None
         self.frame_marker: Line2D = None
+        self.control_axes = {}
         self.setup_plot(**kwargs)
         self.dataLims = {}
         self.band_axis = kwargs.pop('band', 0)
@@ -228,14 +231,24 @@ class LabelingConsole:
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
         self.currentFrame = 0
+        self.currentClass = 0
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
+        self.add_selection_controls( **kwargs )
         self._update(0)
 
-    @property
-    def data(self):
-        return self.tile.data
+    def getClassLabelDict(self, class_labels ) -> Dict[str,int]:
+        if isinstance(class_labels, dict):
+            test_item = list(class_labels.items())[0]
+            if isinstance(test_item[0], str) and isinstance(test_item[0], int):
+                return class_labels
+            elif isinstance(test_item[0], int) and isinstance(test_item[0], str):
+                return { sval:index for index,sval in class_labels.items() }
+            else:
+                raise Exception( f"Incorrectly constructed class_labels, expecting List[str], Dict[str,int] or Dict[int,str]: {class_labels}")
+        else:
+            return {label: index for index, label in enumerate(class_labels)}
 
     @property
     def toolbarMode(self) -> str:
@@ -250,14 +263,14 @@ class LabelingConsole:
         return result
 
     def setup_plot(self, **kwargs):
-        gsl = self.plot_grid[:-1, :]
-        self.addSubplots( gsl )
+        self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
+        self.plot_axes: Axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
+        for iC in range(4):
+            self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
+            self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())
+            self.control_axes[iC].yaxis.set_major_locator(plt.NullLocator())
         self.slider_axes: Axes = self.figure.add_axes([0.1, 0.01, 0.8, 0.04])  # [left, bottom, width, height]
         self.plot_grid.update( left = 0.05, bottom = 0.1, top = 0.95, right = 0.95 )
-
-    def addSubplots(self, gs: SubplotSpec):
-        self.plot_axes = self.figure.add_subplot( gs )
-        self.plot_title =  self.data.name
 
     def invert_yaxis(self):
         self.plot_axes.invert_yaxis()
@@ -273,7 +286,8 @@ class LabelingConsole:
 
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
-        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes )
+        colorbar = kwargs.pop( 'colorbar', False )
+        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -291,7 +305,7 @@ class LabelingConsole:
     def update_plots(self ):
         frame_data = self.data[ self.currentFrame]
         self.image.set_data( frame_data  )
-        self.plot_axes.title.set_text(f"{self.plot_title} [{self.currentFrame}]")
+        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}")
 
     def onMouseRelease(self, event):
         pass
@@ -300,7 +314,7 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    print(f"onImageClick: {event.xdata} {event.ydata}")
+                    print(f"onImageClick-> ( {event.x} {event.y} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
                     self.dataLims = event.inaxes.dataLim
 
     def datalims_changed(self ) -> bool:
@@ -314,6 +328,14 @@ class LabelingConsole:
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
         self.slider_cid = self.slider.on_changed(self._update)
+
+    def add_selection_controls( self, controls_window=0 ):
+        cax = self.control_axes[controls_window]
+        cax.title.set_text('Class Selection')
+        self.class_selector = matplotlib.widgets.RadioButtons( cax, self.class_labels, active=self.currentClass, activecolor='blue' )
+
+    def getSelectedClass(self) -> int:
+        return self.class_labels[ self.class_selector.value_selected ]
 
     def _update( self, val ):
         tval = self.slider.val
