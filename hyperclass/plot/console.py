@@ -1,5 +1,6 @@
 import matplotlib.widgets
 import matplotlib.patches
+from .widgets import ColoredRadioButtons
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
@@ -12,6 +13,7 @@ from hyperclass.data.aviris.manager import DataManager, Tile
 from threading import  Thread
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
+from skimage.transform import ProjectiveTransform
 import matplotlib as mpl
 import pandas as pd
 import xarray as xa
@@ -214,6 +216,7 @@ class LabelingConsole:
         self.tile = tile
         block_data = tile.data if block is None else tile.getBlock( *block )
         self.data = tile.dm.normalize( block_data )
+        self.transform = ProjectiveTransform( np.array( list(block_data.transform) + [0,0,1] ).reshape(3,3) )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes = None
@@ -232,6 +235,7 @@ class LabelingConsole:
         self.nFrames = self.data.shape[0]
         self.currentFrame = 0
         self.currentClass = 0
+        self.class_colors = [ 'b', 'g', 'r', 'c', 'm', 'k', 'darkorange', 'brown', 'purple', 'olive' ]
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -314,7 +318,9 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    print(f"onImageClick-> ( {event.x} {event.y} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
+                    coords = self.transform.inverse( np.array( [ [ event.xdata, event.ydata ], ]) )
+                    ix, iy = [ math.floor(coords[0,0]),  math.floor(coords[0,1]) ]
+                    print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
                     self.dataLims = event.inaxes.dataLim
 
     def datalims_changed(self ) -> bool:
@@ -332,7 +338,12 @@ class LabelingConsole:
     def add_selection_controls( self, controls_window=0 ):
         cax = self.control_axes[controls_window]
         cax.title.set_text('Class Selection')
-        self.class_selector = matplotlib.widgets.RadioButtons( cax, self.class_labels, active=self.currentClass, activecolor='blue' )
+        self.class_selector = ColoredRadioButtons( cax, list(self.class_labels.keys()), active=self.currentClass )
+        self.class_selector.on_clicked( self.classSelected )
+
+    def classSelected( self, selection: str ):
+        iclass = self.class_labels[ selection ]
+        print( f" Class {iclass} selected" )
 
     def getSelectedClass(self) -> int:
         return self.class_labels[ self.class_selector.value_selected ]
