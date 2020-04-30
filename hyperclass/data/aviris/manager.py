@@ -165,10 +165,11 @@ class DataManager:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         output_file = os.path.join(self.config['data_dir'], filename )
         print(f"Writing raster file {output_file}")
-        nodata_value = raster_data.attrs.get('data_ignore_value', -9999)
-        output_raster = raster_data.copy( deep = True ).fillna( nodata_value )
-        output_raster.attrs['data_ignore_value'] = nodata_value
-        output_raster.rio.to_raster(output_file)
+        # nodata_value = raster_data.attrs.get('data_ignore_value', -9999)
+        # output_raster = raster_data.copy( deep = True ).fillna( nodata_value )
+        # output_raster.attrs['data_ignore_value'] = nodata_value
+        raster_data.attrs['data_ignore_value'] = float('nan')
+        raster_data.rio.to_raster(output_file)
         return output_file
 
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
