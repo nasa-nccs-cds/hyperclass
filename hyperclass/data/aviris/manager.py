@@ -1,4 +1,6 @@
 from hyperclass.util.config import Configuration
+from skimage.transform import ProjectiveTransform
+import numpy as np
 import xarray as xa
 import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
@@ -15,12 +17,14 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
 
+
 class Tile:
 
     def __init__(self, data_manager: "DataManager", iy: int, ix: int, **kwargs ):
         self.dm = data_manager
         self.tile_coords = (iy,ix)
         self._data: xa.DataArray = None
+        self._transform: ProjectiveTransform = None
 
     @property
     def data(self) -> xa.DataArray:
@@ -33,64 +37,87 @@ class Tile:
         return f"{self.dm.image_name}.{self.dm.tile_shape[0]}-{self.dm.tile_shape[1]}_{self.tile_coords[0]}-{self.tile_coords[0]}"
 
     @property
+    def transform(self) -> ProjectiveTransform:
+        if self._transform is None:
+            self._transform = ProjectiveTransform( np.array(list(self.data.transform) + [0, 0, 1]).reshape(3, 3) )
+        return self._transform
+
+    @property
     def file_path(self) -> str:
         return self.data.attrs['file_path']
 
     @property
-    def block_shape(self) -> Tuple[int,int]:
-        return self.dm.block_shape
-
-    def getBlockBounds(self, iy: int, ix: int ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
-        y0, x0 = iy*self.block_shape[0], ix*self.block_shape[1]
-        return ( y0, y0+self.block_shape[0] ), ( x0, x0+self.block_shape[1] )
-
-    @property
     def nBlocks(self) -> List[ List[int] ]:
-        return [ self.data.shape[i+1]//self.block_shape[i] for i in [1,2] ]
+        return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in [1,2] ]
 
-    def getBlock( self, iy: int, ix: int ) -> xa.DataArray:
-        ybounds, xbounds = self.getBlockBounds( iy, ix )
-        block_raster = self.data[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
-        block_raster.attrs['block_coords'] = (iy, ix)
+    def getBlock(self, iy: int, ix: int) -> "Block":
+        return Block( self, iy, ix )
+
+    def getBandPointData( self, iband: int, subsampling: int = 1,  **kwargs  ) -> xa.DataArray:
+        band_data: xa.DataArray = self.data[iband]
+        point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
+        return point_data[::subsampling]
+
+    def getPointData( self, subsampling: int ) -> xa.DataArray:
+        point_data = self.dm.raster2points( self.data )
+        return point_data[::subsampling]
+
+    def coords2index(self, cy, cx ) -> Tuple[int,int]:
+        coords = self.transform.inverse(np.array([[cx, cy], ]))
+        return (math.floor(coords[0, 0]), math.floor(coords[0, 1]))
+
+    def index2coords(self, iy, ix ) -> Tuple[float,float]:
+        return self.transform(np.array([[ix+0.5, iy+0.5], ]))
+
+class Block:
+
+    def __init__(self, tile: Tile, iy: int, ix: int, **kwargs ):
+        self.tile: Tile = tile
+        self.config = kwargs
+        self.block_coords = (iy,ix)
+        self.data = self._getData()
+        self.transform = ProjectiveTransform( np.array( list(self.data.transform) + [0,0,1] ).reshape(3,3) )
+
+    def _getData( self ) -> xa.DataArray:
+        ybounds, xbounds = self.getBounds()
+        block_raster = self.tile.data[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
+        block_raster.attrs['block_coords'] = self.block_coords
         return block_raster
 
-    @classmethod
-    def getPointData(cls, raster: xa.DataArray ) -> xa.DataArray:
-        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
-        point_data = transposed_raster.dropna(dim='samples', how='any')
-        print(f" Creating point data: shape = {point_data.shape}, dims = {point_data.dims}")
-        print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
-        return point_data
+    @property
+    def shape(self) -> Tuple[int,int]:
+        return self.tile.dm.block_shape
 
-    def getBandPointData( self, iband: int, subsampling: int = 1, normalize = 1.0, **kwargs  ) -> Dict[str,xa.DataArray]:
-        band_data: xa.DataArray = self.data[iband]
-        band_data = self.dm.normalize(band_data, normalize) if normalize else band_data
-        point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return dict( raster = band_data, points = point_data[::subsampling] )
+    def getBounds(self ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
+        y0, x0 = self.block_coords[0]*self.shape[0], self.block_coords[1]*self.shape[1]
+        return ( y0, y0+self.shape[0] ), ( x0, x0+self.shape[1] )
 
-    def getTilePointData( self, subsampling: int = 1, normalize = 1.0 ) -> Dict[str,xa.DataArray]:
-        raster = self.dm.normalize( self.data, normalize ) if normalize else self.data
-        point_data = self.getPointData( raster )
-        return dict( raster = raster, points = point_data[::subsampling] )
+    def getPointData( self ) -> xa.DataArray:
+        return self.tile.dm.raster2points( self.data )
 
-    def getBlockPointData( self, iy: int, ix: int, normalize = 1.0 ) -> Dict[str,xa.DataArray]:
-        raster = self.dm.normalize(  self.getBlock(iy,ix), normalize ) if normalize else  self.getBlock(iy,ix)
-        return dict( raster = raster, points = self.getPointData( raster ) )
-
-    def plotBlock(self, iy, ix, **kwargs ):
-        block_data = self.dm.normalize(  self.getBlock( iy, ix ) )
+    def plot(self,  **kwargs ) -> xa.DataArray:
         color_band = kwargs.pop( 'color_band', None )
-        band_range = kwargs.pop('band_range', None)
+        band_range = kwargs.pop( 'band_range', None )
         if color_band is not None:
-            plot_data = block_data[color_band]
+            plot_data = self.data[color_band]
         elif band_range is not None:
-            plot_data = block_data.isel( band=slice( band_range[0], band_range[1] ) ).mean(dim="band", skipna=True)
+            plot_data = self.data.isel( band=slice( band_range[0], band_range[1] ) ).mean(dim="band", skipna=True)
         else:
-            plot_data =  self.dm.getRGB(block_data)
-        self.dm.plotRaster( plot_data, **kwargs )
-        return block_data
+            plot_data =  self.tile.dm.getRGB(self.data)
+        self.tile.dm.plotRaster( plot_data, **kwargs )
+        return plot_data
+
+    def coords2index(self, cy, cx ) -> Tuple[int,int]:
+        coords = self.transform.inverse(np.array([[cx, cy], ]))
+        return (math.floor(coords[0, 0]), math.floor(coords[0, 1]))
+
+    def index2coords(self, iy, ix ) -> Tuple[float,float]:
+        return self.transform(np.array([[ix+0.5, iy+0.5], ]))
+
 
 class DataManager:
+
+    valid_bands = None # [ [0,100], [300,400] ]
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         self.config = Configuration( **kwargs )
@@ -116,7 +143,7 @@ class DataManager:
         return tile_data
 
     def getTileDataFromImage(self, iy: int, ix: int ) -> xa.DataArray:
-        full_input_bands: xa.DataArray = self.readGeotiff(self.image_name)
+        full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
         ybounds, xbounds = self.getTileBounds( iy, ix )
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         tile_filename = self.tileFileName(iy, ix)
@@ -138,7 +165,10 @@ class DataManager:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         output_file = os.path.join(self.config['data_dir'], filename )
         print(f"Writing raster file {output_file}")
-        raster_data.rio.to_raster(output_file)
+        nodata_value = raster_data.attrs.get('data_ignore_value', -9999)
+        output_raster = raster_data.copy( deep = True ).fillna( nodata_value )
+        output_raster.attrs['data_ignore_value'] = nodata_value
+        output_raster.rio.to_raster(output_file)
         return output_file
 
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
@@ -146,8 +176,15 @@ class DataManager:
         input_file = os.path.join( self.config['data_dir'], filename )
         if os.path.isfile( input_file ):
             print( f"Reading raster file {input_file}")
-            input_bands: xa.DataArray = rio.open_rasterio(input_file)
-            return input_bands if iband < 0 else input_bands[iband]
+            input_bands: xa.DataArray =  self.mask_nodata( rio.open_rasterio(input_file) )
+            if iband >= 0:
+                return input_bands[iband]
+            elif self.valid_bands:
+                dataslices = [ input_bands.isel( band=slice(valid_band[0],valid_band[1]) ) for valid_band in self.valid_bands ]
+                valid_band_raster: xa.DataArray = xa.concat( dataslices, dim="band" )
+                return valid_band_raster
+            else:
+                return input_bands
         else:
             return None
 
@@ -156,10 +193,13 @@ class DataManager:
         print(f"Reading tile file {tile_filename}")
         tile_raster: Optional[xa.DataArray] = self.readGeotiff(tile_filename, iband)
         if tile_raster is not None:
-            nodata_value = tile_raster.attrs.get('data_ignore_value', -9999)
-            tile_raster: xa.DataArray = tile_raster.where(tile_raster != nodata_value, float('nan'))
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
         return tile_raster
+
+    @classmethod
+    def mask_nodata(self, raster: xa.DataArray ) -> xa.DataArray:
+        nodata_value = raster.attrs.get( 'data_ignore_value', -9999 )
+        return raster.where(raster != nodata_value, float('nan'))
 
     def tileFileName(self, iy: int, ix: int) -> str:
         return f"{self.image_name}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
@@ -173,15 +213,23 @@ class DataManager:
 
     @classmethod
     def normalize(cls, raster: xa.DataArray, scale = 1.0, center = True ):
-        std = raster.std(dim=raster.dims[-2:], skipna=True)
+        std = raster.std(dim="band", skipna=True)
         if center:
-            meanval = raster.mean(dim=raster.dims[-2:], skipna=True)
+            meanval = raster.mean(dim="band", skipna=True)
             centered= raster - meanval
         else:
             centered = raster
         result =  centered * scale / std
         result.attrs = raster.attrs
         return result
+
+    @classmethod
+    def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
+        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
+        point_data = transposed_raster.dropna(dim='samples', how='any')
+        print(f" Creating point data: shape = {point_data.shape}, dims = {point_data.dims}")
+        print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
+        return point_data
 
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
@@ -193,6 +241,7 @@ class DataManager:
         title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
         colorbar = kwargs.pop( 'colorbar', True )
+        colorstretch = kwargs.pop( 'colorstretch', 1.5 )
         x = raster.coords[ raster.dims[1] ]
         y = raster.coords[ raster.dims[0] ]
         try:
@@ -206,7 +255,7 @@ class DataManager:
         defaults = dict( origin= 'upper', interpolation= 'nearest' )
         cbar_kwargs = {}
         if colors is  None:
-            defaults.update( dict( vmin=-1, vmax=1, cmap="jet" ) )
+            defaults.update( dict( cmap="jet" ) )
         else:
             rgbs = [ cval[2] for cval in colors ]
             cmap: ListedColormap = ListedColormap( rgbs )
@@ -220,6 +269,11 @@ class DataManager:
         if vrange is not None:
             defaults['vmin'] = vrange[0]
             defaults['vmax'] = vrange[1]
+        if "vmax" not in defaults:
+            ave = raster.mean(skipna=True)
+            std = raster.std(skipna=True)
+            defaults['vmin'] = ave - std*colorstretch
+            defaults['vmax'] = ave + std*colorstretch
         defaults.update(kwargs)
         if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
         else:                               defaults['extent'] = [left, right, top, bottom]

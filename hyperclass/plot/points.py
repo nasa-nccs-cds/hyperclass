@@ -137,13 +137,19 @@ def _embed_datashader_in_an_axis(datashader_image, ax):
     return ax
 
 def point_cloud_3d( points, values= None, vrange = None, **kwargs ):
-    marker = dict( size=1, cmin=-1, cmax=1 )
+    marker = dict( size=1 )
     if values is not None:
         marker['color'] = values
         marker['colorscale'] = kwargs.get( 'cmap','jet' )
-    if vrange is not None:
-        marker['cmin'] = vrange[0]
-        marker['cmax'] = vrange[1]
+        colorstretch = kwargs.get('colorstretch', 1.5 )
+        if vrange is None:
+            ave = values.mean(skipna=True).values.data.tolist()
+            std = values.std(skipna=True).values.data.tolist()
+            marker['cmin'] = ave - std * colorstretch
+            marker['cmax'] = ave + std * colorstretch
+        else:
+            marker['cmin'] = vrange[0]
+            marker['cmax'] = vrange[1]
     trace = go.Scatter3d(x=points[:,0], y=points[:,1], z=points[:,2], mode='markers', marker= marker )
     fig = go.Figure(data=[trace])
     plotly.offline.plot(fig)

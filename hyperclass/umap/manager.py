@@ -3,7 +3,7 @@ import umap, time, pickle
 import numpy as np
 from typing import List, Union, Tuple, Optional, Dict
 from hyperclass.plot.points import datashade_points, point_cloud_3d
-from hyperclass.data.aviris.manager import DataManager, Tile
+from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, math
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
@@ -36,15 +36,15 @@ class UMAPManager:
             t0 = time.time()
             mapper = pickle.load( open( self.mapper_file_path, "rb" ) )
             t1 = time.time()
-            print( f"Completed map load in {(t1-t0)} sec.")
+            print( f"Completed loading UMAP in {(t1-t0)} sec from file {self.mapper_file_path}.")
         return mapper
 
     def _fit( self ):
         t0 = time.time()
-        training_data: Dict[str,xa.DataArray] = self.tile.getTilePointData( self.subsampling, normalize = True )
+        training_data: xa.DataArray = self.tile.getPointData( self.subsampling )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.conf['n_components']} dims with {training_data['points'].shape[0]} samples")
-        self.mapper.fit( training_data['points'].data )
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.conf['n_components']} dims with {training_data.shape[0]} samples")
+        self.mapper.fit( training_data.data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, serializing mapper to file {self.mapper_file_path}")
         pickle.dump( self.mapper, open(self.mapper_file_path, 'wb') )
@@ -61,8 +61,7 @@ class UMAPManager:
         model_data = self.mapper.embedding_
         plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
-            band_data: Dict[str,xa.DataArray] = self.tile.getBandPointData( color_band, self.subsampling, rescale = [ -1, 1 ] )
-            plot_parms['values'] = band_data['points']
+            plot_parms['values'] = self.tile.getBandPointData( color_band, self.subsampling  )
         if model_data.shape[1] == 2:
             datashade_points( model_data, **plot_parms )
         elif model_data.shape[1] == 3:
@@ -72,11 +71,10 @@ class UMAPManager:
             point_cloud_3d( xmodel_data.drop_sel(band=reduction_axes).values, **plot_parms )
 
 
-    def transform_block( self, iy: int, ix: int, **kwargs ) -> Dict[str,xa.DataArray]:
+    def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
         plot = kwargs.get( 'plot', False )
-        block_data: Dict[str,xa.DataArray] = self.tile.getBlockPointData( iy, ix )
-        point_data: xa.DataArray = block_data['points']
+        point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = self.mapper.transform( point_data )
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
@@ -87,8 +85,7 @@ class UMAPManager:
             color_data = point_data[:,color_band]
             self.view_transform( block_model, values=color_data, **kwargs )
 
-        raster: xa.DataArray = block_data['raster']
-        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
+        transposed_raster = block.data.stack(samples=block.data.dims[1:]).transpose()
         new_raster = block_model.reindex(samples=transposed_raster.samples).unstack()
         new_raster.attrs['long_name'] = [ f"d-{i}" for i in range( new_raster.shape[0] ) ]
         return   dict( raster=new_raster, points=block_model )

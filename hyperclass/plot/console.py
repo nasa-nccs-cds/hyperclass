@@ -214,7 +214,7 @@ class LabelingConsole:
         block = kwargs.pop( 'block', None )
         self.class_labels: Dict[str,int] = self.getClassLabelDict( class_labels )
         self.tile = tile
-        block_data = tile.data if block is None else tile.getBlock( *block )
+        block_data = tile.data if block is None else tile.getBlockData(*block)
         self.data = tile.dm.normalize( block_data )
         self.transform = ProjectiveTransform( np.array( list(block_data.transform) + [0,0,1] ).reshape(3,3) )
         self.global_bounds: Bbox = None
