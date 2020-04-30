@@ -1,4 +1,8 @@
-data_dir = /Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed
-output_dir = /usr/local/web/ILAB/data/results/umap
-tile_shape = 1000, 1000
-block_shape = 250, 250
+dd: data_dir = /Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed
+od: output_dir = /usr/local/web/ILAB/data/results/umap
+ts: tile_shape = 1000, 1000
+bs: block_shape = 500, 500
+ss: sub_sampling = 5
+nd: n_dim = 3
+nl: n_links = 10
+md: min_dist = 0.01

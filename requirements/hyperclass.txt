@@ -20,9 +20,6 @@ datashader
 colorcet
 holoviews
 rioxarray
-glueviz
-glue-geospatial
-glue-vispy-viewers
 
 
 

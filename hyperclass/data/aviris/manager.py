@@ -6,7 +6,7 @@ import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import matplotlib.pyplot as plt
-import os, math
+import os, math, pickle
 import rioxarray as rio
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
@@ -21,15 +21,17 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
 class Tile:
 
     def __init__(self, data_manager: "DataManager", iy: int, ix: int, **kwargs ):
+        self.config = kwargs
         self.dm = data_manager
         self.tile_coords = (iy,ix)
         self._data: xa.DataArray = None
         self._transform: ProjectiveTransform = None
 
+
     @property
     def data(self) -> xa.DataArray:
         if self._data is None:
-            self._data: xa.DataArray = self.dm.getTileData(*self.tile_coords)
+            self._data: xa.DataArray = self.dm.getTileData( *self.tile_coords, **self.config )
         return self._data
 
     @property
@@ -43,8 +45,8 @@ class Tile:
         return self._transform
 
     @property
-    def file_path(self) -> str:
-        return self.data.attrs['file_path']
+    def filename(self) -> str:
+        return self.data.attrs['filename']
 
     @property
     def nBlocks(self) -> List[ List[int] ]:
@@ -117,7 +119,7 @@ class Block:
 
 class DataManager:
 
-    valid_bands = None # [ [0,100], [300,400] ]
+    valid_bands = [ [3,193], [210,287], [313,421] ]
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         self.config = Configuration( **kwargs )
@@ -137,19 +139,44 @@ class DataManager:
         self.tiles[ (iy,ix) ] = new_tile
         return new_tile
 
-    def getTileData(self, iy: int, ix: int ):
-        tile_data: Optional[xa.DataArray] = self.readTileFile( iy, ix )
-        if tile_data is None: tile_data = self.getTileDataFromImage( iy, ix )
-        return tile_data
+    def getTileData(self, iy: int, ix: int, **kwargs ):
+        tile_data: Optional[xa.DataArray] = self._readTileFile( iy, ix )
+        if tile_data is None: tile_data = self._getTileDataFromImage( iy, ix )
+        tile_data = self.mask_nodata( tile_data )
+        if self.valid_bands:
+            dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in self.valid_bands]
+            tile_data = xa.concat(dataslices, dim="band")
+            print( f"Selecting valid bands, resulting Tile shape = {tile_data.shape}")
+        return self.rescale(tile_data, **kwargs)
 
-    def getTileDataFromImage(self, iy: int, ix: int ) -> xa.DataArray:
+    def _computeNorm(self, tile_raster: xa.DataArray, refresh=False ) -> xa.DataArray:
+        norm_file = os.path.join( self.config['data_dir'], self.normFileName )
+        if not refresh and os.path.isfile( norm_file ):
+            print( f"Loading norm from global norm file {norm_file}")
+            return xa.DataArray.from_dict( pickle.load( open( norm_file, 'rb' ) ) )
+        else:
+            print(f"Computing norm and saving to global norm file {norm_file}")
+            norm: xa.DataArray = tile_raster.mean(dim=['x','y'], skipna=True )
+            pickle.dump( norm.to_dict(), open( norm_file, 'wb' ) )
+            return norm
+
+    def _getTileDataFromImage(self, iy: int, ix: int ) -> xa.DataArray:
         full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
         ybounds, xbounds = self.getTileBounds( iy, ix )
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         tile_filename = self.tileFileName(iy, ix)
-        output_filepath = self.writeGeotiff(tile_raster, tile_filename)
-        tile_raster.attrs['file_path'] = output_filepath
         tile_raster.attrs['tile_coords'] =(iy,ix)
+        tile_raster.attrs['filename'] = tile_filename
+        self.writeGeotiff( tile_raster, tile_filename )
+        return tile_raster
+
+    def _readTileFile( self, iy: int, ix: int, iband = -1 ) -> Optional[xa.DataArray]:
+        tile_filename =self.tileFileName(iy, ix)
+        print(f"Reading tile file {tile_filename}")
+        tile_raster: Optional[xa.DataArray] = self.readGeotiff(tile_filename, iband)
+        if tile_raster is not None:
+            tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
+            tile_raster.attrs['filename'] = tile_filename
         return tile_raster
 
     @classmethod
@@ -158,17 +185,13 @@ class DataManager:
         g = raster_data.isel( band=slice( 29, 44 ) ).mean(dim="band", skipna=True)
         r = raster_data.isel( band=slice( 51, 63 ) ).mean(dim="band", skipna=True)
         rgb: xa.DataArray = xa.concat( [r,g,b], 'band' )
-        return cls.rescale( rgb, (0,1) ).transpose('y','x','band')
+        return cls.scale_to_bounds( rgb, (0, 1) ).transpose('y', 'x', 'band')
 
 
     def writeGeotiff(self, raster_data: xa.DataArray, filename: str) -> str:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         output_file = os.path.join(self.config['data_dir'], filename )
         print(f"Writing raster file {output_file}")
-        # nodata_value = raster_data.attrs.get('data_ignore_value', -9999)
-        # output_raster = raster_data.copy( deep = True ).fillna( nodata_value )
-        # output_raster.attrs['data_ignore_value'] = nodata_value
-        raster_data.attrs['data_ignore_value'] = float('nan')
         raster_data.rio.to_raster(output_file)
         return output_file
 
@@ -177,25 +200,13 @@ class DataManager:
         input_file = os.path.join( self.config['data_dir'], filename )
         if os.path.isfile( input_file ):
             print( f"Reading raster file {input_file}")
-            input_bands: xa.DataArray =  self.mask_nodata( rio.open_rasterio(input_file) )
+            input_bands: xa.DataArray =  rio.open_rasterio(input_file)
             if iband >= 0:
                 return input_bands[iband]
-            elif self.valid_bands:
-                dataslices = [ input_bands.isel( band=slice(valid_band[0],valid_band[1]) ) for valid_band in self.valid_bands ]
-                valid_band_raster: xa.DataArray = xa.concat( dataslices, dim="band" )
-                return valid_band_raster
             else:
                 return input_bands
         else:
             return None
-
-    def readTileFile( self, iy: int, ix: int, iband = -1 ) -> Optional[xa.DataArray]:
-        tile_filename =self.tileFileName(iy, ix)
-        print(f"Reading tile file {tile_filename}")
-        tile_raster: Optional[xa.DataArray] = self.readGeotiff(tile_filename, iband)
-        if tile_raster is not None:
-            tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
-        return tile_raster
 
     @classmethod
     def mask_nodata(self, raster: xa.DataArray ) -> xa.DataArray:
@@ -205,22 +216,46 @@ class DataManager:
     def tileFileName(self, iy: int, ix: int) -> str:
         return f"{self.image_name}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
 
+    @property
+    def normFileName( self ) -> str:
+        return f"global_norm.pkl"
+
     @classmethod
-    def rescale(cls, raster: xa.DataArray, rescale: Tuple[float,float] ) -> xa.DataArray:
+    def scale_to_bounds(cls, raster: xa.DataArray, bounds: Tuple[float, float] ) -> xa.DataArray:
         vmin = raster.min( dim=raster.dims[:2], skipna=True )
         vmax = raster.max(dim=raster.dims[:2], skipna=True )
-        scale = (rescale[1]-rescale[0])/(vmax-vmin)
-        return  (raster - vmin)*scale + rescale[0]
+        scale = (bounds[1]-bounds[0])/(vmax-vmin)
+        return  (raster - vmin)*scale + bounds[0]
+
+    @classmethod
+    def norm_to_bounds(cls, raster: xa.DataArray, dims: Tuple[str, str], bounds: Tuple[float, float], stretch: float ) -> xa.DataArray:
+        scale = ( ( bounds[1] - bounds[0] ) * stretch ) / raster.std(dim=['x', 'y'])
+        return  ( raster - raster.mean(dim=dims) ) * scale + (( bounds[1] + bounds[0] )/2.0)
+
+    @classmethod
+    def unit_norm(cls, raster: xa.DataArray, dim: List[str] ):
+        std: xa.DataArray = raster.std(dim=dim, skipna=True)
+        meanval: xa.DataArray = raster.mean(dim=dim, skipna=True)
+        unit_centered: xa.DataArray = ( ( raster - meanval ) / std ) + 0.5
+        unit_centered = unit_centered.where( unit_centered > 0, 0 )
+        unit_centered = unit_centered.where(unit_centered < 1, 1 )
+        return unit_centered
 
     @classmethod
     def normalize(cls, raster: xa.DataArray, scale = 1.0, center = True ):
-        std = raster.std(dim="band", skipna=True)
+        std = raster.std(dim=['x','y'], skipna=True)
         if center:
-            meanval = raster.mean(dim="band", skipna=True)
+            meanval = raster.mean(dim=['x','y'], skipna=True)
             centered= raster - meanval
         else:
             centered = raster
         result =  centered * scale / std
+        result.attrs = raster.attrs
+        return result
+
+    def rescale(self, raster: xa.DataArray, refresh=False):
+        norm = self._computeNorm( raster, refresh )
+        result =  raster / norm
         result.attrs = raster.attrs
         return result
 
@@ -279,7 +314,7 @@ class DataManager:
         if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
         else:                               defaults['extent'] = [left, right, top, bottom]
         if rescale is not None:
-            raster = cls.rescale( raster, rescale )
+            raster = cls.scale_to_bounds(raster, rescale)
         img = ax.imshow( raster.data, **defaults )
         ax.set_title(title)
         if colorbar and (raster.ndim == 2):

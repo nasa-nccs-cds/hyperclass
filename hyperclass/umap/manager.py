@@ -13,11 +13,15 @@ class UMAPManager:
         self.tile = tile
         self.subsampling = subsampling
         self.conf: Dict = dict( n_components=3 )
+        self.refresh = kwargs.pop('refresh', False)
         self.conf.update( kwargs )
         self.mapper_file_path = self._mapperFilePath()
         self._getMapper()
 
     def _getMapper(self):
+        if self.refresh and os.path.isfile(self.mapper_file_path):
+            print( f"Removing older version of mapper at {self.mapper_file_path}")
+            os.remove(self.mapper_file_path)
         self.mapper = self._loadMapper()
         if self.mapper is None:
             self.mapper = umap.UMAP(**self.conf)
@@ -32,6 +36,7 @@ class UMAPManager:
 
     def _loadMapper(self) -> Optional[umap.UMAP]:
         mapper: umap.UMAP = None
+
         if os.path.isfile( self.mapper_file_path ):
             t0 = time.time()
             mapper = pickle.load( open( self.mapper_file_path, "rb" ) )
@@ -44,10 +49,12 @@ class UMAPManager:
         training_data: xa.DataArray = self.tile.getPointData( self.subsampling )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.conf['n_components']} dims with {training_data.shape[0]} samples")
+        print( f"DATA CHECK: max: {training_data.max().values}, min: {training_data.min().values}, std: {training_data.std().values}")
         self.mapper.fit( training_data.data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, serializing mapper to file {self.mapper_file_path}")
-        pickle.dump( self.mapper, open(self.mapper_file_path, 'wb') )
+        if not os.path.isfile( self.mapper_file_path ):
+            pickle.dump( self.mapper, open(self.mapper_file_path, 'wb') )
 
     @property
     def conf_keys(self) -> List[str]:
@@ -75,6 +82,7 @@ class UMAPManager:
         t0 = time.time()
         plot = kwargs.get( 'plot', False )
         point_data: xa.DataArray = block.getPointData()
+        print( f"DATA CHECK: max: {point_data.max().values}, min: {point_data.min().values}, std: {point_data.std().values}")
         transformed_data: np.ndarray = self.mapper.transform( point_data )
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")

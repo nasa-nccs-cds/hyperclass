@@ -211,12 +211,12 @@ class LabelingConsole:
 
     def __init__(self, tile: Tile, class_labels, **kwargs ):
         self._debug = False
-        block = kwargs.pop( 'block', None )
+        block_index = kwargs.pop( 'block', (0,0) )
+        block = tile.getBlock(*block_index)
         self.class_labels: Dict[str,int] = self.getClassLabelDict( class_labels )
         self.tile = tile
-        block_data = tile.data if block is None else tile.getBlockData(*block)
-        self.data = tile.dm.normalize( block_data )
-        self.transform = ProjectiveTransform( np.array( list(block_data.transform) + [0,0,1] ).reshape(3,3) )
+        self.data = block.data
+        self.transform = ProjectiveTransform( np.array( list(block.data.transform) + [0,0,1] ).reshape(3,3) )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes = None
