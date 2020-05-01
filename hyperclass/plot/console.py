@@ -219,7 +219,7 @@ class LabelingConsole:
         self.transform = ProjectiveTransform( np.array( list(block.data.transform) + [0,0,1] ).reshape(3,3) )
         self.global_bounds: Bbox = None
         self.global_crange = None
-        self.plot_axes = None
+        self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
         self.frame_marker: Line2D = None
@@ -233,13 +233,15 @@ class LabelingConsole:
         self.y_axis = kwargs.pop( 'y', 1 )
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
+        self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.class_colors = [ 'b', 'g', 'r', 'c', 'm', 'k', 'darkorange', 'brown', 'purple', 'olive' ]
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
+        self.toolbar = self.figure.canvas.manager.toolbar
+        self.class_colors = self.class_selector.default_colors
         self._update(0)
 
     def getClassLabelDict(self, class_labels ) -> Dict[str,int]:
@@ -256,7 +258,7 @@ class LabelingConsole:
 
     @property
     def toolbarMode(self) -> str:
-        return self.figure.canvas.toolbar.mode
+        return self.toolbar.mode
 
     @classmethod
     def time_merge( cls, data_arrays: List[xa.DataArray], **kwargs ) -> xa.DataArray:
@@ -268,7 +270,7 @@ class LabelingConsole:
 
     def setup_plot(self, **kwargs):
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
-        self.plot_axes: Axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
+        self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
         for iC in range(4):
             self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
             self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())
@@ -300,6 +302,12 @@ class LabelingConsole:
             overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
         return image
 
+    def plot_points(self):
+        x = [ td[0] for td in self.training_data ]
+        y = [ td[1] for td in self.training_data ]
+        c = [ self.class_colors[td[-1]] for td in self.training_data ]
+        self.plot_axes.scatter( x, y, c=c )
+
     def on_lims_change(self, ax ):
          if ax == self.plot_axes:
              (x0, x1) = ax.get_xlim()
@@ -309,6 +317,7 @@ class LabelingConsole:
     def update_plots(self ):
         frame_data = self.data[ self.currentFrame]
         self.image.set_data( frame_data  )
+        self.plot_points()
         self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}")
 
     def onMouseRelease(self, event):
@@ -322,6 +331,8 @@ class LabelingConsole:
                     ix, iy = [ math.floor(coords[0,0]),  math.floor(coords[0,1]) ]
                     print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
                     self.dataLims = event.inaxes.dataLim
+                    self.training_data.append( ( event.x, event.y, event.xdata, event.ydata, ix, iy, self.getSelectedClass() ) )
+                    self.update_plots()
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims

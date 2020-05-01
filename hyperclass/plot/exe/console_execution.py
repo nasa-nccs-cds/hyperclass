@@ -7,14 +7,13 @@ import os, math
 
 if __name__ == '__main__':
 
-    tile_index = [1,1]
     block_index = (0,0)
     image_name = "ang20170720t004130_corr_v2p9"
     classes = [ 'Obscured', 'Forest',  'Non-forested Land', 'Urban', 'Water' ]
 
 
     dm = DataManager( image_name )
-    tile: Tile = dm.getTile( *tile_index )
+    tile: Tile = dm.getTile(  )
 
     animator = LabelingConsole( tile, classes, block = block_index )
     animator.show()
