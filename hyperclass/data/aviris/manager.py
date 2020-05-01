@@ -17,13 +17,11 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
 
-
 class Tile:
 
-    def __init__(self, data_manager: "DataManager", iy: int, ix: int, **kwargs ):
+    def __init__(self, data_manager: "DataManager", **kwargs ):
         self.config = kwargs
         self.dm = data_manager
-        self.tile_coords = (iy,ix)
         self._data: xa.DataArray = None
         self._transform: ProjectiveTransform = None
 
@@ -31,12 +29,12 @@ class Tile:
     @property
     def data(self) -> xa.DataArray:
         if self._data is None:
-            self._data: xa.DataArray = self.dm.getTileData( *self.tile_coords, **self.config )
+            self._data: xa.DataArray = self.dm.getTileData(  **self.config )
         return self._data
 
     @property
     def name(self) -> str:
-        return f"{self.dm.image_name}.{self.dm.tile_shape[0]}-{self.dm.tile_shape[1]}_{self.tile_coords[0]}-{self.tile_coords[0]}"
+        return self.dm.tileFileName()
 
     @property
     def transform(self) -> ProjectiveTransform:
@@ -125,23 +123,23 @@ class DataManager:
         self.config = Configuration( **kwargs )
         self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
         self.tile_shape = self.config.getShape( 'tile_shape' )
+        self.tile_index = self.config.getShape('tile_index')
+        [self.iy, self.ix] = self.tile_index
         self.block_shape = self.config.getShape( 'block_shape' )
-        self.tiles = {}
+        self.tile = None
 
-    def getTileBounds(self, iy: int, ix: int ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
-        y0, x0 = iy*self.tile_shape[0], ix*self.tile_shape[1]
+    def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
+        y0, x0 = self.iy*self.tile_shape[0], self.ix*self.tile_shape[1]
         return ( y0, y0+self.tile_shape[0] ), ( x0, x0+self.tile_shape[1] )
 
-    def getTile(self, iy: int, ix: int ) -> Tile:
-        cached_tile: Tile = self.tiles.get( (iy,ix), None )
-        if cached_tile is not None: return cached_tile
-        new_tile = Tile( self, iy, ix )
-        self.tiles[ (iy,ix) ] = new_tile
-        return new_tile
+    def getTile(self) -> Tile:
+        if self.tile is None:
+            self.tile = Tile( self )
+        return self.tile
 
-    def getTileData(self, iy: int, ix: int, **kwargs ):
-        tile_data: Optional[xa.DataArray] = self._readTileFile( iy, ix )
-        if tile_data is None: tile_data = self._getTileDataFromImage( iy, ix )
+    def getTileData(self, **kwargs ):
+        tile_data: Optional[xa.DataArray] = self._readTileFile()
+        if tile_data is None: tile_data = self._getTileDataFromImage()
         tile_data = self.mask_nodata( tile_data )
         if self.valid_bands:
             dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in self.valid_bands]
@@ -160,18 +158,18 @@ class DataManager:
             pickle.dump( norm.to_dict(), open( norm_file, 'wb' ) )
             return norm
 
-    def _getTileDataFromImage(self, iy: int, ix: int ) -> xa.DataArray:
+    def _getTileDataFromImage(self) -> xa.DataArray:
         full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
-        ybounds, xbounds = self.getTileBounds( iy, ix )
+        ybounds, xbounds = self.getTileBounds()
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
-        tile_filename = self.tileFileName(iy, ix)
-        tile_raster.attrs['tile_coords'] =(iy,ix)
+        tile_filename = self.tileFileName()
+        tile_raster.attrs['tile_coords'] = self.tile_index
         tile_raster.attrs['filename'] = tile_filename
         self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
 
-    def _readTileFile( self, iy: int, ix: int, iband = -1 ) -> Optional[xa.DataArray]:
-        tile_filename =self.tileFileName(iy, ix)
+    def _readTileFile( self, iband = -1 ) -> Optional[xa.DataArray]:
+        tile_filename =self.tileFileName()
         print(f"Reading tile file {tile_filename}")
         tile_raster: Optional[xa.DataArray] = self.readGeotiff(tile_filename, iband)
         if tile_raster is not None:
@@ -213,8 +211,8 @@ class DataManager:
         nodata_value = raster.attrs.get( 'data_ignore_value', -9999 )
         return raster.where(raster != nodata_value, float('nan'))
 
-    def tileFileName(self, iy: int, ix: int) -> str:
-        return f"{self.image_name}.{self.tile_shape[0]}-{self.tile_shape[1]}_{iy}-{ix}"
+    def tileFileName(self) -> str:
+        return f"{self.image_name}.{'-'.join(self.tile_shape)}_{'-'.join(self.tile_index)}"
 
     @property
     def normFileName( self ) -> str:
