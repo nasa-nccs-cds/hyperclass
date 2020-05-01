@@ -24,13 +24,16 @@ class Tile:
         self.dm = data_manager
         self._data: xa.DataArray = None
         self._transform: ProjectiveTransform = None
-
+        self.subsampling = self.iparm('sub_sampling')
 
     @property
     def data(self) -> xa.DataArray:
         if self._data is None:
             self._data: xa.DataArray = self.dm.getTileData(  **self.config )
         return self._data
+
+    def iparm(self, key: str ):
+        return int( self.dm.config[key] )
 
     @property
     def name(self) -> str:
@@ -53,14 +56,14 @@ class Tile:
     def getBlock(self, iy: int, ix: int) -> "Block":
         return Block( self, iy, ix )
 
-    def getBandPointData( self, iband: int, subsampling: int = 1,  **kwargs  ) -> xa.DataArray:
+    def getBandPointData( self, iband: int, **kwargs  ) -> xa.DataArray:
         band_data: xa.DataArray = self.data[iband]
         point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return point_data[::subsampling]
+        return point_data[::self.subsampling]
 
-    def getPointData( self, subsampling: int ) -> xa.DataArray:
+    def getPointData( self ) -> xa.DataArray:
         point_data = self.dm.raster2points( self.data )
-        return point_data[::subsampling]
+        return point_data[::self.subsampling]
 
     def coords2index(self, cy, cx ) -> Tuple[int,int]:
         coords = self.transform.inverse(np.array([[cx, cy], ]))
@@ -196,14 +199,13 @@ class DataManager:
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         input_file = os.path.join( self.config['data_dir'], filename )
-        if os.path.isfile( input_file ):
-            print( f"Reading raster file {input_file}")
+        try:
             input_bands: xa.DataArray =  rio.open_rasterio(input_file)
-            if iband >= 0:
-                return input_bands[iband]
-            else:
-                return input_bands
-        else:
+            print(f"Reading raster file {input_file}")
+            if iband >= 0:  return input_bands[iband]
+            else:           return input_bands
+        except Exception as err:
+            print( f"WARNING: can't read input file {input_file}: {err}")
             return None
 
     @classmethod
@@ -212,7 +214,7 @@ class DataManager:
         return raster.where(raster != nodata_value, float('nan'))
 
     def tileFileName(self) -> str:
-        return f"{self.image_name}.{'-'.join(self.tile_shape)}_{'-'.join(self.tile_index)}"
+        return f"{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
 
     @property
     def normFileName( self ) -> str:

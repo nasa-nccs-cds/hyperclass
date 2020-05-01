@@ -8,21 +8,16 @@ from hyperclass.umap.manager import UMAPManager
 
 if __name__ == '__main__':
 
-    tile_index = [1,1]
-    block_index = [0, 0]
-    subsampling = 5
-    n_dims = 3
-    n_links = 10
-    min_dist = 0.01
     image_name = "ang20170720t004130_corr_v2p9"
     band_range = [ 30, 40 ]
-    model_to_rgb = [0,2,1]
+    model_to_rgb = [1,2,0]
+    block_index = (0,0)
 
     fig, ax = plt.subplots( 1, 2 )
     dm = DataManager( image_name )
-    tile = dm.getTile( *tile_index )
+    tile = dm.getTile( )
     block = tile.getBlock( *block_index )
-    umgr =  UMAPManager( tile, subsampling, n_components=n_dims, n_neighbors=n_links, min_dist=min_dist )
+    umgr =  UMAPManager( tile )
 
     embedded_data: Dict[str,xa.DataArray] = umgr.transform( block )
 

@@ -9,12 +9,10 @@ cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager:
 
-    def __init__(self, tile: Tile, subsampling: int, **kwargs ):
+    def __init__(self, tile: Tile, **kwargs ):
         self.tile = tile
-        self.subsampling = subsampling
-        self.conf: Dict = dict( n_components=3 )
         self.refresh = kwargs.pop('refresh', False)
-        self.conf.update( kwargs )
+        self.conf = kwargs
         self.mapper_file_path = self._mapperFilePath()
         self._getMapper()
 
@@ -24,14 +22,13 @@ class UMAPManager:
             os.remove(self.mapper_file_path)
         self.mapper = self._loadMapper()
         if self.mapper is None:
-            self.mapper = umap.UMAP(**self.conf)
+            parms = self.tile.dm.config.section("umap").toDict()
+            self.mapper = umap.UMAP(**parms)
             self._fit()
 
     def _mapperFilePath( self ) -> str:
-        ts = cfg_str( self.tile.dm.tile_shape  )
-        ti = cfg_str( self.tile.tile_coords )
-        map_conf_str = ".".join( f"{key}-{self.conf[key]}" for key in self.conf_keys )
-        file_name = f"umap.{self.tile.dm.image_name}.{ts}-{ti}.s-{self.subsampling}.{map_conf_str}.pkl"
+        path_cfg = self.tile.dm.config.toStr( ['tiles','umap'] )
+        file_name = f"umap.{self.tile.dm.image_name}.{path_cfg}.pkl"
         return os.path.join( self.tile.dm.config['output_dir'], file_name )
 
     def _loadMapper(self) -> Optional[umap.UMAP]:
@@ -44,12 +41,15 @@ class UMAPManager:
             print( f"Completed loading UMAP in {(t1-t0)} sec from file {self.mapper_file_path}.")
         return mapper
 
+    def iparm(self, key: str ):
+        return int( self.tile.dm.config[key] )
+
     def _fit( self ):
         t0 = time.time()
-        training_data: xa.DataArray = self.tile.getPointData( self.subsampling )
+
+        training_data: xa.DataArray = self.tile.getPointData(  )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.conf['n_components']} dims with {training_data.shape[0]} samples")
-        print( f"DATA CHECK: max: {training_data.max().values}, min: {training_data.min().values}, std: {training_data.std().values}")
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {training_data.shape[0]} samples")
         self.mapper.fit( training_data.data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, serializing mapper to file {self.mapper_file_path}")
@@ -68,7 +68,7 @@ class UMAPManager:
         model_data = self.mapper.embedding_
         plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
-            plot_parms['values'] = self.tile.getBandPointData( color_band, self.subsampling  )
+            plot_parms['values'] = self.tile.getBandPointData( color_band  )
         if model_data.shape[1] == 2:
             datashade_points( model_data, **plot_parms )
         elif model_data.shape[1] == 3:

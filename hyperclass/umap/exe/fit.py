@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     dm = DataManager( image_name )
     tile = dm.getTile()
-    umgr = UMAPManager( tile, subsampling, n_components=n_dims, n_neighbors=n_links, min_dist=min_dist, refresh = refresh )
+    umgr = UMAPManager( tile, refresh = refresh )
     umgr.view_model( color_band=color_band )
 
 

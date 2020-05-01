@@ -6,15 +6,18 @@ class Section:
 
     def __init__(self, name: str ):
         self.name = name
-        self._parms = {}
+        self._parms:  Dict[str,Tuple[str]] = {}
 
     def addItem(self, id: str, name: str, value: str ):
         self._parms[name] = ( id, value )
 
-    def get(self, key: str, default: str = None ) -> Optional[Tuple[str,str]]:
+    def toDict(self) -> Dict[str,str]:
+        return { name:self.toNum(name) for name in self._parms.keys() }
+
+    def get(self, key: str, default: str = None ) -> Optional[Tuple[str]]:
         return self._parms.get( key, default )
 
-    def __getitem__(self, key: str ) -> Tuple[str,str]:
+    def __getitem__(self, key: str ) -> Tuple[str]:
         return self._parms[key]
 
     def __contains__(self, item) -> bool:
@@ -27,16 +30,25 @@ class Section:
         values = self._parms[key][1].split(",")
         return [ int(v) for v in values ]
 
-    @classmethod
-    def _2cfg( cls, value: str ) -> str :
+    def toNum(self, key: str ):
+        value = self._parms[key][1]
         if "," in value:
-            toks = value.split(",")
-            return "-".join( [tok.strip() for tok in toks] )
-        else: return value
+            return [ self.v2num( x.strip() ) for x in value.split(",") ]
+        else: return self.v2num( value.strip() )
+
+    def v2num(self, value: str ):
+        try: return int(value)
+        except ValueError:
+            try: return float(value)
+            except ValueError:
+                return value
 
     @classmethod
-    def _2cfgs( cls, values: List[str] ) -> List[str] :
-        return [ cls._2cfg( value) for value in values ]
+    def _2cfg( cls, id: str, value: str ) -> str :
+        if "," in value:
+            toks = value.split(",")
+            return "-".join( [id] + [tok.strip() for tok in toks] )
+        else: return f"{id}-{value}"
 
     @property
     def keys(self) -> List[str]:
@@ -46,9 +58,8 @@ class Section:
 
     def __str__(self):
         fields = [ self._parms[key] for key in self.keys ]
-        return "_".join( [  "-".join( self._2cfgs(field) ) for field in fields ] )
-
-
+        cfg_fields =  [ self._2cfg(*field) for field in fields ]
+        return "_".join( cfg_fields )
 
 class Configuration:
 
@@ -77,7 +88,7 @@ class Configuration:
                         names = key.split(":")
                         id = names[0].strip()
                         name = names[1].strip()
-                        current_section.addItem( id, name, value)
+                        current_section.addItem( id, name, value.strip() )
                         self._pindex[ name ] = current_section
                     else:
                         print( f"WARNING: Unrecognozed line in config file: {line}")
@@ -95,6 +106,14 @@ class Configuration:
         section = self._pindex[key]
         return section.getShape( key )
 
+    def toNum(self, key: str ):
+        section = self._pindex[key]
+        return section.toNum( key )
+
+    def getCfg(self, key: str):
+        section = self._pindex[key]
+        return section._2cfg( *section[key] )
+
     @property
     def sections(self) -> List[str]:
         skeys = list(self._sections.keys())
@@ -102,8 +121,6 @@ class Configuration:
         return skeys
 
     def toStr( self, section_names: List[str] ) -> str:
-        section_names.sort()
-        sections = [ self._sections[name] for name in section_names ]
-        return "_".join( [  str(section) for section in sections ] )
+        return "_".join( [  str(self._sections[name]) for name in section_names ] )
 
 

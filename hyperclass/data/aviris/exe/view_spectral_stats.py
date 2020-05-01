@@ -8,12 +8,11 @@ import os, math
 
 if __name__ == '__main__':
 
-    tile_index = [1,1]
     block_index = [0,0]
     image_name = "ang20170720t004130_corr_v2p9"
 
     dm = DataManager( image_name )
-    tile: Tile = dm.getTile( *tile_index )
+    tile: Tile = dm.getTile()
     block: Block = tile.getBlock( *block_index )
     sdata: xa.DataArray = ( block.data  ) / block.data.mean(dim=['x', 'y'], skipna=True)
 
