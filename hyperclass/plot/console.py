@@ -331,8 +331,11 @@ class LabelingConsole:
                     ix, iy = [ math.floor(coords[0,0]),  math.floor(coords[0,1]) ]
                     print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
                     self.dataLims = event.inaxes.dataLim
-                    self.training_data.append( ( event.x, event.y, event.xdata, event.ydata, ix, iy, self.getSelectedClass() ) )
+                    self.process_training_event( event.x, event.y, event.xdata, event.ydata, ix, iy, self.getSelectedClass() )
                     self.update_plots()
+
+    def process_training_event(self, *args ):
+        self.training_data.append( args )
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
