@@ -19,6 +19,3 @@ if __name__ == '__main__':
     animator = LabelingConsole( tile, classes, block = block_index )
     animator.show()
 
-    keyboardClick = False
-    while keyboardClick != True:
-        keyboardClick = plt.waitforbuttonpress()

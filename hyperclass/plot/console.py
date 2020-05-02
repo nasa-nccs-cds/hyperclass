@@ -211,7 +211,7 @@ class PageSlider(matplotlib.widgets.Slider):
 class LabelingConsole:
 
     def __init__(self, tile: Tile, class_labels, **kwargs ):
-        plt.ion()
+#        plt.ion()
         self._debug = False
         block_index = kwargs.pop( 'block', (0,0) )
         block = tile.getBlock(*block_index)
@@ -299,7 +299,7 @@ class LabelingConsole:
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
         colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
+        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, colorstretch=1.0, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -344,6 +344,8 @@ class LabelingConsole:
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
         self.training_points.set_facecolor( [ self.class_colors[ic] for ic in self.point_selection_c ] )
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
 
     @property
     def selectedColor(self):
@@ -392,7 +394,6 @@ class LabelingConsole:
     def show(self):
         self.slider.start()
         plt.show()
-        self.wait_for_key_press()
 
     def start(self):
         self.slider.start()
