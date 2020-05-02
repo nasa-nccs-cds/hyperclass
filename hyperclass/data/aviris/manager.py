@@ -6,6 +6,8 @@ import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import matplotlib.pyplot as plt
+from typing import TextIO
+import csv
 import os, math, pickle
 import rioxarray as rio
 
@@ -16,6 +18,34 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
         else: color_bounds.append( (cval + color_values[iC-1])/2.0 )
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
+
+class TrainingDataIO:
+
+    def __init__(self, file_path: str,  **kwargs ):
+        self.file_path = file_path
+        self.write_stream: TextIO = None
+        self.read_stream: TextIO = None
+
+    def getWriter( self, refresh: bool = False ) -> csv.writer:
+        self.closeWriter()
+        mode = "w" if refresh else "a"
+        self.write_stream = open( self.file_path, mode )
+        return csv.writer( self.write_stream, delimiter=',' )
+
+    def closeWriter(self):
+        if self.write_stream is not None:
+            self.write_stream.close()
+            self.write_stream = None
+
+    def getReader( self ) -> csv.reader:
+        self.closeReader()
+        self.read_stream = open( self.file_path, "r" )
+        return csv.reader( self.read_stream, delimiter=',' )
+
+    def closeReader(self):
+        if self.read_stream is not None:
+            self.read_stream.close()
+            self.read_stream = None
 
 class Tile:
 
@@ -129,6 +159,7 @@ class DataManager:
         self.tile_index = self.config.getShape('tile_index')
         [self.iy, self.ix] = self.tile_index
         self.block_shape = self.config.getShape( 'block_shape' )
+        self.tdio = TrainingDataIO( os.path.join(self.config['data_dir'], self.trainingDataFileName() + ".csv" ) )
         self.tile = None
 
     def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
@@ -215,6 +246,9 @@ class DataManager:
 
     def tileFileName(self) -> str:
         return f"{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
+
+    def trainingDataFileName(self) -> str:
+        return f"tdata_{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
 
     @property
     def normFileName( self ) -> str:
