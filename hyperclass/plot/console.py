@@ -9,6 +9,7 @@ from  matplotlib.transforms import Bbox
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
+from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile
 from threading import  Thread
 from matplotlib.figure import Figure
@@ -210,6 +211,7 @@ class PageSlider(matplotlib.widgets.Slider):
 class LabelingConsole:
 
     def __init__(self, tile: Tile, class_labels, **kwargs ):
+        plt.ion()
         self._debug = False
         block_index = kwargs.pop( 'block', (0,0) )
         block = tile.getBlock(*block_index)
@@ -222,7 +224,7 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
-        self.training_points: Line2D = None
+        self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
         self.setup_plot(**kwargs)
@@ -234,6 +236,9 @@ class LabelingConsole:
         self.y_axis = kwargs.pop( 'y', 1 )
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
+        self.point_selection_x = []
+        self.point_selection_y = []
+        self.point_selection_c = []
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
@@ -294,7 +299,7 @@ class LabelingConsole:
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
         colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, **kwargs )
+        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -302,12 +307,6 @@ class LabelingConsole:
         for color, overlay in overlays.items():
             overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
         return image
-
-    def plot_points(self):
-        c = [ self.class_colors[td[-1]] for td in self.training_data ]
-        self.training_points.set_xdata( [ td[0] for td in self.training_data ] )
-        self.training_points.set_ydata( [ td[1] for td in self.training_data ] )
-#        self.training_points.set_color()
 
     def on_lims_change(self, ax ):
          if ax == self.plot_axes:
@@ -327,21 +326,34 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    coords = self.transform.inverse( np.array( [ [ event.xdata, event.ydata ], ]) )
-                    ix, iy = [ math.floor(coords[0,0]),  math.floor(coords[0,1]) ]
-                    print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.selectedClass}")
+                    self.add_point_selection( event )
                     self.dataLims = event.inaxes.dataLim
-                    self.process_training_event( event.x, event.y, event.xdata, event.ydata, ix, iy, self.selectedClass )
-                    self.plot_axes.add_patch( Circle(( event.x, event.y ), radius=10, color=self.selectedColor ) )
 
+    def add_point_selection(self, event ):
+        self.point_selection_x.append( event.xdata )
+        self.point_selection_y.append( event.ydata )
+        self.point_selection_c.append( self.selectedClass )
+        self.plot_points()
+
+    def undo_point_selection(self, event ):
+        self.point_selection_x.pop()
+        self.point_selection_y.pop()
+        self.point_selection_c.pop()
+        self.plot_points()
+
+    def plot_points(self):
+        self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
+        self.training_points.set_facecolor( [ self.class_colors[ic] for ic in self.point_selection_c ] )
 
     @property
     def selectedColor(self):
         return self.class_colors[ self.selectedClass ]
 
-    def process_training_event(self, *args ):
-        self.training_data.append( args )
-        self.tile.dm.tdio.writeEntry( args )
+    def write_training_data(self):
+        for ip, c in enumerate( self.point_selection_c ):
+            x = self.point_selection_x[ip]
+            y = self.point_selection_x[ip]
+            self.tile.dm.tdio.writeEntry( x, y, c )
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
@@ -350,6 +362,9 @@ class LabelingConsole:
 
     def add_plots(self, **kwargs ):
         self.image = self.create_image(**kwargs)
+        self.training_points = self.plot_axes.scatter( [],[], s=50, zorder=2, alpha=1 )
+        self.training_points.set_edgecolor( [0,0,0] )
+        self.training_points.set_linewidth( 2 )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
@@ -359,11 +374,11 @@ class LabelingConsole:
         cax = self.control_axes[controls_window]
         cax.title.set_text('Class Selection')
         self.class_selector = ColoredRadioButtons( cax, list(self.class_labels.keys()), active=self.currentClass )
-        self.class_selector.on_clicked( self.classSelected )
 
-    def classSelected( self, selection: str ):
-        iclass = self.class_labels[ selection ]
-        print( f" Class {iclass} selected" )
+    def wait_for_key_press(self):
+        keyboardClick = False
+        while keyboardClick != True:
+            keyboardClick = plt.waitforbuttonpress()
 
     @property
     def selectedClass(self) -> int:
@@ -377,6 +392,7 @@ class LabelingConsole:
     def show(self):
         self.slider.start()
         plt.show()
+        self.wait_for_key_press()
 
     def start(self):
         self.slider.start()

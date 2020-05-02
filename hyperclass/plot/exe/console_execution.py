@@ -2,6 +2,7 @@ import xarray as xa
 from hyperclass.plot.console import LabelingConsole
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, atexit, json
+import matplotlib.pyplot as plt
 from hyperclass.data.aviris.manager import DataManager, Tile
 import os, math
 
@@ -17,3 +18,7 @@ if __name__ == '__main__':
 
     animator = LabelingConsole( tile, classes, block = block_index )
     animator.show()
+
+    keyboardClick = False
+    while keyboardClick != True:
+        keyboardClick = plt.waitforbuttonpress()

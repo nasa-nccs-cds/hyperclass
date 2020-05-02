@@ -82,7 +82,6 @@ class UMAPManager:
         t0 = time.time()
         plot = kwargs.get( 'plot', False )
         point_data: xa.DataArray = block.getPointData()
-        print( f"DATA CHECK: max: {point_data.max().values}, min: {point_data.min().values}, std: {point_data.std().values}")
         transformed_data: np.ndarray = self.mapper.transform( point_data )
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")

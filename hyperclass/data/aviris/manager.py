@@ -134,6 +134,7 @@ class Block:
         ybounds, xbounds = self.getBounds()
         block_raster = self.tile.data[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         block_raster.attrs['block_coords'] = self.block_coords
+        block_raster.name = f"{self.tile.name}_b-{self.block_coords[0]}-{self.block_coords[1]}"
         return block_raster
 
     @property
@@ -342,6 +343,7 @@ class DataManager:
         left, right = x[0] - xstep, x[-1] + xstep
         bottom, top = y[-1] + ystep, y[0] - ystep
         defaults = dict( origin= 'upper', interpolation= 'nearest' )
+        defaults["alpha"] = kwargs.get( "alpha", 1.0 )
         cbar_kwargs = {}
         if colors is  None:
             defaults.update( dict( cmap="jet" ) )
@@ -368,7 +370,7 @@ class DataManager:
         else:                               defaults['extent'] = [left, right, top, bottom]
         if rescale is not None:
             raster = cls.scale_to_bounds(raster, rescale)
-        img = ax.imshow( raster.data, **defaults )
+        img = ax.imshow( raster.data, zorder=1, **defaults )
         ax.set_title(title)
         if colorbar and (raster.ndim == 2):
             cbar: Colorbar = ax.figure.colorbar(img, ax=ax, **cbar_kwargs )
