@@ -236,7 +236,6 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.get_training_data_writer( refresh=kwargs.pop('refresh_training', False) )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -244,15 +243,6 @@ class LabelingConsole:
         self.toolbar = self.figure.canvas.manager.toolbar
         self.class_colors = self.class_selector.default_colors
         self._update(0)
-
-    def get_training_data_writer(self, refresh = False ) -> csv.writer:
-        if self._training_data_writer is None:
-            self._training_data_writer: csv.writer = self.tile.dm.tdio.getWriter( refresh=refresh )
-        return self._training_data_writer
-
-    def close_training_data_writer(self):
-        self.tile.dm.tdio.closeWriter()
-        self._training_data_writer = None
 
     def getClassLabelDict(self, class_labels ) -> Dict[str,int]:
         if isinstance(class_labels, dict):
@@ -346,7 +336,7 @@ class LabelingConsole:
 
     def process_training_event(self, *args ):
         self.training_data.append( args )
-        self.get_training_data_writer().writerow( args )
+        self.tile.dm.tdio.writeEntry( args )
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
@@ -386,5 +376,5 @@ class LabelingConsole:
         self.slider.start()
 
     def __del__(self):
-        self.close_training_data_writer()
+        self.tile.dm.tdio.flush()
 

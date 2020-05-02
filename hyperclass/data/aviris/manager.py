@@ -23,26 +23,45 @@ class TrainingDataIO:
 
     def __init__(self, file_path: str,  **kwargs ):
         self.file_path = file_path
-        self.write_stream: TextIO = None
-        self.read_stream: TextIO = None
+        self._write_stream: TextIO = None
+        self._read_stream: TextIO = None
 
-    def getWriter( self, refresh: bool = False ) -> csv.writer:
-        self.closeWriter()
-        mode = "w" if refresh else "a"
-        self.write_stream = open( self.file_path, mode )
-        return csv.writer( self.write_stream, delimiter=',' )
+    def flush(self):
+        self._closeWriter()
+        self._closeReader()
 
-    def closeWriter(self):
+    def clear(self):
+        self.flush()
+        if os.path.isfile(self.file_path):
+            os.remove(self.file_path)
+
+    def writeEntry(self, *args ):
+        self._writer().writerow( args )
+
+    def entries(self) -> List:
+        return [ row for row in self._reader() ]
+
+    def _writer( self ) -> csv.writer:
+        if self._write_stream is None:
+            self.write_stream = open( self.file_path, 'a' )
+            self._write_stream = csv.writer( self.write_stream, delimiter=',' )
+        return self._write_stream
+
+    def _reader( self ) -> Union[csv.writer,List[str]]:
+        if self.read_stream is None:
+            if os.path.isfile(self.file_path):
+                self.read_stream = open( self.file_path, 'r' )
+                self.read_stream = csv.reader( self.read_stream, delimiter=',' )
+            else:
+                return []
+        return self.read_stream
+
+    def _closeWriter(self):
         if self.write_stream is not None:
             self.write_stream.close()
             self.write_stream = None
 
-    def getReader( self ) -> csv.reader:
-        self.closeReader()
-        self.read_stream = open( self.file_path, "r" )
-        return csv.reader( self.read_stream, delimiter=',' )
-
-    def closeReader(self):
+    def _closeReader(self):
         if self.read_stream is not None:
             self.read_stream.close()
             self.read_stream = None
