@@ -6,7 +6,7 @@ from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from  matplotlib.transforms import Bbox
-from matplotlib.colors import LinearSegmentedColormap, Normalize, ListedColormap
+from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
 from hyperclass.data.aviris.manager import DataManager, Tile
@@ -222,6 +222,7 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
+        self.training_points: Line2D = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
         self.setup_plot(**kwargs)
@@ -303,10 +304,10 @@ class LabelingConsole:
         return image
 
     def plot_points(self):
-        x = [ td[0] for td in self.training_data ]
-        y = [ td[1] for td in self.training_data ]
         c = [ self.class_colors[td[-1]] for td in self.training_data ]
-        self.plot_axes.scatter( x, y, c=c )
+        self.training_points.set_xdata( [ td[0] for td in self.training_data ] )
+        self.training_points.set_ydata( [ td[1] for td in self.training_data ] )
+#        self.training_points.set_color()
 
     def on_lims_change(self, ax ):
          if ax == self.plot_axes:
@@ -317,8 +318,7 @@ class LabelingConsole:
     def update_plots(self ):
         frame_data = self.data[ self.currentFrame]
         self.image.set_data( frame_data  )
-        self.plot_points()
-        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}")
+        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
 
     def onMouseRelease(self, event):
         pass
@@ -329,10 +329,15 @@ class LabelingConsole:
                 if event.inaxes ==  self.plot_axes:
                     coords = self.transform.inverse( np.array( [ [ event.xdata, event.ydata ], ]) )
                     ix, iy = [ math.floor(coords[0,0]),  math.floor(coords[0,1]) ]
-                    print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.getSelectedClass()}")
+                    print(f"onImageClick-> ( {ix} {iy} ) [ {event.xdata} {event.ydata} ]: {self.selectedClass}")
                     self.dataLims = event.inaxes.dataLim
-                    self.process_training_event( event.x, event.y, event.xdata, event.ydata, ix, iy, self.getSelectedClass() )
-                    self.update_plots()
+                    self.process_training_event( event.x, event.y, event.xdata, event.ydata, ix, iy, self.selectedClass )
+                    self.plot_axes.add_patch( Circle(( event.x, event.y ), radius=10, color=self.selectedColor ) )
+
+
+    @property
+    def selectedColor(self):
+        return self.class_colors[ self.selectedClass ]
 
     def process_training_event(self, *args ):
         self.training_data.append( args )
@@ -360,7 +365,8 @@ class LabelingConsole:
         iclass = self.class_labels[ selection ]
         print( f" Class {iclass} selected" )
 
-    def getSelectedClass(self) -> int:
+    @property
+    def selectedClass(self) -> int:
         return self.class_labels[ self.class_selector.value_selected ]
 
     def _update( self, val ):
