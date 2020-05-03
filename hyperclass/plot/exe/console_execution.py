@@ -10,7 +10,11 @@ if __name__ == '__main__':
 
     block_index = (0,0)
     image_name = "ang20170720t004130_corr_v2p9"
-    classes = [ 'Obscured', 'Forest',  'Non-forested Land', 'Urban', 'Water' ]
+    classes = [ ( 'Obscured',           [ 1.0, 1.0, 1.0 ] ),
+                ( 'Forest',             [ 0.0, 1.0, 0.0 ] ),
+                ( 'Non-forested Land',  [ 0.7, 1.0, 0.0 ] ),
+                ( 'Urban',              [ 1.0, 0.0, 1.0 ] ),
+                ( 'Water',              [ 0.0, 0.0, 1.0 ] ) ]
 
 
     dm = DataManager( image_name )

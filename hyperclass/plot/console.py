@@ -1,11 +1,12 @@
 import matplotlib.widgets
 import matplotlib.patches
-from .widgets import ColoredRadioButtons
+from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from  matplotlib.transforms import Bbox
+from collections import OrderedDict
 from matplotlib.patches import Circle
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
@@ -210,12 +211,11 @@ class PageSlider(matplotlib.widgets.Slider):
 
 class LabelingConsole:
 
-    def __init__(self, tile: Tile, class_labels, **kwargs ):
-#        plt.ion()
+    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,Tuple[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         block_index = kwargs.pop( 'block', (0,0) )
         block = tile.getBlock(*block_index)
-        self.class_labels: Dict[str,int] = self.getClassLabelDict( class_labels )
+        self._getClassLabels( class_labels )
         self.tile = tile
         self.data = block.data
         self.transform = ProjectiveTransform( np.array( list(block.data.transform) + [0,0,1] ).reshape(3,3) )
@@ -246,21 +246,16 @@ class LabelingConsole:
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
+        self.add_button_box( **kwargs )
         self.toolbar = self.figure.canvas.manager.toolbar
-        self.class_colors = self.class_selector.default_colors
         self._update(0)
 
-    def getClassLabelDict(self, class_labels ) -> Dict[str,int]:
-        if isinstance(class_labels, dict):
-            test_item = list(class_labels.items())[0]
-            if isinstance(test_item[0], str) and isinstance(test_item[0], int):
-                return class_labels
-            elif isinstance(test_item[0], int) and isinstance(test_item[0], str):
-                return { sval:index for index,sval in class_labels.items() }
-            else:
-                raise Exception( f"Incorrectly constructed class_labels, expecting List[str], Dict[str,int] or Dict[int,str]: {class_labels}")
-        else:
-            return {label: index for index, label in enumerate(class_labels)}
+    def _getClassLabels(self, class_labels: List[ Tuple[str,Tuple[float]]] ):
+        self.class_labels: List[str] = []
+        self.class_colors: OrderedDict[str,Tuple[float]] = {}
+        for elem in class_labels:
+            self.class_labels.append( elem[0] )
+            self.class_colors[ elem[0] ] = elem[1]
 
     @property
     def toolbarMode(self) -> str:
@@ -276,6 +271,7 @@ class LabelingConsole:
 
     def setup_plot(self, **kwargs):
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
+        g0 =  self.plot_grid[0, 0]
         self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
         for iC in range(4):
             self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
@@ -341,9 +337,12 @@ class LabelingConsole:
         self.point_selection_c.pop()
         self.plot_points()
 
+    def submit_training_set(self, event ):
+        print( "Submitting training set")
+
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
-        self.training_points.set_facecolor( [ self.class_colors[ic] for ic in self.point_selection_c ] )
+        self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ic] ] for ic in self.point_selection_c ] )
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -375,7 +374,16 @@ class LabelingConsole:
     def add_selection_controls( self, controls_window=0 ):
         cax = self.control_axes[controls_window]
         cax.title.set_text('Class Selection')
-        self.class_selector = ColoredRadioButtons( cax, list(self.class_labels.keys()), active=self.currentClass )
+        self.class_selector = ColoredRadioButtons( cax, self.class_labels, list(self.class_colors.values()), active=self.currentClass )
+
+    def add_button_box( self, buttons_window=1, **kwargs ):
+        cax = self.control_axes[ buttons_window ]
+        cax.title.set_text('Actions')
+        actions = [ "Submit", "Undo" ]
+        self.button_box = ButtonBox( cax, [3,3], actions )
+        self.button_box.addCallback( actions[0], self.submit_training_set )
+        self.button_box.addCallback( actions[1], self.undo_point_selection )
+
 
     def wait_for_key_press(self):
         keyboardClick = False
@@ -384,7 +392,11 @@ class LabelingConsole:
 
     @property
     def selectedClass(self) -> int:
-        return self.class_labels[ self.class_selector.value_selected ]
+        return self.class_labels.index( self.class_selector.value_selected )
+
+    @property
+    def selectedClassLabel(self) -> str:
+        return self.class_selector.value_selected
 
     def _update( self, val ):
         tval = self.slider.val

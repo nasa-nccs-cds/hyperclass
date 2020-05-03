@@ -1,8 +1,12 @@
 import numpy as np
-from matplotlib.lines import Line2D
+from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.patches import Circle, Rectangle, Ellipse
-from matplotlib.widgets import AxesWidget
+from matplotlib.widgets import AxesWidget, Button
+from matplotlib.transforms import Bbox
 from matplotlib.text import Text
+import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 
 class ColoredRadioButtons(AxesWidget):
     """
@@ -29,7 +33,7 @@ class ColoredRadioButtons(AxesWidget):
     default_colors = [[0, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0], [0, 0, 0], [0, 0, .5], [0, .5, 0], [.5, 0, 0], [0, .5, .5], [.5, 0, .5],
                       [.5, .5, 0], [.5, .5, .5]]
 
-    def __init__(self, ax, labels, active=0, colors=None ):
+    def __init__(self, ax: Axes, labels: List[str], colors: List[Tuple[float]], active=0 ):
         """
         Add radio buttons to an `~.axes.Axes`.
 
@@ -42,10 +46,10 @@ class ColoredRadioButtons(AxesWidget):
         active : int
             The index of the initially selected button.
         colors : list of [ r, g, b ]  where r,g,b -> (0,1)
-            The colors of the buttons.
+            The _colors of the buttons.
         """
         AxesWidget.__init__(self, ax)
-        self.colors = colors if colors is not None else self.default_colors
+        self._colors = colors
         self.value_selected = None
         self.deactive_alpha = 0.2
         self.active_index = active
@@ -66,15 +70,14 @@ class ColoredRadioButtons(AxesWidget):
         self.circles = []
         for y, label in zip(ys, labels):
             t: Text  = ax.text(0.25, y, label, transform=ax.transAxes, horizontalalignment='left', verticalalignment='center')
-            classcolor = self.colors[ cnt ]
 
             if cnt == active:
                 self.value_selected = label
-                facecolor = classcolor + [ 1 ]
+                facecolor = self.getColor( cnt, 1.0 )
                 edgecolor = "black"
                 t.set_fontweight( 'bold' )
             else:
-                facecolor = classcolor + [ self.deactive_alpha ]
+                facecolor = self.getColor( cnt, self.deactive_alpha )
                 edgecolor = "grey"
                 t.set_fontweight( 'regular' )
 
@@ -90,9 +93,11 @@ class ColoredRadioButtons(AxesWidget):
         self.cnt = 0
         self.observers = {}
 
-    @property
-    def activecolor(self):
-        return self.colors[ self.active_index ]
+    def getColor( self, index: int, alpha: float ):
+        return [*self._colors[index], alpha]
+
+    def activecolor(self, alpha: float ):
+        return self.getColor( self.active_index, alpha )
 
     def _clicked(self, event):
         if self.ignore(event) or event.button != 1 or event.inaxes != self.ax:
@@ -119,15 +124,14 @@ class ColoredRadioButtons(AxesWidget):
         self.active_index = index
 
         for i, p in enumerate(self.circles):
-            classcolor = self.colors[i]
             t = self.labels[i]
             if i == index:
-                color = classcolor + [ 1 ]
+                color = self.getColor( i, 1.0 )
                 p.set_facecolor(color)
                 p.set_edgecolor( "black" )
                 t.set_fontweight('bold')
             else:
-                color = classcolor + [ self.deactive_alpha ]
+                color = self.getColor( i, self.deactive_alpha )
                 p.set_facecolor(color)
                 p.set_edgecolor( "grey" )
                 t.set_fontweight('regular')
@@ -157,3 +161,34 @@ class ColoredRadioButtons(AxesWidget):
             del self.observers[cid]
         except KeyError:
             pass
+
+
+
+class ButtonBox:
+
+    def __init__(self, ax: Axes, shape: List[int], labels: List[str] ):
+        self.shape: List[int] = shape
+        self.ax: Axes = ax
+        self.labels: List[str] = labels
+        self._buttons: Dict[str,Button] = {}
+        self.createButtons( ax.figbox )
+
+    def createButtons(self, box: Bbox ):
+        button_width, button_height = box.width/self.shape[1], box.height/self.shape[0]
+        for iR in range( self.shape[0] ):
+            for iC in range(self.shape[1]):
+                iB = iC + (self.shape[0]-1-iR)*self.shape[1]
+                b0x = box.x0 + iC * button_width
+                b0y = box.y0 + iR * button_height
+                button_ax = plt.axes([ b0x, b0y, button_width, button_height])
+                label = self.labels[iB] if iB < len( self.labels ) else ""
+                self._buttons[label] = Button(button_ax, label)
+
+    def getButton( self, label: str ) -> Button:
+        return self._buttons[label]
+
+    def addCallback( self, label: str, callback: Callable ):
+        button: Button = self.getButton( label )
+        button.on_clicked( callback )
+
+
