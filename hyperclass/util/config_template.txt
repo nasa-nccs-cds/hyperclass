@@ -1,8 +1,17 @@
+*paths
 dd: data_dir = /Users/tpmaxwel/Dropbox/Tom/Data/Aviris/processed
 od: output_dir = /usr/local/web/ILAB/data/results/umap
+
+*tiles
 ts: tile_shape = 1000, 1000
-bs: block_shape = 500, 500
+ti: tile_index = 1, 1
 ss: sub_sampling = 5
-nd: n_dim = 3
-nl: n_links = 10
+
+*blocks
+bs: block_shape = 500, 500
+bi: block_index = 0,0
+
+*umap
+nc: n_components = 3
+nn: n_neighbors = 10
 md: min_dist = 0.01
