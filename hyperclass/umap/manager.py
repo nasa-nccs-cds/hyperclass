@@ -16,6 +16,10 @@ class UMAPManager:
         self.mapper_file_path = self._mapperFilePath()
         self._getMapper()
 
+    @property
+    def embedding(self):
+        return self.mapper.embedding_
+
     def _getMapper(self):
         if self.refresh and os.path.isfile(self.mapper_file_path):
             print( f"Removing older version of mapper at {self.mapper_file_path}")

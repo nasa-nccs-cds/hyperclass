@@ -211,7 +211,7 @@ class PageSlider(matplotlib.widgets.Slider):
 
 class LabelingConsole:
 
-    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,Tuple[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
+    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.tile = tile
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
@@ -362,7 +362,10 @@ class LabelingConsole:
         print( "Submitting training set")
         labels = self.getLabeledPointData()
         self.umgr.fit( labels, block = self.block )
-        self.umgr.view_model(color_band=35)
+        data0 = self.umgr.embedding
+        self.umgr.fit( block = self.block )
+        data1 = self.umgr.embedding
+        self.tile.dm.plot_pointclouds( { "With Labels": data0, "Unlabeled": data1 } )
 
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )

@@ -325,6 +325,17 @@ class DataManager:
         return point_data
 
     @classmethod
+    def plot_pointclouds(cls, datasets: Dict[str,np.ndarray], **kwargs ):
+        import plotly.graph_objs as go
+        colors = kwargs.get( 'colors', ['#0000ff', '#00ff00', '#ff0000', '#000000', '#ffff00', '#00ffff', '#ff00ff', '#888888', '#8888ff', '#88ff88', '#ff8888'  ] )
+        size = kwargs.get('size', 1 )
+        plot_data = []
+        for ip, ( label, points ) in enumerate( datasets.items() ):
+            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], mode='markers', marker=dict(color=colors[ip], size=size, name=label ) ) )
+        fig = go.Figure( data=plot_data )
+        fig.show()
+
+    @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
         from matplotlib.colorbar import Colorbar
         ax = kwargs.pop( 'ax', None )
