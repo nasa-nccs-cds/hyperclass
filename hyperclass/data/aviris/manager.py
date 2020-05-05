@@ -110,13 +110,15 @@ class Tile:
         point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
         return point_data[::self.subsampling]
 
-    def getPointData( self ) -> xa.DataArray:
+    def getPointData( self, **kwargs ) -> xa.DataArray:
+        subsample = kwargs.get( 'subsample', None )
+        if subsample is None: subsample = self.subsampling
         point_data = self.dm.raster2points( self.data )
-        return point_data[::self.subsampling]
+        return point_data[::subsample]
 
-    def coords2index(self, cy, cx ) -> Tuple[int,int]:
+    def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
         coords = self.transform.inverse(np.array([[cx, cy], ]))
-        return (math.floor(coords[0, 0]), math.floor(coords[0, 1]))
+        return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
 
     def index2coords(self, iy, ix ) -> Tuple[float,float]:
         return self.transform(np.array([[ix+0.5, iy+0.5], ]))
@@ -145,8 +147,10 @@ class Block:
         y0, x0 = self.block_coords[0]*self.shape[0], self.block_coords[1]*self.shape[1]
         return ( y0, y0+self.shape[0] ), ( x0, x0+self.shape[1] )
 
-    def getPointData( self ) -> xa.DataArray:
-        return self.tile.dm.raster2points( self.data )
+    def getPointData( self, **kwargs ) -> xa.DataArray:
+        subsample = kwargs.get( 'subsample', None )
+        result: xa.DataArray =  self.tile.dm.raster2points( self.data )
+        return result if subsample is None else result[::subsample]
 
     def plot(self,  **kwargs ) -> xa.DataArray:
         color_band = kwargs.pop( 'color_band', None )
@@ -315,10 +319,9 @@ class DataManager:
 
     @classmethod
     def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
-        transposed_raster = raster.stack(samples=raster.dims[1:]).transpose()
-        point_data = transposed_raster.dropna(dim='samples', how='any')
-        print(f" Creating point data: shape = {point_data.shape}, dims = {point_data.dims}")
-        print(f"  -> Using {point_data.shape[0]} valid samples out of {raster.shape[1] * raster.shape[2]} pixels")
+        stacked_raster = raster.stack(samples=['x','y']).transpose()
+        point_data = stacked_raster.dropna(dim='samples', how='any')
+        print(f"  -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")
         return point_data
 
     @classmethod

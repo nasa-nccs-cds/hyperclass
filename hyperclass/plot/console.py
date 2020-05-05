@@ -7,11 +7,11 @@ from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from  matplotlib.transforms import Bbox
 from collections import OrderedDict
-from matplotlib.patches import Circle
+from hyperclass.umap.manager import UMAPManager
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
-from hyperclass.data.aviris.manager import DataManager, Tile
+from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from threading import  Thread
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
@@ -213,12 +213,9 @@ class LabelingConsole:
 
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,Tuple[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
-        block_index = kwargs.pop( 'block', (0,0) )
-        block = tile.getBlock(*block_index)
-        self._getClassLabels( class_labels )
         self.tile = tile
-        self.data = block.data
-        self.transform = ProjectiveTransform( np.array( list(block.data.transform) + [0,0,1] ).reshape(3,3) )
+        self.setBlock( kwargs.pop( 'block', (0,0) ) )
+        self._getClassLabels( class_labels )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
@@ -242,6 +239,7 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
+        self.umgr = UMAPManager(tile)
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -249,6 +247,29 @@ class LabelingConsole:
         self.add_button_box( **kwargs )
         self.toolbar = self.figure.canvas.manager.toolbar
         self._update(0)
+
+    def setBlock( self, block_coords: Tuple[int] ):
+        self.block: Block = self.tile.getBlock( *block_coords )
+        self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
+        self.clearLabels()
+
+    def clearLabels(self):
+        template = self.block.data[0]
+        self.labels = xa.full_like(template, -1).where( template.notnull() )
+        self.labels.name = self.block.data.name + "_labels"
+
+    def getLabeledPointData(self):
+        for ip, cx in enumerate( self.point_selection_x ):
+            cy = self.point_selection_y[ip]
+            c = self.point_selection_c[ip]
+            iy, ix = self.tile.coords2index( cy, cx )
+            self.labels[ iy, ix ] = c
+        point_data = self.tile.dm.raster2points( self.labels )
+        return point_data
+
+    @property
+    def data(self):
+        return self.block.data
 
     def _getClassLabels(self, class_labels: List[ Tuple[str,Tuple[float]]] ):
         self.class_labels: List[str] = []
@@ -339,6 +360,9 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set")
+        labels = self.getLabeledPointData()
+        self.umgr.fit( labels, block = self.block )
+        self.umgr.view_model(color_band=35)
 
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )

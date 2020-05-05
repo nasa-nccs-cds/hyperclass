@@ -24,10 +24,11 @@ class UMAPManager:
         if self.mapper is None:
             parms = self.tile.dm.config.section("umap").toDict()
             self.mapper = umap.UMAP(**parms)
-            self._fit()
 
-    def _mapperFilePath( self ) -> str:
+    def _mapperFilePath( self, block_indices: Tuple[int] = None ) -> str:
         path_cfg = self.tile.dm.config.toStr( ['tiles','umap'] )
+        if block_indices is not None:
+            path_cfg = path_cfg + f"_b-{block_indices[0]}-{block_indices[1]}"
         file_name = f"umap.{self.tile.dm.image_name}.{path_cfg}.pkl"
         return os.path.join( self.tile.dm.config['output_dir'], file_name )
 
@@ -44,17 +45,19 @@ class UMAPManager:
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
 
-    def _fit( self ):
+    def fit( self, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
-
-        training_data: xa.DataArray = self.tile.getPointData(  )
+        block: Block = kwargs.get( 'block', None )
+        samples: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {training_data.shape[0]} samples")
-        self.mapper.fit( training_data.data )
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {samples.shape[0]} samples")
+        labels_data = None if labels is None else labels.data
+        self.mapper.fit( samples.data, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, serializing mapper to file {self.mapper_file_path}")
-        if not os.path.isfile( self.mapper_file_path ):
-            pickle.dump( self.mapper, open(self.mapper_file_path, 'wb') )
+        mapper_path = self.mapper_file_path if block is None else self._mapperFilePath( block.block_coords )
+        if not os.path.isfile( mapper_path ):
+            pickle.dump( self.mapper, open( mapper_path, 'wb' ) )
 
     @property
     def conf_keys(self) -> List[str]:
