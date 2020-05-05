@@ -331,7 +331,7 @@ class DataManager:
         size = kwargs.get('size', 1 )
         plot_data = []
         for ip, ( label, points ) in enumerate( datasets.items() ):
-            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], mode='markers', marker=dict(color=colors[ip], size=size, name=label ) ) )
+            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], name=label, mode='markers', marker=dict(color=colors[ip], size=size ) ) )
         fig = go.Figure( data=plot_data )
         fig.show()
 
