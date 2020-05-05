@@ -12,6 +12,7 @@ if __name__ == '__main__':
 
     image_name = "ang20170720t004130_corr_v2p9"
     color_band = 35
+    subsample = 4
     block_index = (0,0)
     refresh = True
 
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     tile: Tile = dm.getTile()
     block: Block = tile.getBlock( *block_index )
     umgr = UMAPManager( tile, refresh = refresh )
-    umgr.fit( block = block )
+    umgr.fit( block = block, subsample = subsample )
     umgr.view_model( color_band=color_band )
 
 

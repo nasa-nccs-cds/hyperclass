@@ -9,6 +9,7 @@ import os, math
 if __name__ == '__main__':
 
     block_index = (0,0)
+    refresh = True
     image_name = "ang20170720t004130_corr_v2p9"
     classes = [ ( 'Obscured',           [ 1.0, 1.0, 1.0 ] ),
                 ( 'Forest',             [ 0.0, 1.0, 0.0 ] ),
@@ -20,6 +21,6 @@ if __name__ == '__main__':
     dm = DataManager( image_name )
     tile: Tile = dm.getTile(  )
 
-    animator = LabelingConsole( tile, classes, block = block_index )
+    animator = LabelingConsole( tile, classes, block = block_index, refresh=refresh )
     animator.show()
 

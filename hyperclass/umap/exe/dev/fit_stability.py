@@ -15,7 +15,7 @@ if __name__ == '__main__':
     image_name = "ang20170720t004130_corr_v2p9"
     refresh = True
     subsample = 5
-    colors =[ '#0000ff', '#00ff00', '#ff0000', '#000000' ]
+    colors =[ '#000000', '#00ff00', '#ff0000', '#0000ff' ]
     block_indices = [ [0,0], [0,1], [1,0], [1,1] ]
 
     dm = DataManager( image_name )

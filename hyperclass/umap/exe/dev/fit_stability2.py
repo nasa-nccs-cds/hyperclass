@@ -14,33 +14,20 @@ if __name__ == '__main__':
 
     image_name = "ang20170720t004130_corr_v2p9"
     refresh = True
-    plot_data = [ ]
-    subsample = 5
-    colors = ['#0000ff', '#00ff00', '#ff0000', '#000000']
+    subsamples = [ 4, 3, 2, 1 ]
+    colors =[ '#ff0000', '#00ff00', '#0000ff', '#000000' ]
 
     dm = DataManager( image_name )
     tile: Tile = dm.getTile()
+    umgr = UMAPManager(tile, refresh=refresh)
+    block: Block = tile.getBlock(0,0)
 
-    block1: Block = tile.getBlock( 0,0 )
-    umgr1 = UMAPManager( tile, refresh = refresh )
-    umgr1.fit( block = block1, subsample = subsample )
-    points1 = umgr1.mapper.embedding_
-    plot_data.append( go.Scatter3d( x=points1[:,0], y=points1[:,1], z=points1[:,2], mode='markers',  marker= dict( color = colors[0], size=1 ) ) )
-
-    block2: Block = tile.getBlock( 1,1 )
-    umgr2 = UMAPManager( tile, refresh = refresh )
-    umgr2.fit( block = block2, subsample = subsample )
-    points2 = umgr2.mapper.embedding_
-    plot_data.append( go.Scatter3d(x=points2[:,0], y=points2[:,1], z=points2[:,2], mode='markers',  marker= dict( color = colors[2], size=1 ) ) )
+    plot_data = [ ]
+    for color, ss in zip(colors,subsamples):
+        umgr.fit( block = block, subsample = ss )
+        points1 = umgr.mapper.embedding_
+        plot_data.append( go.Scatter3d( x=points1[:,0], y=points1[:,1], z=points1[:,2], mode='markers',  marker= dict( color = color, size=1 ) ) )
 
     fig = go.Figure( data=plot_data )
     fig.show()
-
-
-
-
-
-
-
-
 

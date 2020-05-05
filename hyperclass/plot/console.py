@@ -239,7 +239,7 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.umgr = UMAPManager(tile)
+        self.umgr = UMAPManager( tile, refresh = kwargs.pop( 'refresh', False ) )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
