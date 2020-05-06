@@ -195,6 +195,13 @@ class DataManager:
             self.tile = Tile( self )
         return self.tile
 
+    def getXArray(self, fill_value: float, shape: Tuple[int], dims: Tuple[str], **kwargs ) -> xa.DataArray:
+        coords = kwargs.get( "coords", { dim: np.arange(shape[id]) for id, dim in enumerate(dims) } )
+        result: xa.DataArray = xa.DataArray( np.full( shape, fill_value ), dims=dims, coords=coords )
+        result.attrs.update( kwargs.get("attrs",{}) )
+        result.name = kwargs.get( "name", "")
+        return result
+
     def getTileData(self, **kwargs ):
         tile_data: Optional[xa.DataArray] = self._readTileFile()
         if tile_data is None: tile_data = self._getTileDataFromImage()
