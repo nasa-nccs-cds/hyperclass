@@ -364,8 +364,11 @@ class LabelingConsole:
         self.umgr.fit( labels, block = self.block )
         embed = self.umgr.embedding
         dsu = dict( data=embed.data, name=self.block.data.name, color=[0.5,0.5,0.5,0.5], size=1 )
-        labeled_samples: np.ndarray = embed[ labels >=0 ].data
-        label_colors  = [ self.class_colors[ic] for ic in labeled_samples ]
+        label_mask = labels >=0
+        class_colors: List = list(self.class_colors.values())
+        class_indices: List = labels[ label_mask ].values.tolist()
+        labeled_samples: np.ndarray = embed[ label_mask ].data
+        label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
         dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
         self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 

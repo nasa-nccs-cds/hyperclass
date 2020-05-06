@@ -33,29 +33,21 @@ if __name__ == '__main__':
     t2 = time.time()
     print(f"Completed computing graph in {(t2 - t1)} sec, index shape = {I.shape}, dist shape = {D.shape}")
 
-    test_labels = ma.masked_equal( np.full( graph_nodes.shape[:1], -1 ), -1 )
+    C = ma.masked_equal( np.full( graph_nodes.shape[:1], -1 ), -1 )
     P: ma.MaskedArray  = ma.masked_invalid( np.full( graph_nodes.shape[:1], float("nan") ) )
 
     for iL in range(3):
         index = iL*100
-        test_labels[index] = iL
+        C[index] = iL
         P[index] = 0.0
 
-    PN0: np.ndarray  = P[ I.flatten() ]
-    PN: np.ndarray = PN0.reshape( I.shape ) + D
-    best_neighbors: ma.MaskedArray = ma.argmin( PN, axis=1 )
-# #    I = xa.DataArray( knn_indices, dims=['samples', 'neighbors'], coords = dict( samples = graph_nodes.coords['samples'], neighbors=np.arange(knn_indices.shape[1]) ) )
-# #    D = xa.DataArray( knn_dists,   dims=['samples', 'neighbors'], coords = dict( samples = graph_nodes.coords['samples'], neighbors=np.arange(knn_indices.shape[1])))
-#     test_labels =  xa.full_like( graph_nodes[:,0], float("nan") )
-#     P = xa.full_like( test_labels, float("nan") )
-#     for iL in range(3):
-#         index = iL*100
-#         test_labels[index] = iL
-#         P[index] = 0.0
-# 
-#     PN = P[ knn_indices.flatten() ].res
+    PN0: ma.MaskedArray  = P[ I.flatten() ]
+    PN: ma.MaskedArray = PN0.reshape( I.shape ) + D
+    best_neighbors: np.ndarray = ma.argmin( PN, axis=1 )
+    P = PN[ :, best_neighbors ]
+    C = C[ best_neighbors ]
 
-    print( ". " )
+    print(".")
 
 
 
