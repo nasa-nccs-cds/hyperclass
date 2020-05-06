@@ -325,13 +325,13 @@ class DataManager:
         return point_data
 
     @classmethod
-    def plot_pointclouds(cls, datasets: Dict[str,np.ndarray], **kwargs ):
+    def plot_pointclouds(cls, datasets: List ):
         import plotly.graph_objs as go
-        colors = kwargs.get( 'colors', ['#0000ff', '#00ff00', '#ff0000', '#000000', '#ffff00', '#00ffff', '#ff00ff', '#888888', '#8888ff', '#88ff88', '#ff8888'  ] )
-        size = kwargs.get('size', 1 )
         plot_data = []
-        for ip, ( label, points ) in enumerate( datasets.items() ):
-            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], name=label, mode='markers', marker=dict(color=colors[ip], size=size ) ) )
+        for ip, dataset in enumerate( datasets ):
+            points = dataset.pop( "data" )
+            name = dataset.pop( "name" )
+            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], name=name, mode='markers', marker=dataset ) )
         fig = go.Figure( data=plot_data )
         fig.show()
 

@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     image_name = "ang20170720t004130_corr_v2p9"
     color_band = 35
-    subsample = 4
+    subsample = 10
     block_index = (0,0)
     refresh = True
 

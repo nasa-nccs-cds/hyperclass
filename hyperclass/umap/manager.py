@@ -14,11 +14,13 @@ class UMAPManager:
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self.mapper_file_path = self._mapperFilePath()
+        self._embedding: xa.DataArray = None
         self._getMapper()
 
+
     @property
-    def embedding(self):
-        return self.mapper.embedding_
+    def embedding(self) -> xa.DataArray:
+        return self._embedding
 
     def _getMapper(self):
         if self.refresh and os.path.isfile(self.mapper_file_path):
@@ -52,11 +54,13 @@ class UMAPManager:
     def fit( self, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
         block: Block = kwargs.get( 'block', None )
-        samples: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
+        point_data: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {samples.shape[0]} samples")
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.data
-        self.mapper.fit( samples.data, labels_data )
+        self.mapper.fit( point_data.data, labels_data )
+        edata = self.mapper.embedding_
+        self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, serializing mapper to file {self.mapper_file_path}")
         mapper_path = self.mapper_file_path if block is None else self._mapperFilePath( block.block_coords )

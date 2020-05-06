@@ -362,10 +362,12 @@ class LabelingConsole:
         print( "Submitting training set")
         labels = self.getLabeledPointData()
         self.umgr.fit( labels, block = self.block )
-        data0 = self.umgr.embedding
-        self.umgr.fit( block = self.block )
-        data1 = self.umgr.embedding
-        self.tile.dm.plot_pointclouds( { "With Labels": data0, "Unlabeled": data1 } )
+        embed = self.umgr.embedding
+        dsu = dict( data=embed.data, name=self.block.data.name, color=[0.5,0.5,0.5,0.5], size=1 )
+        labeled_samples: np.ndarray = embed[ labels >=0 ].data
+        label_colors  = [ self.class_colors[ic] for ic in labeled_samples ]
+        dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
+        self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
