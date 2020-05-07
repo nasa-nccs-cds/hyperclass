@@ -11,8 +11,8 @@ import os, time
 
 class ActivationFlow:
 
-    def __init__(self, tile: Tile, **kwargs ):
-        self.tile: Tile = tile
+    def __init__(self,  **kwargs ):
+        self.tile: Tile = None
         self.block: Block = None
         self.nodes: np.ndarray = None
         self.nnd: NNDescent = None
@@ -20,7 +20,12 @@ class ActivationFlow:
         self.D: ma.MaskedArray = None
         self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
 
-    def setBlock(self, iy, ix,  ):
+    def setGraph( self, I: np.ndarray, D: np.ndarray ):
+        self.I = I
+        self.D = ma.MaskedArray( D )
+
+    def setBlock(self, tile: Tile, iy, ix, **kwargs ):
+        self.tile: Tile = tile
         self.block: Block = tile.getBlock( iy, ix )
         self.nodes = self.block.getPointData().values
         n_trees = 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0))
@@ -30,11 +35,15 @@ class ActivationFlow:
         self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
 
     def spread( self, class_labels: np.ndarray, nIter: int, **kwargs ) -> np.ndarray:
+        debug = kwargs.get( 'debug', False )
         C = ma.masked_less( class_labels.flatten(), 0 )
         P = ma.masked_array(  np.full( C.shape, 0.0 ), mask = C.mask )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( P.dtype ).max
         print(f"Beginning graph flow iterations, #C = {C.count()}")
+        if debug:
+            print(f"P = {P}")
+            print(f"C = {C}")
         t0 = time.time()
         for iter in range(nIter):
             PN: ma.MaskedArray = P[ self.I.flatten() ].reshape(self.I.shape) +self. D
@@ -42,7 +51,13 @@ class ActivationFlow:
             best_neighbors: ma.MaskedArray = PN.argmin(axis=1, fill_value=max_flt)
             P = PN[index0, best_neighbors]
             C = CN[index0, best_neighbors]
-            print(f" -->> Iter{iter + 1}: #C = {C.count()}")
+            print(f"\n -->> Iter{iter + 1}: #C = {C.count()}")
+            if debug:
+                print(f"PN = {PN}")
+                print(f"CN = {CN}")
+                print(f"best_neighbors = {best_neighbors}")
+                print( f"P = {P}" )
+                print( f"C = {C}" )
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
@@ -51,22 +66,32 @@ class ActivationFlow:
 
 if __name__ == '__main__':
     image_name = "ang20170720t004130_corr_v2p9"
-    n_neighbors = 3
-    subsample = 1
-    block_index = ( 0,0 )
+    n_neighbors = 2
     nIter = 3
+    use_tile = True
 
     t0 = time.time()
-    dm = DataManager( image_name )
-    tile: Tile = dm.getTile()
 
-    aflow = ActivationFlow( tile, n_neighbors = n_neighbors )
-    aflow.setBlock( *block_index )
+    aflow = ActivationFlow(n_neighbors=n_neighbors)
 
-    C = ma.masked_equal(np.full(aflow.nodes.shape[:1], -1), -1)
-    C[500] = 1
+    if use_tile:
+        subsample = 100
+        block_index = (0, 0)
+        dm = DataManager( image_name )
+        tile: Tile = dm.getTile()
+        aflow.setBlock( tile, *block_index )
+        C = ma.masked_equal(np.full(aflow.nodes.shape[:1], -1), -1)
+        C[500] = 1
+        debug = False
 
-    aflow.spread( C, nIter )
+    else:
+        I = np.array( [ [0,1,3], [1,0,2], [2,1,3], [3,0,2], ])
+        D = np.array( [ [0.,2.,0.1], [0.,2., 3.], [0.,3.,.2], [0.,.1, .2], ])
+        C = np.array( [ 1, -1, -1, -1 ] )
+        aflow.setGraph( I, D )
+        debug = True
+
+    aflow.spread( C, nIter, debug = debug  )
 
     print(".")
 
