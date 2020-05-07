@@ -14,7 +14,7 @@ import os, time
 if __name__ == '__main__':
     image_name = "ang20170720t004130_corr_v2p9"
     n_neighbors = 10
-    subsample = 1
+    subsample = 100
 
     t0 = time.time()
     dm = DataManager( image_name )
@@ -35,21 +35,24 @@ if __name__ == '__main__':
 
     C = ma.masked_equal( np.full( graph_nodes.shape[:1], -1 ), -1 )
     P: ma.MaskedArray  = ma.masked_invalid( np.full( graph_nodes.shape[:1], float("nan") ) )
-    index0 = np.arange(I.shape[0])
-    max_flt = np.finfo(P.dtype).max
+#    node_index = np.arange(I.shape[0])
 
-    for iL in range(10):
+    for iL in range(3):
         index = iL*100
         C[index] = iL
         P[index] = 0.0
 
+    max_flt = np.finfo(P.dtype).max
+
     t3 = time.time()
-    PN: ma.MaskedArray =  P[ I.flatten() ].reshape( I.shape ) + D
+    PN0: ma.MaskedArray  = P[ I.flatten() ]
+    PN: ma.MaskedArray = PN0.reshape( I.shape ) + D
     CN = C[ I.flatten() ].reshape( I.shape )
     best_neighbors: ma.MaskedArray = PN.argmin( axis=1, fill_value=max_flt )
-
-    P = PN[ index0, best_neighbors ]
-    C = CN[ index0, best_neighbors ]
+    index0 =  np.arange(best_neighbors.size)
+    neighbor_index = I[ index0, best_neighbors ]
+    P = PN[ index0, neighbor_index ]
+    C = CN[ index0, neighbor_index ]
     t4 = time.time()
     print(f"Completed graph flow iteration in {(t4 - t3)} sec")
 
