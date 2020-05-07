@@ -15,6 +15,7 @@ if __name__ == '__main__':
     image_name = "ang20170720t004130_corr_v2p9"
     n_neighbors = 10
     subsample = 1
+    nIter = 10
 
     t0 = time.time()
     dm = DataManager( image_name )
@@ -43,18 +44,18 @@ if __name__ == '__main__':
         C[index] = iL
         P[index] = 0.0
 
+    print(f"Beginning graph flow iterations, #C = {C.count()}, #P = {P.count()}")
     t3 = time.time()
-    PN: ma.MaskedArray =  P[ I.flatten() ].reshape( I.shape ) + D
-    CN = C[ I.flatten() ].reshape( I.shape )
-    best_neighbors: ma.MaskedArray = PN.argmin( axis=1, fill_value=max_flt )
+    for iter in range( nIter ):
+        PN: ma.MaskedArray =  P[ I.flatten() ].reshape( I.shape ) + D
+        CN = C[ I.flatten() ].reshape( I.shape )
+        best_neighbors: ma.MaskedArray = PN.argmin( axis=1, fill_value=max_flt )
 
-    P = PN[ index0, best_neighbors ]
-    C = CN[ index0, best_neighbors ]
+        P = PN[ index0, best_neighbors ]
+        C = CN[ index0, best_neighbors ]
     t4 = time.time()
-    print(f"Completed graph flow iteration in {(t4 - t3)} sec")
+    print(f"Completed graph flow {nIter} iterations in {(t4 - t3)} sec, #C = {C.count()}, #P = {P.count()}")
 
-
-    print( ". " )
 
 
 
