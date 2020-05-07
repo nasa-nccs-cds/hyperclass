@@ -50,11 +50,12 @@ if __name__ == '__main__':
         PN: ma.MaskedArray =  P[ I.flatten() ].reshape( I.shape ) + D
         CN = C[ I.flatten() ].reshape( I.shape )
         best_neighbors: ma.MaskedArray = PN.argmin( axis=1, fill_value=max_flt )
-
         P = PN[ index0, best_neighbors ]
         C = CN[ index0, best_neighbors ]
+        print(f" -->> Iter{iter}: #C = {C.count()}, #P = {P.count()}")
+
     t4 = time.time()
-    print(f"Completed graph flow {nIter} iterations in {(t4 - t3)} sec, #C = {C.count()}, #P = {P.count()}")
+    print(f"Completed graph flow {nIter} iterations in {(t4 - t3)} sec")
 
 
 
