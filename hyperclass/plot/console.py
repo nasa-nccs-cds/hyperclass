@@ -364,8 +364,9 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set")
+        nIter = 10
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.flow.spread( labels, 3, to_raster = True )
+        new_labels: xa.DataArray = self.flow.spread( labels, nIter, to_raster = True )
         self.plot_label_map( new_labels )
 
         # label_map = self.tile.dm.raster2points()
@@ -381,9 +382,9 @@ class LabelingConsole:
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
         class_alpha = kwargs.get( 'alpha', 0.5 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ ic, label, [ color + [class_alpha] ] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
+            label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
-            self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors )
+            self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
 
