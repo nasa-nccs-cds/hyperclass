@@ -389,8 +389,7 @@ class LabelingConsole:
             if self.label_blinking_on:
                 ia = ( ia+1 ) % 1000
                 self.labels_image.set_alpha( float( ia % 2 ) )
-                self.figure.canvas.draw()
-#                self.update_canvas()
+                self.figure.canvas.draw_idle()
 
     def run_labels_blinker( self, delay = 1.0 ):
         self.blinker_thread_active = True
