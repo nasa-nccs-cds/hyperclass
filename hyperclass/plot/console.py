@@ -223,6 +223,7 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
+        self.blinker = None
         self.labels_image: AxesImage = None
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
@@ -262,14 +263,16 @@ class LabelingConsole:
         self.labels = xa.full_like(template, -1).where( template.notnull() )
         self.labels.name = self.block.data.name + "_labels"
 
-    def getLabeledPointData(self):
+    def updateLabels(self):
         for ip, cx in enumerate( self.point_selection_x ):
             cy = self.point_selection_y[ip]
             c = self.point_selection_c[ip]
             iy, ix = self.tile.coords2index( cy, cx )
             self.labels[ iy, ix ] = c
-        point_data = self.tile.dm.raster2points( self.labels )
-        return point_data
+
+    def getLabeledPointData( self, update = True ):
+        if update: self.updateLabels()
+        return self.tile.dm.raster2points( self.labels )
 
     @property
     def data(self):
@@ -296,7 +299,6 @@ class LabelingConsole:
 
     def setup_plot(self, **kwargs):
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
-        g0 =  self.plot_grid[0, 0]
         self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
         for iC in range(4):
             self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
@@ -366,17 +368,8 @@ class LabelingConsole:
         print( "Submitting training set")
         nIter = 10
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.flow.spread( labels, nIter, to_raster = True )
+        new_labels: xa.DataArray = self.flow.spread( labels, nIter  )
         self.plot_label_map( new_labels )
-
-        # label_map = self.tile.dm.raster2points()
-        # label_mask = labels >=0
-        # class_colors: List = list(self.class_colors.values())
-        # class_indices: List = labels[ label_mask ].values.tolist()
-        # labeled_samples: np.ndarray = embed[ label_mask ].data
-        # label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
-        # dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
-        # self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
@@ -385,8 +378,27 @@ class LabelingConsole:
             label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
+            self.run_labels_blinker()
         else:
             self.labels_image.set_data( label_map  )
+
+    def __labels_image_blinker( self, delay: float ):
+        ia = 0
+        while self.blinker_thread_active:
+            time.sleep(delay)
+            if self.label_blinking_on:
+                ia = ( ia+1 ) % 1000
+                self.labels_image.set_alpha( float(ia) )
+
+    def run_labels_blinker( self, delay = 1.0 ):
+        self.blinker_thread_active = True
+        self.label_blinking_on = True
+        if self.blinker is None:
+            self.blinker = Thread(target=self.__labels_image_blinker, args=(delay,))
+            self.blinker.start()
+
+    def toggle_blinking_layer(self, blinking_on: bool ):
+        self.label_blinking_on = blinking_on
 
     def display_manifold(self, event ):
         print( "display_manifold")
@@ -474,4 +486,5 @@ class LabelingConsole:
 
     def __del__(self):
         self.tile.dm.tdio.flush()
+        self.blinker_thread_active = False
 
