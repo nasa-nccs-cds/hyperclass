@@ -253,7 +253,7 @@ class LabelingConsole:
     def setBlock( self, block_coords: Tuple[int] ):
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
-        self.flow.setNodeData(self.block.getPointData().values)
+        self.flow.setNodeData( self.block.getPointData() )
         self.clearLabels()
 
     def clearLabels(self):
@@ -364,7 +364,8 @@ class LabelingConsole:
     def submit_training_set(self, event ):
         print( "Submitting training set")
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels = self.flow.spread( labels.values, 3 )
+        new_labels = self.flow.spread( labels, 3 )
+        label_map = new_labels.unstack()
         print(".")
         # label_map = self.tile.dm.raster2points()
         # label_mask = labels >=0

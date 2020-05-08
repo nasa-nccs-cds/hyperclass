@@ -1,14 +1,14 @@
 from pynndescent import NNDescent
 import numpy as np
 import numpy.ma as ma
+import xarray as xa
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, time
 
 class ActivationFlow:
 
     def __init__(self,  **kwargs ):
-        self.nodes: np.ndarray = None
+        self.nodes: xa.DataArray = None
         self.nnd: NNDescent = None
         self.I: np.ndarray = None
         self.D: ma.MaskedArray = None
@@ -18,17 +18,17 @@ class ActivationFlow:
         self.I = I
         self.D = ma.MaskedArray( D )
 
-    def setNodeData(self, nodes_data: np.ndarray, **kwargs ):
+    def setNodeData(self, nodes_data: xa.DataArray, **kwargs ):
         self.nodes = nodes_data
         n_trees = 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0))
         n_iters = max(5, int(round(np.log2(self.nodes.shape[0]))))
-        self.nnd = NNDescent( self.nodes, n_trees=n_trees, n_iters=n_iters, n_jobs = -1, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
+        self.nnd = NNDescent( self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_jobs = -1, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
         self.I = self.nnd.neighbor_graph[0]
         self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
 
-    def spread( self, class_labels: np.ndarray, nIter: int, **kwargs ) -> np.ndarray:
+    def spread( self, class_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
         debug = kwargs.get( 'debug', False )
-        C = ma.masked_less( class_labels.flatten(), 0 )
+        C = ma.masked_less( class_labels.values, 0 )
         P = ma.masked_array(  np.full( C.shape, 0.0 ), mask = C.mask )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( P.dtype ).max
@@ -61,5 +61,5 @@ class ActivationFlow:
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
-        return C.reshape( class_labels.shape )
+        return xa.DataArray( C, dims=class_labels.dims, coords=class_labels.coords, attrs=class_labels.attrs )
 
