@@ -12,6 +12,9 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 
 ```
 
+##### Install pptk
+pip install ./build/pptk-0.1.0-cp37-none-macosx_10_13_x86_64.whl
+
 ##### Install hyperclass
 ```
 (geoproc)>> git clone git@github.com:nasa-nccs-cds/hyperclass.git
