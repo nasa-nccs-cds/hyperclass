@@ -4,10 +4,11 @@ import numpy.ma as ma
 from typing import List, Union, Tuple, Optional
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, time
+# import pptk
 
 image_name = "ang20170720t004130_corr_v2p9"
 n_neighbors = 10
-nIter = 4
+nIter = 10
 subsample = 1
 block_index = (0, 0)
 t0 = time.time()
