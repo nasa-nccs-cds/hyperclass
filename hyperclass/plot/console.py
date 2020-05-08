@@ -389,6 +389,7 @@ class LabelingConsole:
             if self.label_blinking_on:
                 ia = ( ia+1 ) % 1000
                 self.labels_image.set_alpha( float( ia % 2 ) )
+                self.update_canvas()
 
     def run_labels_blinker( self, delay = 1.0 ):
         self.blinker_thread_active = True
@@ -417,6 +418,10 @@ class LabelingConsole:
     def plot_points(self):
         self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
         self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ic] ] for ic in self.point_selection_c ] )
+        self.update_canvas()
+
+
+    def update_canvas(self):
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
