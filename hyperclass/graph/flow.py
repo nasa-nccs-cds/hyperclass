@@ -28,6 +28,7 @@ class ActivationFlow:
 
     def spread( self, class_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
         debug = kwargs.get( 'debug', False )
+        raster= kwargs.get( 'raster', False )
         C = ma.masked_less( class_labels.values, 0 )
         P = ma.masked_array(  np.full( C.shape, 0.0 ), mask = C.mask )
         index0 = np.arange( self.I.shape[0] )
@@ -61,5 +62,6 @@ class ActivationFlow:
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
-        return xa.DataArray( C, dims=class_labels.dims, coords=class_labels.coords, attrs=class_labels.attrs )
+        result = xa.DataArray( C, dims=class_labels.dims, coords=class_labels.coords, attrs=class_labels.attrs )
+        return result if not raster else result.unstack().transpose()
 
