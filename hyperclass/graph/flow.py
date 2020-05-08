@@ -26,10 +26,10 @@ class ActivationFlow:
         self.I = self.nnd.neighbor_graph[0]
         self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
 
-    def spread( self, class_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
+    def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
         debug = kwargs.get( 'debug', False )
-        raster= kwargs.get( 'raster', False )
-        C = ma.masked_less( class_labels.values, 0 )
+        raster= kwargs.get( 'to_raster', False )
+        C = ma.masked_less( sample_labels.values, 0 )
         P = ma.masked_array(  np.full( C.shape, 0.0 ), mask = C.mask )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( P.dtype ).max
@@ -62,6 +62,6 @@ class ActivationFlow:
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
-        result = xa.DataArray( C, dims=class_labels.dims, coords=class_labels.coords, attrs=class_labels.attrs )
+        result = xa.DataArray( C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=sample_labels.attrs )
         return result if not raster else result.unstack().transpose()
 
