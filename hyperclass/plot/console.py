@@ -381,7 +381,8 @@ class LabelingConsole:
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
         class_alpha = kwargs.get( 'alpha', 0.5 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ -1, "unclass", [1,1,1,0] ], ] + [ [ ic, label, [ color + [class_alpha] ] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
+            label_map_colors: List = [ [ ic, label, [ color + [class_alpha] ] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
+            label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors )
         else:
             self.labels_image.set_data( label_map  )
