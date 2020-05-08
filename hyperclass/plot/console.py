@@ -223,6 +223,7 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
+        self.labels_image: AxesImage = None
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
@@ -365,7 +366,8 @@ class LabelingConsole:
         print( "Submitting training set")
         labels: xa.DataArray = self.getLabeledPointData()
         new_labels: xa.DataArray = self.flow.spread( labels, 3, to_raster = True )
-        print(".")
+        self.plot_label_map( new_labels )
+
         # label_map = self.tile.dm.raster2points()
         # label_mask = labels >=0
         # class_colors: List = list(self.class_colors.values())
@@ -374,6 +376,15 @@ class LabelingConsole:
         # label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
         # dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
         # self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
+
+    def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
+        label_map: xa.DataArray =  sample_labels.unstack().transpose()
+        class_alpha = kwargs.get( 'alpha', 0.5 )
+        if self.labels_image is None:
+            label_map_colors = [1,1,1,0] + [ color + [class_alpha] for color in self.class_colors.values() ]
+            self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors )
+        else:
+            self.labels_image.set_data( label_map  )
 
     def display_manifold(self, event ):
         print( "display_manifold")
