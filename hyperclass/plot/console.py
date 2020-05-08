@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from hyperclass.graph.flow import ActivationFlow
 from threading import  Thread
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
@@ -214,6 +215,7 @@ class LabelingConsole:
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.tile = tile
+        self.flow = ActivationFlow(**kwargs)
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
         self._getClassLabels( class_labels )
         self.global_bounds: Bbox = None
@@ -251,6 +253,7 @@ class LabelingConsole:
     def setBlock( self, block_coords: Tuple[int] ):
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
+        self.flow.setNodeData(self.block.getPointData().values)
         self.clearLabels()
 
     def clearLabels(self):
@@ -360,7 +363,21 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set")
-        labels = self.getLabeledPointData()
+        labels: xa.DataArray = self.getLabeledPointData()
+        new_labels = self.flow.spread( labels.values, 3 )
+        print(".")
+        # label_map = self.tile.dm.raster2points()
+        # label_mask = labels >=0
+        # class_colors: List = list(self.class_colors.values())
+        # class_indices: List = labels[ label_mask ].values.tolist()
+        # labeled_samples: np.ndarray = embed[ label_mask ].data
+        # label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
+        # dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
+        # self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
+
+    def display_manifold(self, event ):
+        print( "display_manifold")
+        labels: xa.DataArray = self.getLabeledPointData()
         self.umgr.fit( labels, block = self.block )
         embed = self.umgr.embedding
         dsu = dict( data=embed.data, name=self.block.data.name, color=[0.5,0.5,0.5,0.5], size=1 )

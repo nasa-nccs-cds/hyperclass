@@ -8,8 +8,6 @@ import os, time
 class ActivationFlow:
 
     def __init__(self,  **kwargs ):
-        self.tile: Tile = None
-        self.block: Block = None
         self.nodes: np.ndarray = None
         self.nnd: NNDescent = None
         self.I: np.ndarray = None
@@ -20,10 +18,8 @@ class ActivationFlow:
         self.I = I
         self.D = ma.MaskedArray( D )
 
-    def setBlock(self, tile: Tile, iy, ix, **kwargs ):
-        self.tile: Tile = tile
-        self.block: Block = tile.getBlock( iy, ix )
-        self.nodes = self.block.getPointData( **kwargs ).values
+    def setNodeData(self, nodes_data: np.ndarray, **kwargs ):
+        self.nodes = nodes_data
         n_trees = 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0))
         n_iters = max(5, int(round(np.log2(self.nodes.shape[0]))))
         self.nnd = NNDescent( self.nodes, n_trees=n_trees, n_iters=n_iters, n_jobs = -1, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
@@ -36,7 +32,8 @@ class ActivationFlow:
         P = ma.masked_array(  np.full( C.shape, 0.0 ), mask = C.mask )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( P.dtype ).max
-        print(f"Beginning graph flow iterations, #C = {C.count()}")
+        label_count = C.count()
+        print(f"Beginning graph flow iterations, #C = {label_count}")
         if debug:
             print(f"I = {self.I}" )
             print(f"D = {self.D}" )
@@ -49,13 +46,18 @@ class ActivationFlow:
             best_neighbors: ma.MaskedArray = PN.argmin(axis=1, fill_value=max_flt)
             P = PN[index0, best_neighbors]
             C = CN[index0, best_neighbors]
-            print(f"\n -->> Iter{iter + 1}: #C = {C.count()}\n")
-            if debug:
-                print(f"PN = {PN}")
-                print(f"CN = {CN}")
-                print(f"best_neighbors = {best_neighbors}")
-                print( f"P = {P}" )
-                print( f"C = {C}" )
+            new_label_count = C.count()
+            if new_label_count == label_count:
+                print( "Converged!" )
+            else:
+                label_count = new_label_count
+                print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
+                if debug:
+                    print(f"PN = {PN}")
+                    print(f"CN = {CN}")
+                    print(f"best_neighbors = {best_neighbors}")
+                    print( f"P = {P}" )
+                    print( f"C = {C}" )
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
