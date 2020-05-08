@@ -388,13 +388,13 @@ class LabelingConsole:
             time.sleep(delay)
             if self.label_blinking_on:
                 ia = ( ia+1 ) % 1000
-                self.labels_image.set_alpha( float(ia) )
+                self.labels_image.set_alpha( float( ia % 2 ) )
 
     def run_labels_blinker( self, delay = 1.0 ):
         self.blinker_thread_active = True
         self.label_blinking_on = True
         if self.blinker is None:
-            self.blinker = Thread(target=self.__labels_image_blinker, args=(delay,))
+            self.blinker = Thread(target=self.__labels_image_blinker, daemon=True, args=(delay,))
             self.blinker.start()
 
     def toggle_blinking_layer(self, blinking_on: bool ):
