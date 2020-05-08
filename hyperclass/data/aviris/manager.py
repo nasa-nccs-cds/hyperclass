@@ -348,7 +348,7 @@ class DataManager:
         ax = kwargs.pop( 'ax', None )
         showplot = ( ax is None )
         if showplot: fig, ax = plt.subplots(1,1)
-        colors = kwargs.pop('_colors', None )
+        colors = kwargs.pop('colors', None )
         title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
         colorbar = kwargs.pop( 'colorbar', True )

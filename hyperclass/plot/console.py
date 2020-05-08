@@ -364,7 +364,7 @@ class LabelingConsole:
     def submit_training_set(self, event ):
         print( "Submitting training set")
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.flow.spread( labels, 3, toraster = True )
+        new_labels: xa.DataArray = self.flow.spread( labels, 3, to_raster = True )
         print(".")
         # label_map = self.tile.dm.raster2points()
         # label_mask = labels >=0
