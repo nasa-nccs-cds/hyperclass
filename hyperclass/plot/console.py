@@ -46,7 +46,7 @@ class EventSource(Thread):
         self.action = action
         self.interval = kwargs.get( "delay",0.01 )
         self.active = False
-        self.running = True
+        self.running = False
         self.daemon = True
         atexit.register( self.exit )
 
@@ -56,6 +56,11 @@ class EventSource(Thread):
             if self.active:
                 plt.pause( 0.05 )
                 self.action( self.event )
+
+    def start(self):
+        if not self.running:
+            self.running = True
+            Thread.start(self)
 
     def activate(self, delay = None ):
         if delay is not None: self.interval = delay
@@ -261,7 +266,7 @@ class LabelingConsole:
 
     def clearLabels(self):
         template = self.block.data[0]
-        self.labels = xa.full_like(template, -1).where( template.notnull() )
+        self.labels = xa.full_like( template, float("nan") )
         self.labels.name = self.block.data.name + "_labels"
 
     def updateLabels(self):
