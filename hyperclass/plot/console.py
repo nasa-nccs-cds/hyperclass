@@ -231,6 +231,7 @@ class LabelingConsole:
         self.blinker = EventSource(self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
         self.labels_image: AxesImage = None
+        self.flow_iterations = kwargs.get( 'flow_iterations', 100 )
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
@@ -262,12 +263,17 @@ class LabelingConsole:
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
-        self.clearLabels()
+        self.initLabels()
 
-    def clearLabels(self):
+    def clearLabels( self, event = None ):
         template = self.block.data[0]
         self.labels = xa.full_like( template, float("nan") )
         self.labels.name = self.block.data.name + "_labels"
+        self.labels.attrs[ 'long_name' ] = [ "labels" ]
+
+    def initLabels(self):
+        self.labels = self.tile.dm.readGeotiff(self.block.data.name + "_labels")
+        if self.labels is None: self.clearLabels()
 
     def updateLabels(self):
         for ip, cx in enumerate( self.point_selection_x ):
@@ -278,6 +284,7 @@ class LabelingConsole:
 
     def getLabeledPointData( self, update = True ):
         if update: self.updateLabels()
+        self.tile.dm.writeGeotiff( self.labels, self.block.data.name + "_labels" )
         return self.tile.dm.raster2points( self.labels )
 
     @property
@@ -371,10 +378,9 @@ class LabelingConsole:
         self.plot_points()
 
     def submit_training_set(self, event ):
-        print( "Submitting training set")
-        nIter = 10
+        print( "Submitting training set" )
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.flow.spread( labels, nIter  )
+        new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
@@ -455,10 +461,11 @@ class LabelingConsole:
     def add_button_box( self, buttons_window=1, **kwargs ):
         cax = self.control_axes[ buttons_window ]
         cax.title.set_text('Actions')
-        actions = [ "Submit", "Undo" ]
+        actions = [ "Submit", "Undo", "Clear" ]
         self.button_box = ButtonBox( cax, [3,3], actions )
         self.button_box.addCallback( actions[0], self.submit_training_set )
         self.button_box.addCallback( actions[1], self.undo_point_selection )
+        self.button_box.addCallback( actions[2], self.clearLabels )
 
 
     def wait_for_key_press(self):

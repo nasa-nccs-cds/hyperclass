@@ -251,7 +251,8 @@ class DataManager:
         return cls.scale_to_bounds( rgb, (0, 1) ).transpose('y', 'x', 'band')
 
 
-    def writeGeotiff(self, raster_data: xa.DataArray, filename: str) -> str:
+    def writeGeotiff(self, raster_data: xa.DataArray, filename: str = None ) -> str:
+        if filename is None: filename = raster_data.name
         if not filename.endswith(".tif"): filename = filename + ".tif"
         output_file = os.path.join(self.config['data_dir'], filename )
         print(f"Writing raster file {output_file}")
