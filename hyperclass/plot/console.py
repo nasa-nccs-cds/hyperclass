@@ -223,7 +223,8 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
-        self.blinker = None
+        self.blinker = EventSource(self.blink, delay=kwargs.get('blink_delay',1.0) )
+        self.blink_state = True
         self.labels_image: AxesImage = None
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
@@ -378,28 +379,19 @@ class LabelingConsole:
             label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
-            self.run_labels_blinker()
+            self.blinker.start()
         else:
             self.labels_image.set_data( label_map  )
+        self.blinker.start()
 
-    def __labels_image_blinker( self, delay: float ):
-        ia = 0
-        while self.blinker_thread_active:
-            time.sleep(delay)
-            if self.label_blinking_on:
-                ia = ( ia+1 ) % 1000
-                self.labels_image.set_alpha( float( ia % 2 ) )
-                self.figure.canvas.draw_idle()
-
-    def run_labels_blinker( self, delay = 1.0 ):
-        self.blinker_thread_active = True
-        self.label_blinking_on = True
-        if self.blinker is None:
-            self.blinker = Thread(target=self.__labels_image_blinker, daemon=True, args=(delay,))
-            self.blinker.start()
+    def blink(self):
+        self.blink_state = not self.blink_state
+        self.labels_image.set_alpha( float(self.blink_state) )
+        self.figure.canvas.draw_idle()
 
     def toggle_blinking_layer(self, blinking_on: bool ):
-        self.label_blinking_on = blinking_on
+        if blinking_on:     self.blinker.activate()
+        else:               self.blinker.deactivate()
 
     def display_manifold(self, event ):
         print( "display_manifold")
@@ -491,5 +483,5 @@ class LabelingConsole:
 
     def __del__(self):
         self.tile.dm.tdio.flush()
-        self.blinker_thread_active = False
+        self.blinker.exit()
 
