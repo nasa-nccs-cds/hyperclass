@@ -244,9 +244,7 @@ class LabelingConsole:
         self.y_axis = kwargs.pop( 'y', 1 )
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
-        self.point_selection_x = []
-        self.point_selection_y = []
-        self.point_selection_c = []
+        self.point_selection = None
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
@@ -263,7 +261,8 @@ class LabelingConsole:
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
-        self.initLabels()
+        self.read_training_data()
+        self.clearLabels()
 
     def clearLabels( self, event = None ):
         template = self.block.data[0].squeeze( drop=True )
@@ -271,20 +270,13 @@ class LabelingConsole:
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
-    def initLabels(self):
-        self.labels = self.tile.dm.readGeotiff(self.block.data.name + "_labels")
-        if self.labels is None: self.clearLabels()
-
     def updateLabels(self):
-        for ip, cx in enumerate( self.point_selection_x ):
-            cy = self.point_selection_y[ip]
-            c = self.point_selection_c[ip]
+        for ( cy, cx, c ) in self.point_selection:
             iy, ix = self.tile.coords2index( cy, cx )
             self.labels[ iy, ix ] = c
 
     def getLabeledPointData( self, update = True ):
         if update: self.updateLabels()
-        self.tile.dm.writeGeotiff( self.labels, self.block.data.name + "_labels" )
         return self.tile.dm.raster2points( self.labels )
 
     @property
@@ -366,19 +358,16 @@ class LabelingConsole:
                     self.dataLims = event.inaxes.dataLim
 
     def add_point_selection(self, event ):
-        self.point_selection_x.append( event.xdata )
-        self.point_selection_y.append( event.ydata )
-        self.point_selection_c.append( self.selectedClass )
+        self.point_selection.append( ( event.xdata, event.ydata, self.selectedClass ) )
         self.plot_points()
 
     def undo_point_selection(self, event ):
-        self.point_selection_x.pop()
-        self.point_selection_y.pop()
-        self.point_selection_c.pop()
+        self.point_selection.pop()
         self.plot_points()
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
+        self.write_training_data()
         labels: xa.DataArray = self.getLabeledPointData()
         new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
@@ -419,8 +408,8 @@ class LabelingConsole:
         self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 
     def plot_points(self):
-        self.training_points.set_offsets( np.c_[ self.point_selection_x, self.point_selection_y ] )
-        self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ic] ] for ic in self.point_selection_c ] )
+        self.training_points.set_offsets( np.ndarray( [ ps[0:2] for ps in self.point_selection ] ) )
+        self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ps[2]] ] for ps in self.point_selection ] )
         self.update_canvas()
 
 
@@ -432,11 +421,12 @@ class LabelingConsole:
     def selectedColor(self):
         return self.class_colors[ self.selectedClass ]
 
+    def read_training_data(self):
+        self.point_selection = self.tile.dm.tdio.entries()
+
     def write_training_data(self):
-        for ip, c in enumerate( self.point_selection_c ):
-            x = self.point_selection_x[ip]
-            y = self.point_selection_x[ip]
-            self.tile.dm.tdio.writeEntry( x, y, c )
+        for (y,x,c) in self.point_selection:
+            self.tile.dm.tdio.writeEntry( y, x, c )
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
@@ -448,6 +438,7 @@ class LabelingConsole:
         self.training_points = self.plot_axes.scatter( [],[], s=50, zorder=2, alpha=1 )
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
+        self.plot_points()
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )

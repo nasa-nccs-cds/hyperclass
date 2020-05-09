@@ -43,18 +43,18 @@ class TrainingDataIO:
 
     def _writer( self ) -> csv.writer:
         if self._write_stream is None:
-            self.write_stream = open( self.file_path, 'a' )
-            self._write_stream = csv.writer( self.write_stream, delimiter=',' )
-        return self._write_stream
+            self._write_stream = open( self.file_path, 'a' )
+        return csv.writer( self._write_stream, delimiter=',' )
 
     def _reader( self ) -> Union[csv.writer,List[str]]:
-        if self.read_stream is None:
+        if self._read_stream is None:
             if os.path.isfile(self.file_path):
-                self.read_stream = open( self.file_path, 'r' )
-                self.read_stream = csv.reader( self.read_stream, delimiter=',' )
+                print( f"Reading training data from file {self.file_path}")
+                self._read_stream = open( self.file_path, 'r' )
+                return csv.reader( self._read_stream, delimiter=',' )
             else:
                 return []
-        return self.read_stream
+
 
     def _closeWriter(self):
         if self.write_stream is not None:
