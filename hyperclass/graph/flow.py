@@ -32,7 +32,7 @@ class ActivationFlow:
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
         label_mask = sample_labels.isnull().values
-        if self.C is None or reset:  self.C = sample_labels.to_masked_array()
+        if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( label_mask, self.C, sample_labels )
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
         else:                           self.P = np.ma.where( label_mask, self.P, 0.0 )
@@ -51,6 +51,7 @@ class ActivationFlow:
             new_label_count = self.C.count()
             if new_label_count == label_count:
                 print( "Converged!" )
+                break
             else:
                 label_count = new_label_count
                 print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
