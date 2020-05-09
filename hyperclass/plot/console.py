@@ -408,10 +408,10 @@ class LabelingConsole:
         self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 
     def plot_points(self):
-        self.training_points.set_offsets( np.ndarray( [ ps[0:2] for ps in self.point_selection ] ) )
-        self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ps[2]] ] for ps in self.point_selection ] )
-        self.update_canvas()
-
+        if self.point_selection:
+            self.training_points.set_offsets( np.ndarray( [ ps[0:2] for ps in self.point_selection ] ) )
+            self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ps[2]] ] for ps in self.point_selection ] )
+            self.update_canvas()
 
     def update_canvas(self):
         self.figure.canvas.draw()
