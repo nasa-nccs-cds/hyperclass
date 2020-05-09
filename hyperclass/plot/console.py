@@ -244,7 +244,6 @@ class LabelingConsole:
         self.y_axis = kwargs.pop( 'y', 1 )
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
-        self.point_selection = None
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
@@ -266,7 +265,7 @@ class LabelingConsole:
 
     def clearLabels( self, event = None ):
         template = self.block.data[0].squeeze( drop=True )
-        self.labels = xa.full_like( template, float("nan") )
+        self.labels = xa.full_like( template, -1 ).where( template.notnull(), float('nan') )
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
@@ -358,7 +357,7 @@ class LabelingConsole:
                     self.dataLims = event.inaxes.dataLim
 
     def add_point_selection(self, event ):
-        self.point_selection.append( ( event.xdata, event.ydata, self.selectedClass ) )
+        self.point_selection.append( [ event.ydata, event.xdata, self.selectedClass ] )
         self.plot_points()
 
     def undo_point_selection(self, event ):
@@ -409,8 +408,11 @@ class LabelingConsole:
 
     def plot_points(self):
         if self.point_selection:
-            self.training_points.set_offsets( np.ndarray( [ ps[0:2] for ps in self.point_selection ] ) )
-            self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ps[2]] ] for ps in self.point_selection ] )
+            xcoords = [ ps[1] for ps in self.point_selection ]
+            ycoords = [ ps[0] for ps in self.point_selection ]
+            cvals   = [ ps[2] for ps in self.point_selection ]
+            self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
+            self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ic] ] for ic in cvals ] )
             self.update_canvas()
 
     def update_canvas(self):

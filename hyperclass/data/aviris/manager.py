@@ -38,8 +38,8 @@ class TrainingDataIO:
     def writeEntry(self, *args ):
         self._writer().writerow( args )
 
-    def entries(self) -> List:
-        return [ row for row in self._reader() ]
+    def entries(self) -> List[List]:
+        return [ list(row) for row in self._reader() ]
 
     def _writer( self ) -> csv.writer:
         if self._write_stream is None:
