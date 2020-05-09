@@ -266,7 +266,7 @@ class LabelingConsole:
         self.initLabels()
 
     def clearLabels( self, event = None ):
-        template = self.block.data[0]
+        template = self.block.data[0].squeeze( drop=True )
         self.labels = xa.full_like( template, float("nan") )
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
