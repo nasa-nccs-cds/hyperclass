@@ -385,6 +385,7 @@ class LabelingConsole:
 
     def blink(self):
         self.blink_state = not self.blink_state
+        print( f"Blink: alpha = {float(self.blink_state)}")
         self.labels_image.set_alpha( float(self.blink_state) )
         self.figure.canvas.draw_idle()
 
