@@ -426,8 +426,10 @@ class LabelingConsole:
 
     def read_training_data(self):
         self.point_selection = self.tile.dm.tdio.entries()
+        print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
 
     def write_training_data(self):
+        print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
         for (y,x,c) in self.point_selection:
             self.tile.dm.tdio.writeEntry( y, x, c )
 
