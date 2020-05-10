@@ -27,6 +27,10 @@ class TrainingDataIO:
         self.colors = None
         self.values = None
 
+    @property
+    def hasData(self):
+        return self.values is not None
+
     def writeLabelData(self, names, colors, values ):
         with open( self.file_path, 'wb' ) as f:
             print( f"Saving {len(values)} labeled points to file {self.file_path}")

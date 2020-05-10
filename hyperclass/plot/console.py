@@ -425,10 +425,11 @@ class LabelingConsole:
 
     def read_training_data(self):
         self.tile.dm.tdio.readLabelData()
-        self.point_selection = self.tile.dm.tdio.values
-        self.class_labels: List[str] = self.tile.dm.tdio.names
-        self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
-        print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
+        if self.tile.dm.tdio.hasData:
+            self.point_selection = self.tile.dm.tdio.values
+            self.class_labels: List[str] = self.tile.dm.tdio.names
+            self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
+            print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
 
     def write_training_data(self):
         print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
