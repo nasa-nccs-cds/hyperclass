@@ -37,11 +37,11 @@ class TrainingDataIO:
         self._rows.append( args )
 
     def flush(self):
-        with open( self.file_path, 'w' ) as f:
+        with open( self.file_path, 'wb' ) as f:
             pickle.dump( self._rows, f )
 
     def entries(self) -> List[List]:
-        with open(self.file_path, 'r') as f:
+        with open(self.file_path, 'rb') as f:
             return pickle.load( f )
 
 class Tile:
