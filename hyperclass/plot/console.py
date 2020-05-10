@@ -424,14 +424,15 @@ class LabelingConsole:
         return self.class_colors[ self.selectedClass ]
 
     def read_training_data(self):
-        self.point_selection = self.tile.dm.tdio.entries()
+        self.tile.dm.tdio.readLabelData()
+        self.point_selection = self.tile.dm.tdio.values
+        self.class_labels: List[str] = self.tile.dm.tdio.names
+        self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
         print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
 
     def write_training_data(self):
         print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
-        for (y,x,c) in self.point_selection:
-            self.tile.dm.tdio.writeEntry( y, x, c )
-        self.tile.dm.tdio.flush()
+        self.tile.dm.tdio.writeLabelData( self.class_labels, self.class_colors, self.point_selection )
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims

@@ -23,26 +23,24 @@ class TrainingDataIO:
 
     def __init__(self, file_path: str,  **kwargs ):
         self.file_path = file_path
-        self._rows = []
+        self.names = None
+        self.colors = None
+        self.values = None
 
-    def clear(self):
-        self._rows = []
-
-    def writeEntry(self, *args ):
-        self._rows.append( args )
-
-    def flush(self):
+    def writeLabelData(self, names, colors, values ):
         with open( self.file_path, 'wb' ) as f:
-            print( f"Saving {len(self._rows)} labeled points to file {self.file_path}")
-            pickle.dump( self._rows, f )
-        self._rows = []
+            print( f"Saving {len(values)} labeled points to file {self.file_path}")
+            pickle.dump( [ names, colors, values ], f )
 
-    def entries(self) -> List[List]:
+    def readLabelData(self):
         if os.path.isfile(self.file_path):
             print(f"Reading Label data from file {self.file_path}")
             with open(self.file_path, 'rb') as f:
-                return pickle.load( f )
-        return []
+                label_data = pickle.load( f )
+                if label_data:
+                    self.names = label_data[0]
+                    self.colors = label_data[1]
+                    self.values = label_data[2]
 
 class Tile:
 
