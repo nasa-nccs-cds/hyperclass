@@ -31,11 +31,11 @@ class ActivationFlow:
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
-        label_mask = sample_labels.isnull().values
+        sample_mask = sample_labels == -1
         if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
-        else:                        self.C = np.ma.where( label_mask, self.C, sample_labels )
+        else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
-        else:                           self.P = np.ma.where( label_mask, self.P, 0.0 )
+        else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( self.P.dtype ).max
         label_count = self.C.count()
