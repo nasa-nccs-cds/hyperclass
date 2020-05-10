@@ -23,52 +23,26 @@ class TrainingDataIO:
 
     def __init__(self, file_path: str,  **kwargs ):
         self.file_path = file_path
-        self._write_stream: TextIO = None
-        self._read_stream: TextIO = None
-        self._writer = None
-        self._reader = None
-
-    def flush(self):
-        self._closeWriter()
-        self._closeReader()
+        self._rows = []
 
     def clear(self):
-        self.flush()
+        self._rows = []
         if os.path.isfile(self.file_path):
             os.remove(self.file_path)
 
+    def refresh(self):
+        self._rows = []
+
     def writeEntry(self, *args ):
-        self.writer().writerow( args )
+        self._rows.append( args )
+
+    def flush(self):
+        with open( self.file_path, 'w' ) as f:
+            pickle.dump( self._rows, f )
 
     def entries(self) -> List[List]:
-        return [ list(row) for row in self.reader() ]
-
-    def writer( self ) -> csv.writer:
-        if self._write_stream is None:
-            self._write_stream = open( self.file_path, 'a' )
-            self._writer = csv.writer( self._write_stream, delimiter=',' )
-        return self._writer
-
-    def reader( self ) -> Union[csv.writer,List[str]]:
-        if self._read_stream is None:
-            if os.path.isfile(self.file_path):
-                print( f"Reading training data from file {self.file_path}")
-                self._read_stream = open( self.file_path, 'r' )
-                self._reader = csv.reader( self._read_stream, delimiter=',' )
-            else:
-                self._reader = []
-        return self._reader
-
-
-    def _closeWriter(self):
-        if self.write_stream is not None:
-            self.write_stream.close()
-            self.write_stream = None
-
-    def _closeReader(self):
-        if self.read_stream is not None:
-            self.read_stream.close()
-            self.read_stream = None
+        with open(self.file_path, 'r') as f:
+            return pickle.load( f )
 
 class Tile:
 
@@ -187,7 +161,7 @@ class DataManager:
         self.tile_index = self.config.getShape('tile_index')
         [self.iy, self.ix] = self.tile_index
         self.block_shape = self.config.getShape( 'block_shape' )
-        self.tdio = TrainingDataIO( os.path.join(self.config['data_dir'], self.trainingDataFileName() + ".csv" ) )
+        self.tdio = TrainingDataIO( os.path.join( self.config['data_dir'], self.trainingDataFileName() + ".pkl" ) )
         self.tile = None
 
     def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:

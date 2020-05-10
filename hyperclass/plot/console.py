@@ -432,6 +432,7 @@ class LabelingConsole:
         print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
         for (y,x,c) in self.point_selection:
             self.tile.dm.tdio.writeEntry( y, x, c )
+        self.tile.dm.tdio.flush()
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
