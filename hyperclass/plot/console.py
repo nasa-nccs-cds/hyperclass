@@ -232,7 +232,7 @@ class LabelingConsole:
         self.blinker = EventSource(self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
         self.labels_image: AxesImage = None
-        self.flow_iterations = kwargs.get( 'flow_iterations', 100 )
+        self.flow_iterations = kwargs.get( 'flow_iterations', 10 )
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
@@ -374,7 +374,7 @@ class LabelingConsole:
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
-        class_alpha = kwargs.get( 'alpha', 0.5 )
+        class_alpha = kwargs.get( 'alpha', 0.8 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
@@ -385,7 +385,6 @@ class LabelingConsole:
 
     def blink( self, event ):
         self.blink_state = not self.blink_state
-        print( f"Blink: alpha = {float(self.blink_state)}")
         self.labels_image.set_alpha( float(self.blink_state) )
         self.figure.canvas.draw_idle()
 
