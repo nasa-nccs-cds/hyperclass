@@ -383,7 +383,7 @@ class LabelingConsole:
             self.labels_image.set_data( label_map  )
         self.blinker.activate()
 
-    def blink(self):
+    def blink( self, event ):
         self.blink_state = not self.blink_state
         print( f"Blink: alpha = {float(self.blink_state)}")
         self.labels_image.set_alpha( float(self.blink_state) )
