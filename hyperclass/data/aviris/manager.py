@@ -27,11 +27,6 @@ class TrainingDataIO:
 
     def clear(self):
         self._rows = []
-        if os.path.isfile(self.file_path):
-            os.remove(self.file_path)
-
-    def refresh(self):
-        self._rows = []
 
     def writeEntry(self, *args ):
         self._rows.append( args )
@@ -40,11 +35,14 @@ class TrainingDataIO:
         with open( self.file_path, 'wb' ) as f:
             print( f"Saving {len(self._rows)} labeled points to file {self.file_path}")
             pickle.dump( self._rows, f )
+        self._rows = []
 
     def entries(self) -> List[List]:
-        print(f"Reading Label data from file {self.file_path}")
-        with open(self.file_path, 'rb') as f:
-            return pickle.load( f )
+        if os.path.isfile(self.file_path):
+            print(f"Reading Label data from file {self.file_path}")
+            with open(self.file_path, 'rb') as f:
+                return pickle.load( f )
+        return []
 
 class Tile:
 
