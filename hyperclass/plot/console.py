@@ -65,6 +65,7 @@ class EventSource(Thread):
     def activate(self, delay = None ):
         if delay is not None: self.interval = delay
         self.active = True
+        self.start()
 
     def deactivate(self):
         self.active = False
@@ -378,10 +379,9 @@ class LabelingConsole:
             label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
-            self.blinker.start()
         else:
             self.labels_image.set_data( label_map  )
-        self.blinker.start()
+        self.blinker.activate()
 
     def blink(self):
         self.blink_state = not self.blink_state

@@ -25,6 +25,8 @@ class TrainingDataIO:
         self.file_path = file_path
         self._write_stream: TextIO = None
         self._read_stream: TextIO = None
+        self._writer = None
+        self._reader = None
 
     def flush(self):
         self._closeWriter()
@@ -36,24 +38,26 @@ class TrainingDataIO:
             os.remove(self.file_path)
 
     def writeEntry(self, *args ):
-        self._writer().writerow( args )
+        self.writer().writerow( args )
 
     def entries(self) -> List[List]:
-        return [ list(row) for row in self._reader() ]
+        return [ list(row) for row in self.reader() ]
 
-    def _writer( self ) -> csv.writer:
+    def writer( self ) -> csv.writer:
         if self._write_stream is None:
             self._write_stream = open( self.file_path, 'a' )
-        return csv.writer( self._write_stream, delimiter=',' )
+            self._writer = csv.writer( self._write_stream, delimiter=',' )
+        return self._writer
 
-    def _reader( self ) -> Union[csv.writer,List[str]]:
+    def reader( self ) -> Union[csv.writer,List[str]]:
         if self._read_stream is None:
             if os.path.isfile(self.file_path):
                 print( f"Reading training data from file {self.file_path}")
                 self._read_stream = open( self.file_path, 'r' )
-                return csv.reader( self._read_stream, delimiter=',' )
+                self._reader = csv.reader( self._read_stream, delimiter=',' )
             else:
-                return []
+                self._reader = []
+        return self._reader
 
 
     def _closeWriter(self):
