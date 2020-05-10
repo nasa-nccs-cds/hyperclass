@@ -38,9 +38,11 @@ class TrainingDataIO:
 
     def flush(self):
         with open( self.file_path, 'wb' ) as f:
+            print( f"Saving {len(self._rows)} labeled points to file {self.file_path}")
             pickle.dump( self._rows, f )
 
     def entries(self) -> List[List]:
+        print(f"Reading Label data from file {self.file_path}")
         with open(self.file_path, 'rb') as f:
             return pickle.load( f )
 
