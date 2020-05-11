@@ -9,7 +9,7 @@ import os, math
 if __name__ == '__main__':
     print( f"Using backend {matplotlib.get_backend()}")
     block_index = (0,0)
-    refresh = True
+    refresh = False
     image_name = "ang20170720t004130_corr_v2p9"
     classes = [ ( 'Obscured',           [ 1.0, 1.0, 1.0 ] ),
                 ( 'Forest',             [ 0.0, 1.0, 0.0 ] ),
