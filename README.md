@@ -8,7 +8,7 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 ```
 >> conda create --name hyperclass
 >> conda activate hyperclass
-(geoproc)>> conda install -c conda-forge xarray dask distributed matplotlib datashader plotly colorcet holoviews numpy geopandas descartes utm shapely regionmask iris rasterio cligj bottleneck scikit-image umap-learn scipy scikit-learn numba rioxarray
+(geoproc)>> conda install -c conda-forge xarray dask distributed matplotlib datashader plotly pynndescent colorcet holoviews numpy geopandas descartes utm shapely regionmask iris rasterio cligj bottleneck scikit-image umap-learn scipy scikit-learn numba rioxarray
 
 ```
 

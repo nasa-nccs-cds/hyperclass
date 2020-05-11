@@ -221,6 +221,7 @@ class LabelingConsole:
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.tile = tile
+        self.point_selection = []
         self.flow = ActivationFlow(**kwargs)
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
         self._getClassLabels( class_labels )
@@ -448,6 +449,7 @@ class LabelingConsole:
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
         self.plot_points()
+        self.umgr.view_pointcloud( block = self.block )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
@@ -494,6 +496,5 @@ class LabelingConsole:
         self.slider.start()
 
     def __del__(self):
-        self.tile.dm.tdio.flush()
         self.blinker.exit()
 

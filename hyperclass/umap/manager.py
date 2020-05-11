@@ -87,7 +87,7 @@ class UMAPManager:
         self.point_cloud = PointCloud( model_data, **plot_parms )
         self.point_cloud.show()
 
-    def plotMarkers(self, marker_data: List[Tuple[Tuple[float], Tuple[float]]]):
+    def plot_markers(self, marker_data: List[Tuple[Tuple[float], Tuple[float]]]):
         self.point_cloud.plotMarkers(marker_data)
 
     def view_model( self, **kwargs ):
