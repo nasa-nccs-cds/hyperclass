@@ -1,6 +1,3 @@
-import xarray as xa
-import umap, time, pickle
-import umap.plot
 from typing import List, Union, Tuple, Optional
 from hyperclass.data.aviris.manager import DataManager, Block, Tile
 from hyperclass.umap.manager import UMAPManager
@@ -11,14 +8,13 @@ import os, math
 if __name__ == '__main__':
     image_name = "ang20170720t004130_corr_v2p9"
     block_index = [0,0]
-    subsample = 1
     color_band = 35
 
     dm = DataManager( image_name )
     tile: Tile = dm.getTile()
     umgr =  UMAPManager( tile )
     block: Block = tile.getBlock(*block_index)
-    umgr.transform( block, plot = True, color_band=color_band )
+    umgr.view_model( block = block, color_band=color_band )
 
 
 

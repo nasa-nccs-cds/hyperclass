@@ -411,9 +411,11 @@ class LabelingConsole:
             xcoords = [ ps[1] for ps in self.point_selection ]
             ycoords = [ ps[0] for ps in self.point_selection ]
             cvals   = [ ps[2] for ps in self.point_selection ]
+            colors = [ self.class_colors[ self.class_labels[ic] ] for ic in cvals ]
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
-            self.training_points.set_facecolor( [ self.class_colors[ self.class_labels[ic] ] for ic in cvals ] )
+            self.training_points.set_facecolor( colors )
             self.update_canvas()
+            self.umgr.plot_markers( self.point_selection )
 
     def update_canvas(self):
         self.figure.canvas.draw()

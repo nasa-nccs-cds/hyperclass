@@ -21,7 +21,7 @@ if __name__ == '__main__':
     block: Block = tile.getBlock( *block_index )
     umgr = UMAPManager( tile, refresh = refresh )
     umgr.fit( block = block, subsample = subsample )
-    umgr.view_model( color_band=color_band )
+    umgr.view_model( block = block, color_band=color_band )
 
 
 

@@ -12,8 +12,8 @@ import matplotlib.cm
 import plotly
 import plotly.graph_objs as go
 from matplotlib.patches import Patch
-from umap.nndescent import initialise_search, initialized_nnd_search
-from umap.utils import deheap_sort, submatrix
+import vtk
+from .point_cloud import PointCloud
 
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
 darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -135,6 +135,14 @@ def _embed_datashader_in_an_axis(datashader_image, ax):
     mpl_img = np.dstack([_blue(img_rev), _green(img_rev), _red(img_rev)])
     ax.imshow(mpl_img)
     return ax
+
+def point_cloud_vtk( points, values= None, vrange = None, **kwargs ):
+    point_cloud = PointCloud( points, **kwargs )
+    if values is not None:
+        point_cloud.updateColors( values )
+    if vrange is not None:
+        point_cloud.setScalarRange( vrange )
+    point_cloud.show()
 
 def point_cloud_3d( points, values= None, vrange = None, **kwargs ):
     marker = dict( size=1 )
