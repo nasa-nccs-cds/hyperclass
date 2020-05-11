@@ -15,7 +15,7 @@ class UMAPManager:
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._embedding: xa.DataArray = None
-        self.mapper = None
+        self.mapper: umap.UMAP = None
         self.point_cloud: PointCloud = None
 
     @property
@@ -23,6 +23,11 @@ class UMAPManager:
         return self._embedding
 
     def _getMapper( self, block = None ):
+        if self.mapper is None:
+            parms = self.tile.dm.config.section("umap").toDict()
+            self.mapper = umap.UMAP(**parms)
+
+    def _getMapper1( self, block = None ):
         if self.mapper is None:
             mapper_file_path = self._mapperFilePath( block )
             if self.refresh and os.path.isfile( mapper_file_path):
@@ -65,10 +70,10 @@ class UMAPManager:
         self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec")
-        mapper_path = self._mapperFilePath( block )
-        if not os.path.isfile( mapper_path ):
-            print(f"Serializing mapper to file {mapper_path}")
-            pickle.dump( self.mapper, open( mapper_path, 'wb' ) )
+        # mapper_path = self._mapperFilePath( block )
+        # if not os.path.isfile( mapper_path ):
+        #     print(f"Serializing mapper to file {mapper_path}")
+        #     pickle.dump( self.mapper, open( mapper_path, 'wb' ) )
 
     @property
     def conf_keys(self) -> List[str]:

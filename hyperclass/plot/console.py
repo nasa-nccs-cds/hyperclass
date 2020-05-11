@@ -223,6 +223,7 @@ class LabelingConsole:
         self.tile = tile
         self.point_selection = []
         self.flow = ActivationFlow(**kwargs)
+        self.umgr = UMAPManager(tile, refresh=kwargs.pop('refresh', False))
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
         self._getClassLabels( class_labels )
         self.global_bounds: Bbox = None
@@ -249,7 +250,6 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.umgr = UMAPManager( tile, refresh = kwargs.pop( 'refresh', False ) )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -264,6 +264,8 @@ class LabelingConsole:
         self.flow.setNodeData( self.block.getPointData() )
         self.read_training_data()
         self.clearLabels()
+        labels: xa.DataArray = self.getLabeledPointData()
+        self.umgr.fit( labels, block = self.block )
 
     def clearLabels( self, event = None ):
         template = self.block.data[0].squeeze( drop=True )
@@ -396,7 +398,6 @@ class LabelingConsole:
     def display_manifold(self, event ):
         print( "display_manifold")
         labels: xa.DataArray = self.getLabeledPointData()
-        self.umgr.fit( labels, block = self.block )
         embed = self.umgr.embedding
         dsu = dict( data=embed.data, name=self.block.data.name, color=[0.5,0.5,0.5,0.5], size=1 )
         label_mask = labels >=0
