@@ -85,7 +85,7 @@ class UMAPManager:
         color_band = kwargs.pop( 'color_band', None )
         block = kwargs.pop('block', None)
         self._getMapper(block)
-        plot_parms = dict( cmap="jet", **kwargs )
+        plot_parms = dict( cmap="jet", block=False, **kwargs )
         if color_band is not None:
             plot_parms['values'] = self.tile.getBandPointData( color_band  )
         model_data = self.mapper.embedding_

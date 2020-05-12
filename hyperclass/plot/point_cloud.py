@@ -162,6 +162,7 @@ class PointCloud():
         self.mapper.SetColorModeToMapScalars()
         self.actor = vtk.vtkActor()
         self.actor.SetMapper(self.mapper)
+        self.actor.GetProperty().SetPointSize(1)
         self.renderer.AddActor( self.actor )
 
     def show(self):
