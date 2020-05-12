@@ -408,6 +408,9 @@ class LabelingConsole:
         dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
         self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
 
+    def getPointIndex(self, cy: float, cx: float ):
+        iy, ix = self.block.coords2index(cy, cx)
+
     def plot_points(self):
         if self.point_selection:
             xcoords = [ ps[1] for ps in self.point_selection ]

@@ -93,7 +93,11 @@ class UMAPManager:
         self.point_cloud.show()
 
     def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]] ):
-        self.point_cloud.plotMarkers( xcoords,ycoords,colors )
+        t0 = time.time()
+        point_data = np.array( list( zip( xcoords, ycoords) ) )
+        transformed_data: np.ndarray = self.mapper.transform(point_data)
+        dt = time.time() - t0
+        self.point_cloud.plotMarkers( transformed_data, colors )
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
