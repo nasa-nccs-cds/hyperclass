@@ -80,7 +80,7 @@ class PointCloud():
         self.marker_mapper.SetColorModeToMapScalars()
         self.marker_mapper.SetInputData( self.markers )
         self.marker_actor = vtk.vtkActor()
-        self.marker_actor.GetProperty().SetPointSize( marler_size )
+#        self.marker_actor.GetProperty().SetPointSize( marler_size )
         self.marker_actor.SetMapper(self.mapper)
         self.plotMarkers( [] )
         self.renderer.AddActor( self.marker_actor )
@@ -132,21 +132,13 @@ class PointCloud():
 
     def createRenderWindow( self, **kwargs ):
         if self.renWin is None:
-            blocking = kwargs.get( 'blocking', True)
             self.renWin = vtk.vtkRenderWindow()
-
-            rendWinInteractor = self.renWin.GetInteractor()
-            if rendWinInteractor == None:
-                rendWinInteractor = vtk.vtkRenderWindowInteractor() if blocking else vtk.vtkGenericRenderWindowInteractor()
-                self.renWin.SetInteractor( rendWinInteractor )
-                rendWinInteractor.SetRenderWindow( self.renWin )
+            rendWinInteractor =  vtk.vtkGenericRenderWindowInteractor()
+            self.renWin.SetInteractor( rendWinInteractor )
+            rendWinInteractor.SetRenderWindow( self.renWin )
 
             self.renderer = vtk.vtkRenderer()
             self.renWin.AddRenderer( self.renderer )
-
-            # self.renderer.RemoveAllLights()
-            # kit = vtk.vtkLightKit()
-            # kit.AddLightsToRenderer(self.renderer)
 
             interactorStyle = vtk.vtkInteractorStyleTrackballCamera( )
             rendWinInteractor.SetInteractorStyle( interactorStyle )
