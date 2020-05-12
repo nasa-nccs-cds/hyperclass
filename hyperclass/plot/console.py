@@ -231,7 +231,7 @@ class LabelingConsole:
         self.plot_axes: Axes = None
         self.figure: Figure = plt.figure()
         self.image: AxesImage = None
-        self.blinker = EventSource(self.blink, delay=kwargs.get('blink_delay',1.0) )
+        self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 10 )
@@ -384,7 +384,11 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
+        self.color_pointcloud( label_map )
         self.blinker.activate()
+
+    def color_pointcloud( self, label_map: xa.DataArray ):
+        self.umgr.color_pointcloud( label_map, self.class_colors  )
 
     def blink( self, event ):
         self.blink_state = not self.blink_state
@@ -420,7 +424,7 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            self.umgr.plot_markers( xcoords, ycoords, colors )
+            # self.umgr.plot_markers( xcoords, ycoords, colors )
 
     def update_canvas(self):
         self.figure.canvas.draw()

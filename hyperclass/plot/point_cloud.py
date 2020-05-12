@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, threading
 import vtk.util.numpy_support as npsup
+from collections import OrderedDict
 import vtk
 
 
@@ -39,13 +40,39 @@ class PointCloud():
         vmax = self.vrange[0] + srange[1] * dv
         return (vmin, vmax)
 
-    def updateColors(self, color_data: np.ndarray, **args):
+    def color_scalars(self, color_data: np.ndarray, **args):
         vtk_color_data = npsup.numpy_to_vtk(color_data)
         vtk_color_data.SetName('vardata')
         self.polydata.GetPointData().SetScalars(vtk_color_data)
         self.polydata.Modified()
         self.mapper.Modified()
         self.actor.Modified()
+
+    def color_labels( self, label_map: np.array, label_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ):
+        lut = self.get_lut( label_colors )
+        self.mapper.SetLookupTable(lut)
+        self.mapper.SetScalarRange( *lut.GetTableRange() )
+        self.mapper.ScalarVisibilityOn()
+        vtk_color_data = npsup.numpy_to_vtk( label_map )
+        vtk_color_data.SetName('labels')
+        vtkpts = self.polydata.GetPointData()
+        vtkpts.SetScalars(vtk_color_data)
+        vtkpts.SetActiveScalars('labels')
+        self.polydata.Modified()
+        self.mapper.Modified()
+        self.actor.Modified()
+
+    def get_lut( self, class_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ) -> vtk.vtkLookupTable:
+        lut = vtk.vtkLookupTable()
+        class_indices = class_colors.keys()
+        lut.SetTableRange(class_indices.min(), class_indices.max())
+        n = len(class_indices)
+        lut.SetNumberOfTableValues(n)
+        lut.Build()
+        for ic in class_indices:
+            vc = [ math.floor(c*255.99) for c in class_colors[ic][1] ]
+            lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
+        return lut
 
     def initPolyData( self, np_points_data: np.ndarray, **kwargs ):
         self.np_points = np_points_data

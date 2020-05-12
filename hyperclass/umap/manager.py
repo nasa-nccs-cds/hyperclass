@@ -1,6 +1,7 @@
 import xarray as xa
 import umap, time, pickle, copy
 import numpy as np
+from collections import OrderedDict
 from typing import List, Union, Tuple, Optional, Dict
 from hyperclass.plot.points import datashade_points, point_cloud_3d, point_cloud_vtk
 from hyperclass.plot.point_cloud import PointCloud
@@ -98,6 +99,9 @@ class UMAPManager:
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
+
+    def color_pointcloud( self, class_map: xa.DataArray, class_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ):
+        self.point_cloud.color_labels( class_map.values, class_colors )
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
