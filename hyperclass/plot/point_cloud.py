@@ -82,10 +82,10 @@ class PointCloud():
         self.marker_actor = vtk.vtkActor()
 #        self.marker_actor.GetProperty().SetPointSize( marler_size )
         self.marker_actor.SetMapper(self.mapper)
-        self.plotMarkers( [] )
+        self.plotMarkers( [], [], [] )
         self.renderer.AddActor( self.marker_actor )
 
-    def plotMarkers(self, marker_data: List[ Tuple[ Tuple[float], Tuple[float] ] ] ):
+    def plotMarkers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]]  ):
         marker_points = vtk.vtkPoints()
         marker_verts  = vtk.vtkCellArray()
         marker_colors = vtk.vtkUnsignedCharArray()
@@ -93,11 +93,11 @@ class PointCloud():
         marker_colors.SetName("Colors")
         self.markers.GetPointData().SetScalars(marker_colors)
 
-        for ( pcoords, color ) in marker_data:
-            id = marker_points.InsertNextPoint( pcoords )
+        for ip in range( len( xcoords) ):
+            id = marker_points.InsertNextPoint( xcoords[ip], ycoords[ip]  )
             marker_verts.InsertNextCell(1)
             marker_verts.InsertCellPoint(id)
-            vtk_color = [ math.floor(c*255.99) for c in color ]
+            vtk_color = [ math.floor(c*255.99) for c in colors[ip] ]
             marker_colors.InsertNextTuple3( vtk_color )
 
         self.markers.SetPoints( marker_points )

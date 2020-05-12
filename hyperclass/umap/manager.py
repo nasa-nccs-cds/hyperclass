@@ -1,5 +1,5 @@
 import xarray as xa
-import umap, time, pickle
+import umap, time, pickle, copy
 import numpy as np
 from typing import List, Union, Tuple, Optional, Dict
 from hyperclass.plot.points import datashade_points, point_cloud_3d, point_cloud_vtk
@@ -85,15 +85,15 @@ class UMAPManager:
         color_band = kwargs.pop( 'color_band', None )
         block = kwargs.pop('block', None)
         self._getMapper(block)
-        plot_parms = dict( cmap="jet", block=False, **kwargs )
+        plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
             plot_parms['values'] = self.tile.getBandPointData( color_band  )
         model_data = self.mapper.embedding_
         self.point_cloud = PointCloud( model_data, **plot_parms )
         self.point_cloud.show()
 
-    def plot_markers(self, marker_data: List[Tuple[Tuple[float], Tuple[float]]]):
-        self.point_cloud.plotMarkers(marker_data)
+    def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]] ):
+        self.point_cloud.plotMarkers( xcoords,ycoords,colors )
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
