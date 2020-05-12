@@ -100,7 +100,7 @@ class UMAPManager:
         dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
 
-    def color_pointcloud( self, class_map: xa.DataArray, class_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ):
+    def color_pointcloud( self, class_map: xa.DataArray, class_colors : OrderedDict  ):
         self.point_cloud.color_labels( class_map.values, class_colors )
 
     def view_model( self, **kwargs ):

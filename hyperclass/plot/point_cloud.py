@@ -48,7 +48,7 @@ class PointCloud():
         self.mapper.Modified()
         self.actor.Modified()
 
-    def color_labels( self, label_map: np.array, label_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ):
+    def color_labels( self, label_map: np.array, label_colors: OrderedDict  ):
         lut = self.get_lut( label_colors )
         self.mapper.SetLookupTable(lut)
         self.mapper.SetScalarRange( *lut.GetTableRange() )
@@ -62,15 +62,15 @@ class PointCloud():
         self.mapper.Modified()
         self.actor.Modified()
 
-    def get_lut( self, class_colors : OrderedDict[int,Tuple[str,Tuple[float]]]  ) -> vtk.vtkLookupTable:
+    def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
         lut = vtk.vtkLookupTable()
-        class_indices = class_colors.keys()
-        lut.SetTableRange(class_indices.min(), class_indices.max())
-        n = len(class_indices)
+        colors = list(class_colors.values())
+        n = len(colors)
+        lut.SetTableRange( 0, n )
         lut.SetNumberOfTableValues(n)
         lut.Build()
-        for ic in class_indices:
-            vc = [ math.floor(c*255.99) for c in class_colors[ic][1] ]
+        for ic in range(n):
+            vc = [ math.floor(c*255.99) for c in colors[ic] ]
             lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
         return lut
 

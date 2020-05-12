@@ -42,6 +42,7 @@ class ActivationFlow:
         print(f"Beginning graph flow iterations, #C = {label_count}")
         if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
         t0 = time.time()
+        converged = False
         for iter in range(nIter):
             PN: ma.MaskedArray = self.P[ self.I.flatten() ].reshape(self.I.shape) + self.D
             CN: ma.MaskedArray = self.C[ self.I.flatten() ].reshape( self.I.shape )
@@ -51,14 +52,16 @@ class ActivationFlow:
             new_label_count = self.C.count()
             if new_label_count == label_count:
                 print( "Converged!" )
+                converged = True
                 break
             else:
                 label_count = new_label_count
-                print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
+ #               print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
                 if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
 
         t1 = time.time()
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
-        return xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=sample_labels.attrs )
+        result_attrs = dict( converged=converged, **sample_labels.attrs )
+        return xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
 
 

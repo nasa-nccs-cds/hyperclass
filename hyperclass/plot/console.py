@@ -48,11 +48,17 @@ class EventSource(Thread):
         self.active = False
         self.running = False
         self.daemon = True
+        self.delay = 0.0
         atexit.register( self.exit )
 
     def run(self):
         while self.running:
-            time.sleep( self.interval )
+            if self.delay > 0.0:
+                time.sleep( self.delay )
+                self.delay = 0.0
+                self.active = True
+            else:
+                time.sleep( self.interval )
             if self.active:
                 plt.pause( 0.05 )
                 self.action( self.event )
@@ -63,8 +69,8 @@ class EventSource(Thread):
             Thread.start(self)
 
     def activate(self, delay = None ):
-        if delay is not None: self.interval = delay
-        self.active = True
+        self.delay = self.interval if delay is None else delay
+#        print( f"Activate blinker, delay = {self.delay}")
         self.start()
 
     def deactivate(self):
@@ -234,7 +240,7 @@ class LabelingConsole:
         self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
         self.labels_image: AxesImage = None
-        self.flow_iterations = kwargs.get( 'flow_iterations', 10 )
+        self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
@@ -256,6 +262,7 @@ class LabelingConsole:
         self.add_selection_controls( **kwargs )
         self.add_button_box( **kwargs )
         self.toolbar = self.figure.canvas.manager.toolbar
+        atexit.register(self.exit)
         self._update(0)
 
     def setBlock( self, block_coords: Tuple[int] ):
@@ -274,6 +281,7 @@ class LabelingConsole:
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
     def updateLabels(self):
+        print( f"Updating {len(self.point_selection)} labels")
         for ( cy, cx, c ) in self.point_selection:
             iy, ix = self.tile.coords2index( cy, cx )
             self.labels[ iy, ix ] = c
@@ -370,10 +378,13 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
-        self.write_training_data()
+        self.blinker.deactivate()
+        self.show_labels()
         labels: xa.DataArray = self.getLabeledPointData()
         new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
+        self.show_labels()
+        self.blinker.activate(10.0)
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
@@ -384,8 +395,13 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
-        self.color_pointcloud( label_map )
-        self.blinker.activate()
+#           self.color_pointcloud( label_map )
+
+    def show_labels(self):
+        if self.labels_image is not None:
+            self.labels_image.set_alpha(1.0)
+            self.update_canvas()
+
 
     def color_pointcloud( self, label_map: xa.DataArray ):
         self.umgr.color_pointcloud( label_map, self.class_colors  )
@@ -396,8 +412,12 @@ class LabelingConsole:
         self.figure.canvas.draw_idle()
 
     def toggle_blinking_layer(self, blinking_on: bool ):
-        if blinking_on:     self.blinker.activate()
-        else:               self.blinker.deactivate()
+        if blinking_on:
+            self.blinker.activate()
+        else:
+            self.blinker.deactivate()
+            if self.labels_image is not None:
+                self.labels_image.set_alpha( 1.0 )
 
     def display_manifold(self, event ):
         print( "display_manifold")
@@ -427,8 +447,9 @@ class LabelingConsole:
             # self.umgr.plot_markers( xcoords, ycoords, colors )
 
     def update_canvas(self):
-        self.figure.canvas.draw()
-        self.figure.canvas.flush_events()
+        self.figure.canvas.draw_idle()
+#        self.figure.canvas.flush_events()
+        plt.pause(0.01)
 
     @property
     def selectedColor(self):
@@ -504,5 +525,8 @@ class LabelingConsole:
         self.slider.start()
 
     def __del__(self):
-        self.blinker.exit()
+        self.exit()
+
+    def exit(self):
+        self.write_training_data()
 
