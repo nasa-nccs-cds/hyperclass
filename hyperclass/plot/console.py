@@ -384,7 +384,7 @@ class LabelingConsole:
         new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
         self.show_labels()
-        self.blinker.activate(10.0)
+        self.blinker.activate(6.0)
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
@@ -395,7 +395,7 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
-#           self.color_pointcloud( label_map )
+        self.color_pointcloud( label_map )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -528,5 +528,6 @@ class LabelingConsole:
         self.exit()
 
     def exit(self):
+        self.blinker.exit()
         self.write_training_data()
 
