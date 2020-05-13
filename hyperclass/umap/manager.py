@@ -100,8 +100,8 @@ class UMAPManager:
         dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
 
-    def color_pointcloud( self, class_map: xa.DataArray, class_colors : OrderedDict  ):
-        self.point_cloud.color_labels( class_map.values, class_colors )
+    def color_pointcloud(self, sample_labels: xa.DataArray, class_colors : OrderedDict):
+        self.point_cloud.color_labels(sample_labels.values, class_colors)
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )

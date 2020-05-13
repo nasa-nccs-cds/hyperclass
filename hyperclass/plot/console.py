@@ -395,7 +395,7 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
-        self.color_pointcloud( label_map )
+        self.color_pointcloud( sample_labels )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -403,8 +403,8 @@ class LabelingConsole:
             self.update_canvas()
 
 
-    def color_pointcloud( self, label_map: xa.DataArray ):
-        self.umgr.color_pointcloud( label_map, self.class_colors  )
+    def color_pointcloud(self, sample_labels: xa.DataArray):
+        self.umgr.color_pointcloud(sample_labels, self.class_colors)
 
     def blink( self, event ):
         self.blink_state = not self.blink_state

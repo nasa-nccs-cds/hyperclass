@@ -49,14 +49,14 @@ class PointCloud():
         self.mapper.Modified()
         self.actor.Modified()
 
-    def color_labels( self, label_map: np.array, label_colors: OrderedDict  ):
+    def color_labels(self, sample_labels: np.array, label_colors: OrderedDict):
         label_colors["unlabeled"] = self.unlabeled_color
         lut = self.get_lut( label_colors )
         self.mapper.SetLookupTable(lut)
         self.mapper.SetScalarRange( *lut.GetTableRange() )
         self.mapper.ScalarVisibilityOn()
-        label_map[np.isnan(label_map)] = len(label_colors) - 1
-        vtk_color_data = npsup.numpy_to_vtk( label_map )
+        sample_labels[np.isnan(sample_labels)] = len(label_colors) - 1
+        vtk_color_data = npsup.numpy_to_vtk(sample_labels)
         vtk_color_data.SetName('labels')
         vtkpts = self.polydata.GetPointData()
         vtkpts.SetScalars(vtk_color_data)
