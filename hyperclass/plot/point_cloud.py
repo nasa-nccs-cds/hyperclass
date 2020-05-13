@@ -12,10 +12,11 @@ class PointCloud():
     def __init__( self, points: np.ndarray, **kwargs ):
         self.vrange = None
         self.renWin = None
-        self.createRenderWindow( **kwargs )
-        self.createActor()
-        self.initPolyData(points)
+        self.renderer = None
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
+
+    def setPoints (self, points: np.ndarray ):
+        self.initPolyData(points)
 
     def getPolydata(self):
         return self.polydata
@@ -186,7 +187,11 @@ class PointCloud():
         self.actor = vtk.vtkActor()
         self.actor.SetMapper(self.mapper)
         self.actor.GetProperty().SetPointSize(1)
-        self.renderer.AddActor( self.actor )
+        if self.renderer is not None:
+            self.renderer.AddActor( self.actor )
+        return self.actor
 
     def show(self):
+        self.createRenderWindow()
+        self.createActor()
         self.renWin.GetInteractor().Start()

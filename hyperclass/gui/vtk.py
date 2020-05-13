@@ -1,16 +1,18 @@
 import sys
 import vtk
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtWidgets, QtGui
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+from hyperclass.plot.point_cloud import PointCloud
 
 
 class VTKFrame():
 
-    def __init__( self, layout: QtWidgets.QBoxLayout  ):
-
+    def __init__( self  ):
+        self.layout = QtGui.QVBoxLayout()
         self.frame = QtWidgets.QFrame()
         self.vtkWidget = QVTKRenderWindowInteractor(self.frame)
-        layout.addWidget(self.vtkWidget)
+        self.layout.addWidget(self.vtkWidget)
+        self.point_cloud = PointCloud()
 
         self.ren = vtk.vtkRenderer()
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
@@ -20,10 +22,13 @@ class VTKFrame():
             self.ren.AddActor(actor)
 
         self.ren.ResetCamera()
-        self.frame.setLayout(layout)
+        self.frame.setLayout(self.layout)
+
+    def getWidget(self):
+        return self.frame
 
     def getActors(self):
-        return []
+        return [ self.point_cloud.createActor() ]
 
 
 
