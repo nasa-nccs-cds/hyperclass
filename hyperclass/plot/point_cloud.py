@@ -15,6 +15,7 @@ class PointCloud():
         self.createRenderWindow( **kwargs )
         self.createActor()
         self.initPolyData(points)
+        self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
     def getPolydata(self):
         return self.polydata
@@ -49,10 +50,12 @@ class PointCloud():
         self.actor.Modified()
 
     def color_labels( self, label_map: np.array, label_colors: OrderedDict  ):
+        label_colors["unlabeled"] = self.unlabeled_color
         lut = self.get_lut( label_colors )
         self.mapper.SetLookupTable(lut)
         self.mapper.SetScalarRange( *lut.GetTableRange() )
         self.mapper.ScalarVisibilityOn()
+        label_map[np.isnan(label_map)] = len(label_colors) - 1
         vtk_color_data = npsup.numpy_to_vtk( label_map )
         vtk_color_data.SetName('labels')
         vtkpts = self.polydata.GetPointData()
