@@ -462,6 +462,7 @@ class LabelingConsole:
             self.class_labels: List[str] = self.tile.dm.tdio.names
             self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
             print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
+            self.umap.set
 
     def write_training_data(self):
         print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
@@ -478,7 +479,7 @@ class LabelingConsole:
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
         self.plot_points()
-        self.umgr.view_pointcloud( block = self.block )
+        self.umgr.view_pointcloud( self.getLabeledPointData() )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )

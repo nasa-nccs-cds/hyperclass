@@ -42,41 +42,40 @@ class PointCloud():
         vmax = self.vrange[0] + srange[1] * dv
         return (vmin, vmax)
 
-    def color_scalars(self, color_data: np.ndarray, **args):
-        vtk_color_data = npsup.numpy_to_vtk(color_data)
-        vtk_color_data.SetName('vardata')
-        self.polydata.GetPointData().SetScalars(vtk_color_data)
-        self.polydata.Modified()
-        self.mapper.Modified()
-        self.actor.Modified()
+    # def color_scalars(self, color_data: np.ndarray, **args):
+    #     vtk_color_data = npsup.numpy_to_vtk(color_data)
+    #     vtk_color_data.SetName('vardata')
+    #     self.polydata.GetPointData().SetScalars(vtk_color_data)
+    #     self.polydata.Modified()
+    #     self.mapper.Modified()
+    #     self.actor.Modified()
 
-    def color_labels(self, sample_labels: np.array, label_colors: OrderedDict):
+    def set_colormap(self, label_colors: OrderedDict ):
         label_colors["unlabeled"] = self.unlabeled_color
-        lut = self.get_lut( label_colors )
-        self.mapper.SetLookupTable(lut)
-        self.mapper.SetScalarRange( *lut.GetTableRange() )
-        self.mapper.ScalarVisibilityOn()
-        sample_labels[np.isnan(sample_labels)] = len(label_colors) - 1
-        vtk_color_data = npsup.numpy_to_vtk(sample_labels)
-        vtk_color_data.SetName('labels')
+        self.colormap = np.clip(np.array(list(label_colors.values())) * 255.99, 0, 255).astype(np.uint8)
+
+    def set_point_colors(self, sample_labels: np.array, ):
+        colors = self.colormap[ sample_labels ]
+        vtk_color_data = npsup.numpy_to_vtk( colors )
+        vtk_color_data.SetName('colors')
         vtkpts = self.polydata.GetPointData()
         vtkpts.SetScalars(vtk_color_data)
-        vtkpts.SetActiveScalars('labels')
+        vtkpts.SetActiveScalars('colors')
         self.polydata.Modified()
         self.mapper.Modified()
         self.actor.Modified()
 
-    def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
-        lut = vtk.vtkLookupTable()
-        colors = list(class_colors.values())
-        n = len(colors)
-        lut.SetTableRange( 0, n )
-        lut.SetNumberOfTableValues(n)
-        lut.Build()
-        for ic in range(n):
-            vc = [ math.floor(c*255.99) for c in colors[ic] ]
-            lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
-        return lut
+    # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
+    #     lut = vtk.vtkLookupTable()
+    #     colors = list(class_colors.values())
+    #     n = len(colors)
+    #     lut.SetTableRange( 0, n )
+    #     lut.SetNumberOfTableValues(n)
+    #     lut.Build()
+    #     for ic in range(n):
+    #         vc = [ math.floor(c*255.99) for c in colors[ic] ]
+    #         lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
+    #     return lut
 
     def initPolyData( self, np_points_data: np.ndarray, **kwargs ):
         self.np_points = np_points_data
@@ -137,30 +136,30 @@ class PointCloud():
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
 
-    def create_LUT(self, **args):
-        lut = vtk.vtkLookupTable()
-        lut_type = args.get('type', "blue-red")
-        invert = args.get('invert', False)
-        number_of_colors = args.get('number_of_colors', 256)
-        alpha_range = 1.0, 1.0
-
-        if lut_type == "blue-red":
-            if invert:
-                hue_range = 0.0, 0.6667
-            else:
-                hue_range = 0.6667, 0.0
-            saturation_range = 1.0, 1.0
-            value_range = 1.0, 1.0
-
-        lut.SetHueRange(hue_range)
-        lut.SetSaturationRange(saturation_range)
-        lut.SetValueRange(value_range)
-        lut.SetAlphaRange(alpha_range)
-        lut.SetNumberOfTableValues(number_of_colors)
-        lut.SetRampToSQRT()
-        lut.Modified()
-        lut.ForceBuild()
-        return lut
+    # def create_LUT(self, **args):
+    #     lut = vtk.vtkLookupTable()
+    #     lut_type = args.get('type', "blue-red")
+    #     invert = args.get('invert', False)
+    #     number_of_colors = args.get('number_of_colors', 256)
+    #     alpha_range = 1.0, 1.0
+    #
+    #     if lut_type == "blue-red":
+    #         if invert:
+    #             hue_range = 0.0, 0.6667
+    #         else:
+    #             hue_range = 0.6667, 0.0
+    #         saturation_range = 1.0, 1.0
+    #         value_range = 1.0, 1.0
+    #
+    #     lut.SetHueRange(hue_range)
+    #     lut.SetSaturationRange(saturation_range)
+    #     lut.SetValueRange(value_range)
+    #     lut.SetAlphaRange(alpha_range)
+    #     lut.SetNumberOfTableValues(number_of_colors)
+    #     lut.SetRampToSQRT()
+    #     lut.Modified()
+    #     lut.ForceBuild()
+    #     return lut
 
     def createRenderWindow( self, **kwargs ):
         if self.renWin is None:

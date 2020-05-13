@@ -17,7 +17,10 @@ class UMAPManager:
         self.conf = kwargs
         self._embedding: xa.DataArray = None
         self.mapper: umap.UMAP = None
-        self.point_cloud: PointCloud = None
+        self.point_cloud: PointCloud = PointCloud( **kwargs )
+
+    def setClassColors(self, class_colors: OrderedDict[str,Tuple[float]] ):
+        self.point_cloud.set_colormap( class_colors )
 
     @property
     def embedding(self) -> xa.DataArray:
@@ -69,6 +72,7 @@ class UMAPManager:
         self.mapper.fit( point_data.data, labels_data )
         edata = self.mapper.embedding_
         self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
+        self.point_cloud.setPoints( edata )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec")
         # mapper_path = self._mapperFilePath( block )
@@ -82,15 +86,9 @@ class UMAPManager:
         key_list.sort()
         return key_list
 
-    def view_pointcloud(self, **kwargs ):
-        color_band = kwargs.pop( 'color_band', None )
-        block = kwargs.pop('block', None)
-        self._getMapper(block)
-        plot_parms = dict( cmap="jet", **kwargs )
-        if color_band is not None:
-            plot_parms['values'] = self.tile.getBandPointData( color_band  )
-        model_data = self.mapper.embedding_
-        self.point_cloud = PointCloud( model_data, **plot_parms )
+    def view_pointcloud(self, labels: xa.DataArray = None, **kwargs ):
+        if labels is not None:
+            self.point_cloud.set_point_colors( labels.values )
         self.point_cloud.show()
 
     def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]] ):
@@ -99,9 +97,6 @@ class UMAPManager:
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
-
-    def color_pointcloud(self, sample_labels: xa.DataArray, class_colors : OrderedDict):
-        self.point_cloud.color_labels(sample_labels.values, class_colors)
 
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
