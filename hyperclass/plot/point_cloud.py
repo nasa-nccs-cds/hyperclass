@@ -10,7 +10,6 @@ import vtk
 class PointCloud():
 
     def __init__( self, **kwargs ):
-        self.vrange = None
         self.renWin = None
         self.renderer = None
         self.colormap = None
@@ -25,43 +24,13 @@ class PointCloud():
     def getPolydata(self):
         return self.polydata
 
-    def setNormalizedScalarRange(self, normalized_scalar_range):
-        self.setScalarRange(self.getScaledRange(normalized_scalar_range))
-        return self.current_scalar_range
-
-    def setScalarRange(self, scalar_range=None):
-        if scalar_range: self.current_scalar_range = scalar_range
-        self.mapper.SetScalarRange(self.current_scalar_range[0], self.current_scalar_range[1])
-        #        print " ------------------------->>>>>>>>>>>>>>>>>>>> PointCloud: Set Scalar Range: %s " % str( self.current_scalar_range )
-        self.mapper.Modified()
-        self.actor.Modified()
-        self.actor.SetVisibility(True)
-
-    def getScalarRange(self):
-        return self.current_scalar_range
-
-    def getScaledRange(self, srange):
-        dv = self.vrange[1] - self.vrange[0]
-        vmin = self.vrange[0] + srange[0] * dv
-        vmax = self.vrange[0] + srange[1] * dv
-        return (vmin, vmax)
-
-    # def color_scalars(self, color_data: np.ndarray, **args):
-    #     vtk_color_data = npsup.numpy_to_vtk(color_data)
-    #     vtk_color_data.SetName('vardata')
-    #     self.polydata.GetPointData().SetScalars(vtk_color_data)
-    #     self.polydata.Modified()
-    #     self.mapper.Modified()
-    #     self.actor.Modified()
-
     def set_colormap(self, label_colors: OrderedDict ):
-        label_colors["unlabeled"] = self.unlabeled_color
-        self.colormap = np.clip(np.array(list(label_colors.values())) * 255.99, 0, 255).astype(np.uint8)
+        colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
+        self.colormap = np.vstack( colors )
+        print(".")
 
     def set_point_colors( self, sample_labels: np.array ):
-        print( f"sample_labels0:  {sample_labels.min()} -> {sample_labels.max()}")
-        sample_labels = self.init_colormap(sample_labels)
-        print(f"sample_labels1:  {sample_labels.min()} -> {sample_labels.max()}")
+        sample_labels = self.format_labels(sample_labels)
         colors = self.colormap[ sample_labels ]
         vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
         vtk_color_data.SetNumberOfComponents( colors.shape[1] )
@@ -71,12 +40,10 @@ class PointCloud():
         vtkpts.SetScalars(vtk_color_data)
         vtkpts.SetActiveScalars('colors')
         self.polydata.Modified()
+        if self.renWin is not None:
+            self.renWin.Render()
 
-    def init_colormap(self, sample_labels: np.array ):
-        if self.colormap is None:
-            nlabels = max( int( sample_labels.max() ) + 1, 1 )
-            nvals =  nlabels*3
-            self.colormap = np.array( [0xFF]*nvals ).reshape( nlabels, 3 )
+    def format_labels(self, sample_labels: np.array ):
         sample_labels = sample_labels.astype(np.int)
         sample_labels[ sample_labels == -1 ] = 0
         return np.nan_to_num( sample_labels )
@@ -95,9 +62,8 @@ class PointCloud():
     #     return lut
 
     def initPolyData( self, np_points_data: np.ndarray, **kwargs ):
-        self.np_points = np_points_data
-        nPoints = int(self.np_points.size / 3)
-        vtk_points_data = npsup.numpy_to_vtk(self.np_points)
+        nPoints = int(np_points_data.size / 3)
+        vtk_points_data = npsup.numpy_to_vtk( np_points_data.ravel(), deep=1 )
         vtk_points_data.SetNumberOfComponents(3)
         vtk_points_data.SetNumberOfTuples(nPoints)
         vtk_points = vtk.vtkPoints()
@@ -107,17 +73,17 @@ class PointCloud():
         vertices = vtk.vtkCellArray()
         np_index_seq = np.arange( 0, nPoints )
         cell_sizes = np.ones_like( np_index_seq )
-        self.np_cell_data = np.dstack((cell_sizes, np_index_seq)).flatten()
-        vtk_cell_data = npsup.numpy_to_vtkIdTypeArray(self.np_cell_data)
+        np_cell_data = np.dstack(( cell_sizes, np_index_seq) )
+        vtk_cell_data = npsup.numpy_to_vtkIdTypeArray( np_cell_data.ravel(), deep=1 )
         vertices.SetCells( cell_sizes.size, vtk_cell_data )
         self.polydata.SetVerts(vertices)
+        self.set_point_colors( np.full( shape=[nPoints], fill_value= 0 ) )
+        self.polydata.Modified()
         if self.mapper is not None:
             self.mapper.SetInputData(self.polydata)
             self.mapper.Modified()
-
-#        self.initMarkers()
-#        self.mapper.Modified()
-#        self.actor.Modified()
+        if self.actor is not None:
+            self.actor.Modified()
 
     def initMarkers( self, **kwargs ):
         marler_size = kwargs.get( 'marler_size', 10 )
@@ -181,17 +147,17 @@ class PointCloud():
     def createRenderWindow( self, **kwargs ):
         if self.renWin is None:
             self.renWin = vtk.vtkRenderWindow()
-            rendWinInteractor =  vtk.vtkGenericRenderWindowInteractor()
-            self.renWin.SetInteractor( rendWinInteractor )
-            rendWinInteractor.SetRenderWindow( self.renWin )
+            self.rendWinInteractor =  vtk.vtkGenericRenderWindowInteractor()
+            self.renWin.SetInteractor( self.rendWinInteractor )
+            self.rendWinInteractor.SetRenderWindow( self.renWin )
 
             self.renderer = vtk.vtkRenderer()
             self.renWin.AddRenderer( self.renderer )
 
-            interactorStyle = vtk.vtkInteractorStyleTrackballCamera( )
-            rendWinInteractor.SetInteractorStyle( interactorStyle )
-            interactorStyle.KeyPressActivationOff( )
-            interactorStyle.SetEnabled(1)
+            self.interactorStyle = vtk.vtkInteractorStyleTrackballCamera( )
+            self.rendWinInteractor.SetInteractorStyle( self.interactorStyle )
+            self.interactorStyle.KeyPressActivationOff( )
+            self.interactorStyle.SetEnabled(1)
             if self.actor is not None:
                 self.renderer.AddActor(self.actor)
 
@@ -200,8 +166,6 @@ class PointCloud():
 
     def createActor(self):
         self.mapper = vtk.vtkPolyDataMapper()
-        self.mapper.SetScalarModeToUsePointData()
-        self.mapper.SetColorModeToMapScalars()
         if self.polydata is not None:
             self.mapper.SetInputData(self.polydata)
         self.actor = vtk.vtkActor()

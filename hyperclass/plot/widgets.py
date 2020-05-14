@@ -30,8 +30,6 @@ class ColoredRadioButtons(AxesWidget):
     value_selected : str
         The label text of the currently selected button.
     """
-    default_colors = [[0, 0, 1], [0, 1, 0], [1, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0], [0, 0, 0], [0, 0, .5], [0, .5, 0], [.5, 0, 0], [0, .5, .5], [.5, 0, .5],
-                      [.5, .5, 0], [.5, .5, .5]]
 
     def __init__(self, ax: Axes, labels: List[str], colors: List[Tuple[float]], active=0 ):
         """
@@ -45,7 +43,7 @@ class ColoredRadioButtons(AxesWidget):
             The button labels.
         active : int
             The index of the initially selected button.
-        colors : list of [ r, g, b ]  where r,g,b -> (0,1)
+        colors : list of [ r, g, b, a ]  where r,g,b,a -> (0,1)
             The _colors of the buttons.
         """
         AxesWidget.__init__(self, ax)
@@ -94,7 +92,9 @@ class ColoredRadioButtons(AxesWidget):
         self.observers = {}
 
     def getColor( self, index: int, alpha: float ):
-        return [*self._colors[index], alpha]
+        color = self._colors[index]
+        rgba = [*color[:3], alpha]
+        return rgba
 
     def activecolor(self, alpha: float ):
         return self.getColor( self.active_index, alpha )

@@ -89,9 +89,10 @@ class UMAPManager:
         key_list.sort()
         return key_list
 
-    def view_pointcloud(self, labels: xa.DataArray = None, **kwargs ):
+    def view_pointcloud(self, labels: np.ndarray, **kwargs ):
         if labels is not None:
-            self.point_cloud.set_point_colors( labels.values )
+            labels = np.where( labels == -1, 0, labels )
+            self.point_cloud.set_point_colors( labels )
         self.point_cloud.show()
 
     def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]] ):

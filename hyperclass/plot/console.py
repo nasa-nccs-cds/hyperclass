@@ -230,8 +230,8 @@ class LabelingConsole:
         self.point_selection = []
         self.flow = ActivationFlow(**kwargs)
         self.umgr = UMAPManager(tile, refresh=kwargs.pop('refresh', False))
+        self._getClassLabels(class_labels)
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
-        self._getClassLabels( class_labels )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
@@ -301,6 +301,7 @@ class LabelingConsole:
         for elem in class_labels:
             self.class_labels.append( elem[0] )
             self.class_colors[ elem[0] ] = elem[1]
+        self.umgr.setClassColors( self.class_colors )
 
     @property
     def toolbarMode(self) -> str:
@@ -391,7 +392,7 @@ class LabelingConsole:
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
         class_alpha = kwargs.get( 'alpha', 0.8 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
+            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
@@ -478,7 +479,7 @@ class LabelingConsole:
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
         self.plot_points()
-        self.umgr.view_pointcloud( self.getLabeledPointData() )
+        self.umgr.view_pointcloud( self.getLabeledPointData().values )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
