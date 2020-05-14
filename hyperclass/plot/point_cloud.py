@@ -59,7 +59,9 @@ class PointCloud():
         self.colormap = np.clip(np.array(list(label_colors.values())) * 255.99, 0, 255).astype(np.uint8)
 
     def set_point_colors(self, sample_labels: np.array ):
+        print( f"sample_labels0:  {sample_labels.min()} -> {sample_labels.max()}")
         sample_labels = self.init_colormap(sample_labels)
+        print(f"sample_labels1:  {sample_labels.min()} -> {sample_labels.max()}")
         colors = self.colormap[ sample_labels ]
         vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
         vtk_color_data.SetNumberOfComponents( colors.shape[1] )
@@ -71,15 +73,13 @@ class PointCloud():
         self.polydata.Modified()
 
     def init_colormap(self, sample_labels: np.array ):
-        unlabeled_value = 0
         if self.colormap is None:
-            nlabels = int( sample_labels.max() ) + 1
+            nlabels = min( int( sample_labels.max() ) + 1, 1 )
             nvals =  nlabels*3
             self.colormap = np.array( [0xFF]*nvals ).reshape( nlabels, 3 )
-            unlabeled_value = nlabels - 1
         sample_labels = sample_labels.astype(np.int)
-        sample_labels[ sample_labels == -1 ] = unlabeled_value
-        return sample_labels
+        sample_labels[ sample_labels == -1 ] = 0
+        return np.nan_to_num( sample_labels )
 
 
         # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:

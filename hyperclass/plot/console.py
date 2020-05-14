@@ -294,9 +294,10 @@ class LabelingConsole:
     def data(self):
         return self.block.data
 
-    def _getClassLabels(self, class_labels: List[ Tuple[str,Tuple[float]]] ):
+    def _getClassLabels(self, class_labels: List[ Tuple[str,List[float]]] ):
+        assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
         self.class_labels: List[str] = []
-        self.class_colors: OrderedDict[str,Tuple[float]] = {}
+        self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
         for elem in class_labels:
             self.class_labels.append( elem[0] )
             self.class_colors[ elem[0] ] = elem[1]
@@ -391,7 +392,6 @@ class LabelingConsole:
         class_alpha = kwargs.get( 'alpha', 0.8 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
-            label_map_colors.insert( 0, [ -1, "unclass", [ 1, 1, 1, 0 ]  ] )
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map  )
