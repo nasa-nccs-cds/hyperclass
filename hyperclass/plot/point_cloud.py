@@ -58,7 +58,7 @@ class PointCloud():
         label_colors["unlabeled"] = self.unlabeled_color
         self.colormap = np.clip(np.array(list(label_colors.values())) * 255.99, 0, 255).astype(np.uint8)
 
-    def set_point_colors(self, sample_labels: np.array ):
+    def set_point_colors( self, sample_labels: np.array ):
         print( f"sample_labels0:  {sample_labels.min()} -> {sample_labels.max()}")
         sample_labels = self.init_colormap(sample_labels)
         print(f"sample_labels1:  {sample_labels.min()} -> {sample_labels.max()}")
@@ -74,7 +74,7 @@ class PointCloud():
 
     def init_colormap(self, sample_labels: np.array ):
         if self.colormap is None:
-            nlabels = min( int( sample_labels.max() ) + 1, 1 )
+            nlabels = max( int( sample_labels.max() ) + 1, 1 )
             nvals =  nlabels*3
             self.colormap = np.array( [0xFF]*nvals ).reshape( nlabels, 3 )
         sample_labels = sample_labels.astype(np.int)

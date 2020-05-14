@@ -60,8 +60,9 @@ class ActivationFlow:
                 if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
 
         t1 = time.time()
-        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec")
         result_attrs = dict( converged=converged, **sample_labels.attrs )
-        return xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
+        return result
 
 
