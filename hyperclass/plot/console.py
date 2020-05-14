@@ -404,7 +404,7 @@ class LabelingConsole:
 
 
     def color_pointcloud(self, sample_labels: xa.DataArray):
-        self.umgr.color_pointcloud(sample_labels, self.class_colors)
+        self.umgr.color_pointcloud( sample_labels )
 
     def blink( self, event ):
         self.blink_state = not self.blink_state
@@ -462,7 +462,6 @@ class LabelingConsole:
             self.class_labels: List[str] = self.tile.dm.tdio.names
             self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
             print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
-            self.umap.set
 
     def write_training_data(self):
         print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")

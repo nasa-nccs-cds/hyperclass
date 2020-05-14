@@ -9,14 +9,18 @@ import vtk
 
 class PointCloud():
 
-    def __init__( self, points: np.ndarray, **kwargs ):
+    def __init__( self, **kwargs ):
         self.vrange = None
         self.renWin = None
         self.renderer = None
+        self.colormap = None
+        self.mapper = None
+        self.actor = None
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
-    def setPoints (self, points: np.ndarray ):
+    def setPoints (self, points: np.ndarray, labels: np.ndarray = None ):
         self.initPolyData(points)
+        if labels is not None: self.set_point_colors( labels )
 
     def getPolydata(self):
         return self.polydata
@@ -54,18 +58,31 @@ class PointCloud():
         label_colors["unlabeled"] = self.unlabeled_color
         self.colormap = np.clip(np.array(list(label_colors.values())) * 255.99, 0, 255).astype(np.uint8)
 
-    def set_point_colors(self, sample_labels: np.array, ):
+    def set_point_colors(self, sample_labels: np.array ):
+        sample_labels = self.init_colormap(sample_labels)
         colors = self.colormap[ sample_labels ]
-        vtk_color_data = npsup.numpy_to_vtk( colors )
+        vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
+        vtk_color_data.SetNumberOfComponents( colors.shape[1] )
+        vtk_color_data.SetNumberOfTuples( colors.shape[0] )
         vtk_color_data.SetName('colors')
         vtkpts = self.polydata.GetPointData()
         vtkpts.SetScalars(vtk_color_data)
         vtkpts.SetActiveScalars('colors')
         self.polydata.Modified()
-        self.mapper.Modified()
-        self.actor.Modified()
 
-    # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
+    def init_colormap(self, sample_labels: np.array ):
+        unlabeled_value = 0
+        if self.colormap is None:
+            nlabels = int( sample_labels.max() ) + 1
+            nvals =  nlabels*3
+            self.colormap = np.array( [0xFF]*nvals ).reshape( nlabels, 3 )
+            unlabeled_value = nlabels - 1
+        sample_labels = sample_labels.astype(np.int)
+        sample_labels[ sample_labels == -1 ] = unlabeled_value
+        return sample_labels
+
+
+        # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
     #     lut = vtk.vtkLookupTable()
     #     colors = list(class_colors.values())
     #     n = len(colors)
@@ -94,13 +111,13 @@ class PointCloud():
         vtk_cell_data = npsup.numpy_to_vtkIdTypeArray(self.np_cell_data)
         vertices.SetCells( cell_sizes.size, vtk_cell_data )
         self.polydata.SetVerts(vertices)
-        lut = kwargs.get('lut', None)
-        if lut == None: lut = self.create_LUT()
-        self.mapper.SetInputData(self.polydata)
-        if lut:  self.mapper.SetLookupTable(lut)
-        self.initMarkers()
-        self.mapper.Modified()
-        self.actor.Modified()
+        if self.mapper is not None:
+            self.mapper.SetInputData(self.polydata)
+            self.mapper.Modified()
+
+#        self.initMarkers()
+#        self.mapper.Modified()
+#        self.actor.Modified()
 
     def initMarkers( self, **kwargs ):
         marler_size = kwargs.get( 'marler_size', 10 )
@@ -175,6 +192,8 @@ class PointCloud():
             rendWinInteractor.SetInteractorStyle( interactorStyle )
             interactorStyle.KeyPressActivationOff( )
             interactorStyle.SetEnabled(1)
+            if self.actor is not None:
+                self.renderer.AddActor(self.actor)
 
 #            self.renderer.SetBackground(1.0, 1.0, 1.0)
 #            self.renderer.SetNearClippingPlaneTolerance( 0.0001 )
@@ -183,6 +202,8 @@ class PointCloud():
         self.mapper = vtk.vtkPolyDataMapper()
         self.mapper.SetScalarModeToUsePointData()
         self.mapper.SetColorModeToMapScalars()
+        if self.polydata is not None:
+            self.mapper.SetInputData(self.polydata)
         self.actor = vtk.vtkActor()
         self.actor.SetMapper(self.mapper)
         self.actor.GetProperty().SetPointSize(1)

@@ -19,7 +19,7 @@ class UMAPManager:
         self.mapper: umap.UMAP = None
         self.point_cloud: PointCloud = PointCloud( **kwargs )
 
-    def setClassColors(self, class_colors: OrderedDict[str,Tuple[float]] ):
+    def setClassColors(self, class_colors: OrderedDict ):
         self.point_cloud.set_colormap( class_colors )
 
     @property
@@ -61,6 +61,9 @@ class UMAPManager:
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
 
+    def color_pointcloud( self, labels: xa.DataArray ):
+        self.point_cloud.set_point_colors( labels.values )
+
     def fit( self, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
         block: Block = kwargs.get( 'block', None )
@@ -72,7 +75,7 @@ class UMAPManager:
         self.mapper.fit( point_data.data, labels_data )
         edata = self.mapper.embedding_
         self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
-        self.point_cloud.setPoints( edata )
+        self.point_cloud.setPoints( edata, labels.values )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec")
         # mapper_path = self._mapperFilePath( block )
