@@ -164,7 +164,9 @@ class PointCloud():
 #            self.renderer.SetBackground(1.0, 1.0, 1.0)
 #            self.renderer.SetNearClippingPlaneTolerance( 0.0001 )
 
-    def createActor(self):
+    def createActor(self, renderer: vtk.vtkRenderer = None ):
+        if renderer is not None:
+            self.renderer = renderer
         self.mapper = vtk.vtkPolyDataMapper()
         if self.polydata is not None:
             self.mapper.SetInputData(self.polydata)

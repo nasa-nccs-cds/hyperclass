@@ -71,11 +71,11 @@ class UMAPManager:
         point_data: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
-        labels_data = None if labels is None else labels.data
+        labels_data = None if labels is None else labels.values
         self.mapper.fit( point_data.data, labels_data )
         edata = self.mapper.embedding_
         self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
-        self.point_cloud.setPoints( edata, labels.values )
+        self.point_cloud.setPoints( edata, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec")
         # mapper_path = self._mapperFilePath( block )
