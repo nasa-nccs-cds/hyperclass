@@ -71,9 +71,17 @@ class UMAPManager:
     def color_pointcloud( self, labels: xa.DataArray ):
         self.point_cloud.set_point_colors( labels.values )
 
+    def getBlock( self, **kwargs ) -> Optional[Block]:
+        block: Optional[Block] = kwargs.get('block', None)
+        if block is None:
+            block_index = kwargs.get('block_index', None)
+            if block_index is not None:
+                block = self.tile.getBlock( *block_index )
+        return block
+
     def fit( self, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
-        block: Block = kwargs.get( 'block', None )
+        block: Optional[Block] = self.getBlock( **kwargs )
         self._getMapper(block)
         point_data: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
         t1 = time.time()

@@ -233,7 +233,7 @@ class LabelingConsole:
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
-        self.figure: Figure = kwargs.get( 'figure', plt.figure() )
+        self.figure: Figure = kwargs.pop( 'figure', plt.figure() )
         self.image: AxesImage = None
         self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
@@ -259,7 +259,7 @@ class LabelingConsole:
         self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
         self.add_button_box( **kwargs )
-        self.toolbar = self.figure.canvas.manager.toolbar
+        self.toolbar = self.figure.canvas.toolbar
         atexit.register(self.exit)
         self._update(0)
 

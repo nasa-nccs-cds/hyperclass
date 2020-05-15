@@ -1,11 +1,9 @@
 import xarray as xa
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
-from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MainWindow
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
-from collections import OrderedDict
 import os, math, sys
 
 block_index = (0, 0)
@@ -21,11 +19,11 @@ classes = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
 dm = DataManager(image_name)
 tile: Tile = dm.getTile()
 umgr = UMAPManager(tile, classes, refresh=refresh)
-umgr.fit( )
 
 app = QtWidgets.QApplication(sys.argv)
 
 window = MainWindow(umgr)
+window.setBlock( block_index )
 window.show()
 
 sys.exit(app.exec_())
