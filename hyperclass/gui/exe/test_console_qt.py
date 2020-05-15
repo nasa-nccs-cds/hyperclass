@@ -1,13 +1,12 @@
-import sys
 import xarray as xa
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.points import MainWindow
+from hyperclass.gui.mpl import MainWindow
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from collections import OrderedDict
-import os, math
+import os, math, sys
 
 block_index = (0, 0)
 refresh = False

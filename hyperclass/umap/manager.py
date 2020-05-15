@@ -11,16 +11,23 @@ cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager:
 
-    def __init__(self, tile: Tile, **kwargs ):
+    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._embedding: xa.DataArray = None
         self.mapper: umap.UMAP = None
         self.point_cloud: PointCloud = PointCloud( **kwargs )
+        self.setClassColors( class_labels )
 
-    def setClassColors(self, class_colors: OrderedDict ):
-        self.point_cloud.set_colormap( class_colors )
+    def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
+        assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
+        self.class_labels: List[str] = []
+        self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
+        for elem in class_labels:
+            self.class_labels.append( elem[0] )
+            self.class_colors[ elem[0] ] = elem[1]
+        self.point_cloud.set_colormap( self.class_colors )
 
     @property
     def embedding(self) -> xa.DataArray:

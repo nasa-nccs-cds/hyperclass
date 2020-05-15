@@ -3,14 +3,18 @@ import sys
 import os
 import random
 import matplotlib
-# Make sure that we are using QT5
 matplotlib.use('Qt5Agg')
-from PyQt5 import QtCore, QtWidgets
 from numpy import arange, sin, pi
+from hyperclass.gui.points import VTKFrame
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 progname = os.path.basename(sys.argv[0])
 progversion = "0.1"
+from PyQt5 import QtCore, QtWidgets, QtGui
+from hyperclass.gui.points import MainWindow
+from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from collections import OrderedDict
+
 
 
 class MyMplCanvas(FigureCanvas):
@@ -83,10 +87,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.main_widget = QtWidgets.QWidget(self)
 
         l = QtWidgets.QVBoxLayout(self.main_widget)
-        sc = MyStaticMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-        l.addWidget(sc)
-        l.addWidget(dc)
+        self.vtkFrame =  VTKFrame()
+
+        l.addWidget(self.vtkFrame)
+
+#        dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
+#        l.addWidget(dc)
 
         self.main_widget.setFocus()
         self.setCentralWidget(self.main_widget)
@@ -102,10 +108,31 @@ class ApplicationWindow(QtWidgets.QMainWindow):
     def about(self):
         QtWidgets.QMessageBox.about(self, "About embedding_in_qt5.py example""" )
 
+    def show(self):
+        QtWidgets.QMainWindow.show(self)
+        self.vtkFrame.Initialize()
 
-qApp = QtWidgets.QApplication(sys.argv)
+if __name__ == '__main__':
+    block_index = [1,1]
+    image_name = "ang20170720t004130_corr_v2p9"
+    subsample = 1
+    classes = OrderedDict( [    ('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
+                               ('Obscured', [0.6, 0.6, 0.4, 1.0]),
+                               ('Forest', [0.0, 1.0, 0.0, 1.0]),
+                               ('Non-forested Land', [0.7, 1.0, 0.0, 1.0]),
+                               ('Urban', [1.0, 0.0, 1.0, 1.0]),
+                               ('Water', [0.0, 0.0, 1.0, 1.0])  ] )
 
-aw = ApplicationWindow()
-aw.setWindowTitle("%s" % progname)
-aw.show()
-sys.exit(qApp.exec_())
+
+
+    dm = DataManager( image_name )
+    tile: Tile = dm.getTile()
+    block: Block = tile.getBlock( *block_index )
+
+    app = QtWidgets.QApplication(sys.argv)
+
+    aw = ApplicationWindow()
+    aw.setWindowTitle("%s" % progname)
+    aw.vtkFrame.initPlot(block, classes, subsample=subsample)
+    aw.show()
+    sys.exit(app.exec_())

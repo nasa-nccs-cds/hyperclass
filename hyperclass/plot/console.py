@@ -224,18 +224,16 @@ class PageSlider(matplotlib.widgets.Slider):
 
 class LabelingConsole:
 
-    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]], **kwargs ):   # class_labels: [ [label, RGBA] ... ]
+    def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
-        self.tile = tile
         self.point_selection = []
         self.flow = ActivationFlow(**kwargs)
-        self.umgr = UMAPManager(tile, refresh=kwargs.pop('refresh', False))
-        self._getClassLabels(class_labels)
+        self.umgr = umgr
         self.setBlock( kwargs.pop( 'block', (0,0) ) )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
-        self.figure: Figure = plt.figure()
+        self.figure: Figure = kwargs.get( 'figure', plt.figure() )
         self.image: AxesImage = None
         self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
@@ -265,6 +263,10 @@ class LabelingConsole:
         atexit.register(self.exit)
         self._update(0)
 
+    @property
+    def tile(self):
+        return self.umgr.tile
+
     def setBlock( self, block_coords: Tuple[int] ):
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
@@ -286,7 +288,8 @@ class LabelingConsole:
         print( f"Updating {len(self.point_selection)} labels")
         for ( cy, cx, c ) in self.point_selection:
             iy, ix = self.tile.coords2index( cy, cx )
-            self.labels[ iy, ix ] = c
+            try: self.labels[ iy, ix ] = c
+            except: print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
 
     def getLabeledPointData( self, update = True ):
         if update: self.updateLabels()
@@ -296,14 +299,13 @@ class LabelingConsole:
     def data(self):
         return self.block.data
 
-    def _getClassLabels(self, class_labels: List[ Tuple[str,List[float]]] ):
-        assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
-        self.class_labels: List[str] = []
-        self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
-        for elem in class_labels:
-            self.class_labels.append( elem[0] )
-            self.class_colors[ elem[0] ] = elem[1]
-        self.umgr.setClassColors( self.class_colors )
+    @property
+    def class_labels(self):
+        return self.umgr.class_labels
+
+    @property
+    def class_colors(self):
+        return self.umgr.class_colors
 
     @property
     def toolbarMode(self) -> str:
@@ -464,8 +466,8 @@ class LabelingConsole:
         self.tile.dm.tdio.readLabelData()
         if self.tile.dm.tdio.hasData:
             self.point_selection = self.tile.dm.tdio.values
-            self.class_labels: List[str] = self.tile.dm.tdio.names
-            self.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
+            self.umgr.class_labels: List[str] = self.tile.dm.tdio.names
+            self.umgr.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
             print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
 
     def write_training_data(self):

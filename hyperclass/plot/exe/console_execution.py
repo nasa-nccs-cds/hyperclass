@@ -3,6 +3,7 @@ from hyperclass.plot.console import LabelingConsole
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, atexit, json, matplotlib
 import matplotlib.pyplot as plt
+from hyperclass.umap.manager import UMAPManager
 from hyperclass.data.aviris.manager import DataManager, Tile
 import os, math
 
@@ -22,6 +23,7 @@ if __name__ == '__main__':
     dm = DataManager( image_name )
     tile: Tile = dm.getTile(  )
 
-    animator = LabelingConsole( tile, classes, block = block_index, refresh=refresh )
+    umgr = UMAPManager( tile, classes, refresh=refresh )
+    animator = LabelingConsole( umgr, block = block_index )
     animator.show()
 
