@@ -30,8 +30,8 @@ class PointCloud():
         print(".")
 
     def set_point_colors( self, sample_labels: np.array ):
-        sample_labels = self.format_labels(sample_labels)
-        colors = self.colormap[ sample_labels ]
+        labels = np.where( sample_labels >= 0, sample_labels, 0 )
+        colors = self.colormap[ labels ]
         vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
         vtk_color_data.SetNumberOfComponents( colors.shape[1] )
         vtk_color_data.SetNumberOfTuples( colors.shape[0] )
@@ -42,11 +42,6 @@ class PointCloud():
         self.polydata.Modified()
         if self.renWin is not None:
             self.renWin.Render()
-
-    def format_labels(self, sample_labels: np.array ):
-        sample_labels = sample_labels.astype(np.int)
-        sample_labels[ sample_labels == -1 ] = 0
-        return np.nan_to_num( sample_labels )
 
 
         # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:

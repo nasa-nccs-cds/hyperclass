@@ -308,7 +308,11 @@ class DataManager:
     @classmethod
     def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
         stacked_raster = raster.stack(samples=['x','y']).transpose()
-        point_data = stacked_raster.dropna(dim='samples', how='any')
+        if np.issubdtype( raster.dtype, np.integer ):
+            nodata = stacked_raster.attrs['_FillValue']
+            point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int16)
+        else:
+            point_data = stacked_raster.dropna(dim='samples', how='any')
         print(f"  -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")
         return point_data
 
@@ -362,9 +366,9 @@ class DataManager:
         if vrange is not None:
             defaults['vmin'] = vrange[0]
             defaults['vmax'] = vrange[1]
-        if "vmax" not in defaults:
-            ave = raster.mean(skipna=True)
-            std = raster.std(skipna=True)
+        if (colors is  None) and ("vmax" not in defaults):
+            ave = raster.mean(skipna=True).values
+            std = raster.std(skipna=True).values
             defaults['vmin'] = ave - std*colorstretch
             defaults['vmax'] = ave + std*colorstretch
         defaults.update(kwargs)

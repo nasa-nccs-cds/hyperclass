@@ -275,8 +275,10 @@ class LabelingConsole:
         self.umgr.fit( labels, block = self.block )
 
     def clearLabels( self, event = None ):
+        nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
-        self.labels = xa.full_like( template, -1 ).where( template.notnull(), float('nan') )
+        self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
+        self.labels.attrs['_FillValue'] = nodata_value
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
@@ -390,12 +392,13 @@ class LabelingConsole:
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         label_map: xa.DataArray =  sample_labels.unstack().transpose()
+        print( f" plot_label_map: label bincounts = {np.bincount(label_map.values.flatten())}")
         class_alpha = kwargs.get( 'alpha', 0.8 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
-            self.labels_image.set_data( label_map  )
+            self.labels_image.set_data( label_map.values  )
         self.color_pointcloud( sample_labels )
 
     def show_labels(self):
