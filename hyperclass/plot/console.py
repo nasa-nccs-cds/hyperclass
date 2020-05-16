@@ -234,7 +234,9 @@ class LabelingConsole:
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
-        self.figure: Figure = kwargs.pop( 'figure', plt.figure() )
+        self.figure: Figure = kwargs.pop( 'figure', None )
+        if self.figure is None:
+            self.figure = plt.figure()
         self.image: AxesImage = None
         self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
         self.blink_state = True
@@ -255,14 +257,18 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
+        self.button_actions =  dict(submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels)
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
-        self.add_button_box( **kwargs )
-        self.toolbar = self.figure.canvas.toolbar
+#        self.add_button_box( **kwargs )
         atexit.register(self.exit)
         self._update(0)
+
+    @property
+    def toolbar(self):
+        return self.figure.canvas.toolbar
 
     @property
     def tile(self):
@@ -364,6 +370,7 @@ class LabelingConsole:
         frame_data = self.data[ self.currentFrame]
         self.image.set_data( frame_data  )
         self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
+        self.plot_axes.title.set_fontsize( 8 )
 
     def onMouseRelease(self, event):
         pass
@@ -486,7 +493,7 @@ class LabelingConsole:
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
         self.plot_points()
-        self.umgr.view_pointcloud( self.getLabeledPointData().values )
+        self.umgr.init_pointcloud(self.getLabeledPointData().values)
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )

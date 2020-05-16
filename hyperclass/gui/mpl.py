@@ -19,6 +19,10 @@ class MplWidget(QWidget):
     def setBlock(self, block_coords: Tuple[int]   ):
         self.canvas.setBlock( block_coords )
 
+    @property
+    def button_actions(self) -> Dict[str, Callable]:
+        return self.canvas.button_actions
+
 class MplCanvas(FigureCanvas):
 
     def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100):
@@ -31,5 +35,9 @@ class MplCanvas(FigureCanvas):
 
     def setBlock(self, block_coords: Tuple[int]   ):
         self.console.setBlock( block_coords )
+
+    @property
+    def button_actions(self) -> Dict[str,Callable]:
+        return self.console.button_actions
 
 

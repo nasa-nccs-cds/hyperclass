@@ -40,22 +40,19 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)
 
-        if self.NFunctionButtons > 0:
-            buttonsLayout = QHBoxLayout()
-            for button in [ f'B{iB}' for iB in range(self.NFunctionButtons) ]:
-                pybutton = QPushButton( button, self )
-                pybutton.clicked.connect( partial(self.ButtonClicked,button) )
-                buttonsLayout.addWidget(pybutton)
-                buttonsLayout.addItem(QSpacerItem(1000, 10, QSizePolicy.Expanding))
-            vlay.addLayout(buttonsLayout)
-
         framesLayout = QHBoxLayout()
         self.console = MplWidget( umgr,self)
         framesLayout.addWidget( self.console )
         self.vtkFrame = VTKFrame( umgr )
         framesLayout.addWidget(self.vtkFrame)
-
         vlay.addLayout(framesLayout)
+
+        buttonsLayout = QHBoxLayout()
+        for label, callback in self.console.button_actions.items():
+            pybutton = QPushButton( label, self )
+            pybutton.clicked.connect( callback )
+            buttonsLayout.addWidget(pybutton)
+        vlay.addLayout(buttonsLayout)
 
     def ButtonClicked(self, buttonName: str ):
         self.statusBar().showMessage(f'Clicked Button {buttonName}')
