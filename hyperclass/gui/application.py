@@ -1,138 +1,94 @@
-from __future__ import unicode_literals
 import sys
-import os
-import random
-import matplotlib
-matplotlib.use('Qt5Agg')
-from numpy import arange, sin, pi
+from hyperclass.plot.console import LabelingConsole
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import QSize
+from functools import partial
+from hyperclass.umap.manager import UMAPManager
+from hyperclass.gui.mpl import MplWidget
 from hyperclass.gui.points import VTKFrame
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-progname = os.path.basename(sys.argv[0])
-progversion = "0.1"
+from typing import List, Union, Dict, Callable, Tuple, Optional
+
+class MainWindow(QMainWindow):
+    def __init__(self, umgr: UMAPManager):
+        QMainWindow.__init__(self)
+
+        self.title = 'test'
+        self.left = 10
+        self.top = 10
+        self.width = 1920
+        self.height = 1080
+        self.NFunctionButtons = 0
+
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
+
+        self.statusBar().showMessage('Ready')
+
+        mainMenu = self.menuBar()
+        mainMenu.setNativeMenuBar(False)
+        fileMenu = mainMenu.addMenu('File')
+        helpMenu = mainMenu.addMenu('Help')
+
+        exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
+        exitButton.setShortcut('Ctrl+Q')
+        exitButton.setStatusTip('Exit application')
+        exitButton.triggered.connect(self.close)
+        fileMenu.addAction(exitButton)
+
+        widget =  QWidget(self)
+        self.setCentralWidget(widget)
+        vlay = QVBoxLayout(widget)
+
+        if self.NFunctionButtons > 0:
+            buttonsLayout = QHBoxLayout()
+            for button in [ f'B{iB}' for iB in range(NFunctionButtons) ]:
+                pybutton = QPushButton( button, self )
+                pybutton.clicked.connect( partial(self.ButtonClicked,button) )
+                buttonsLayout.addWidget(pybutton)
+                buttonsLayout.addItem(QSpacerItem(1000, 10, QSizePolicy.Expanding))
+            vlay.addLayout(buttonsLayout)
+
+        framesLayout = QHBoxLayout()
+        self.console = MplWidget( umgr,self)
+        framesLayout.addWidget( self.console )
+        self.vtkFrame = VTKFrame( umgr )
+        framesLayout.addWidget(self.vtkFrame)
+
+        vlay.addLayout(framesLayout)
+
+    def ButtonClicked(self, buttonName: str ):
+        self.statusBar().showMessage(f'Clicked Button {buttonName}')
+
+    def setBlock(self, block_coords: Tuple[int]):
+        self.console.setBlock(block_coords)
+
+import xarray as xa
+import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
-from hyperclass.gui.points import MainWindow
+from hyperclass.umap.manager import UMAPManager
+from hyperclass.gui.points import VTKFrame
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
-from collections import OrderedDict
+import os, math, sys
 
+block_index = (0, 0)
+refresh = False
+image_name = "ang20170720t004130_corr_v2p9"
+classes = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
+           ('Obscured', [0.6, 0.6, 0.4, 1.0]),
+           ('Forest', [0.0, 1.0, 0.0, 1.0]),
+           ('Non-forested Land', [0.7, 1.0, 0.0, 1.0]),
+           ('Urban', [1.0, 0.0, 1.0, 1.0]),
+           ('Water', [0.0, 0.0, 1.0, 1.0])]
 
+dm = DataManager(image_name)
+tile: Tile = dm.getTile()
+umgr = UMAPManager(tile, classes, refresh=refresh)
 
-class MyMplCanvas(FigureCanvas):
-    """Ultimately, this is a QWidget (as well as a FigureCanvasAgg, etc.)."""
+app = QtWidgets.QApplication(sys.argv)
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
+window = MainWindow(umgr)
+window.setBlock( block_index )
+window.show()
 
-        self.compute_initial_figure()
-
-        FigureCanvas.__init__(self, fig)
-        self.setParent(parent)
-
-        FigureCanvas.setSizePolicy(self,
-                                   QtWidgets.QSizePolicy.Expanding,
-                                   QtWidgets.QSizePolicy.Expanding)
-        FigureCanvas.updateGeometry(self)
-
-    def compute_initial_figure(self):
-        pass
-
-
-class MyStaticMplCanvas(MyMplCanvas):
-    """Simple canvas with a sine plot."""
-
-    def compute_initial_figure(self):
-        t = arange(0.0, 3.0, 0.01)
-        s = sin(2*pi*t)
-        self.axes.plot(t, s)
-
-
-class MyDynamicMplCanvas(MyMplCanvas):
-    """A canvas that updates itself every second with a new plot."""
-
-    def __init__(self, *args, **kwargs):
-        MyMplCanvas.__init__(self, *args, **kwargs)
-        timer = QtCore.QTimer(self)
-        timer.timeout.connect(self.update_figure)
-        timer.start(1000)
-
-    def compute_initial_figure(self):
-        self.axes.plot([0, 1, 2, 3], [1, 2, 0, 4], 'r')
-
-    def update_figure(self):
-        # Build a list of 4 random integers between 0 and 10 (both inclusive)
-        l = [random.randint(0, 10) for i in range(4)]
-        self.axes.cla()
-        self.axes.plot([0, 1, 2, 3], l, 'r')
-        self.draw()
-
-
-class ApplicationWindow(QtWidgets.QMainWindow):
-    def __init__(self):
-        QtWidgets.QMainWindow.__init__(self)
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setWindowTitle("application main window")
-
-        self.file_menu = QtWidgets.QMenu('&File', self)
-        self.file_menu.addAction('&Quit', self.fileQuit,
-                                 QtCore.Qt.CTRL + QtCore.Qt.Key_Q)
-        self.menuBar().addMenu(self.file_menu)
-
-        self.help_menu = QtWidgets.QMenu('&Help', self)
-        self.menuBar().addSeparator()
-        self.menuBar().addMenu(self.help_menu)
-
-        self.help_menu.addAction('&About', self.about)
-
-        self.main_widget = QtWidgets.QWidget(self)
-
-        l = QtWidgets.QVBoxLayout(self.main_widget)
-        self.vtkFrame =  VTKFrame()
-
-        l.addWidget(self.vtkFrame)
-
-#        dc = MyDynamicMplCanvas(self.main_widget, width=5, height=4, dpi=100)
-#        l.addWidget(dc)
-
-        self.main_widget.setFocus()
-        self.setCentralWidget(self.main_widget)
-
-        self.statusBar().showMessage("All hail matplotlib!", 2000)
-
-    def fileQuit(self):
-        self.close()
-
-    def closeEvent(self, ce):
-        self.fileQuit()
-
-    def about(self):
-        QtWidgets.QMessageBox.about(self, "About embedding_in_qt5.py example""" )
-
-    def show(self):
-        QtWidgets.QMainWindow.show(self)
-        self.vtkFrame.Initialize()
-
-if __name__ == '__main__':
-    block_index = [1,1]
-    image_name = "ang20170720t004130_corr_v2p9"
-    subsample = 1
-    classes = OrderedDict( [    ('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
-                               ('Obscured', [0.6, 0.6, 0.4, 1.0]),
-                               ('Forest', [0.0, 1.0, 0.0, 1.0]),
-                               ('Non-forested Land', [0.7, 1.0, 0.0, 1.0]),
-                               ('Urban', [1.0, 0.0, 1.0, 1.0]),
-                               ('Water', [0.0, 0.0, 1.0, 1.0])  ] )
-
-
-
-    dm = DataManager( image_name )
-    tile: Tile = dm.getTile()
-    block: Block = tile.getBlock( *block_index )
-
-    app = QtWidgets.QApplication(sys.argv)
-
-    aw = ApplicationWindow()
-    aw.setWindowTitle("%s" % progname)
-    aw.vtkFrame.initPlot(block, classes, subsample=subsample)
-    aw.show()
-    sys.exit(app.exec_())
+sys.exit(app.exec_())
