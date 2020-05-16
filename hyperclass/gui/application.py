@@ -60,6 +60,10 @@ class MainWindow(QMainWindow):
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)
 
+    def show(self):
+        QtWidgets.QMainWindow.show(self)
+        self.vtkFrame.Initialize()
+
 import xarray as xa
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui

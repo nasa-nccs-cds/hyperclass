@@ -50,6 +50,7 @@ class VTKFrame(QtWidgets.QFrame):
 
     def Initialize(self):
         self.iren.Initialize()
+        self.iren.Start()
 
 
 
