@@ -42,7 +42,7 @@ class MainWindow(QMainWindow):
 
         if self.NFunctionButtons > 0:
             buttonsLayout = QHBoxLayout()
-            for button in [ f'B{iB}' for iB in range(NFunctionButtons) ]:
+            for button in [ f'B{iB}' for iB in range(self.NFunctionButtons) ]:
                 pybutton = QPushButton( button, self )
                 pybutton.clicked.connect( partial(self.ButtonClicked,button) )
                 buttonsLayout.addWidget(pybutton)
@@ -88,7 +88,6 @@ umgr = UMAPManager(tile, classes, refresh=refresh)
 app = QtWidgets.QApplication(sys.argv)
 
 window = MainWindow(umgr)
-window.setBlock( block_index )
 window.show()
 
 sys.exit(app.exec_())

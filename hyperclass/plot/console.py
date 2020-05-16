@@ -229,7 +229,8 @@ class LabelingConsole:
         self.point_selection = []
         self.flow = ActivationFlow(**kwargs)
         self.umgr = umgr
-        self.setBlock( kwargs.pop( 'block', (0,0) ) )
+        block_index = umgr.tile.dm.config.getShape( 'block_index' )
+        self.setBlock( kwargs.pop( 'block', block_index ) )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
