@@ -132,6 +132,10 @@ class Block:
         result: xa.DataArray =  self.tile.dm.raster2points( self.data )
         return result if subsample is None else result[::subsample]
 
+    def getSinglePointData( self, cy: float, cx: float ) -> xa.DataArray:
+        indices = self.coords2index(  cy, cx )
+        return self.data.isel( y=indices[0], x=indices[1] )
+
     def plot(self,  **kwargs ) -> xa.DataArray:
         color_band = kwargs.pop( 'color_band', None )
         band_range = kwargs.pop( 'band_range', None )

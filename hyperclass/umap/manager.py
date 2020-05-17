@@ -111,6 +111,7 @@ class UMAPManager:
 
     def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[List[float]] ):
         point_data = np.array( list( zip( xcoords, ycoords) ) )
+#        block.getSinglePointData
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         self.point_cloud.plotMarkers( transformed_data, colors )
 
