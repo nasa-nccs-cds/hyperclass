@@ -294,13 +294,17 @@ class LabelingConsole:
     def updateLabels(self):
         print( f"Updating {len(self.point_selection)} labels")
         for ( cy, cx, c ) in self.point_selection:
-            iy, ix = self.tile.coords2index( cy, cx )
-            try: self.labels[ iy, ix ] = c
-            except: print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
+            iy, ix = self.block.coords2index( cy, cx )
+            try:
+                lable0 = self.labels[iy, ix].values
+                self.labels[ iy, ix ] = c
+            except:
+                print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
 
     def getLabeledPointData( self, update = True ):
         if update: self.updateLabels()
-        return self.tile.dm.raster2points( self.labels )
+        labeledPointData = self.tile.dm.raster2points( self.labels )
+        return labeledPointData
 
     @property
     def data(self):
@@ -446,9 +450,6 @@ class LabelingConsole:
         label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
         dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
         self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
-
-    def getPointIndex(self, cy: float, cx: float ):
-        iy, ix = self.block.coords2index(cy, cx)
 
     def plot_points(self):
         if self.point_selection:

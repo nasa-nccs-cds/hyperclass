@@ -39,10 +39,14 @@ class PointCloud():
         vtkpts = self.polydata.GetPointData()
         vtkpts.SetScalars(vtk_color_data)
         vtkpts.SetActiveScalars('colors')
-        self.polydata.Modified()
-        if self.renWin is not None:
-            self.renWin.Render()
+        vtkpts.Modified()
+        self.update()
 
+    def update(self):
+        if self.mapper is not None:   self.mapper.Modified()
+        if self.polydata is not None: self.polydata.Modified()
+        if self.actor is not None:    self.actor.Modified()
+        if self.renWin is not None:   self.renWin.Render()
 
         # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
     #     lut = vtk.vtkLookupTable()

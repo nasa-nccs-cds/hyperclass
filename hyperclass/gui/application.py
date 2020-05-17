@@ -1,9 +1,6 @@
-import sys
-from hyperclass.plot.console import LabelingConsole
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
-from functools import partial
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget
 from hyperclass.gui.points import VTKFrame
@@ -50,45 +47,21 @@ class MainWindow(QMainWindow):
         buttonsLayout = QHBoxLayout()
         for label, callback in self.console.button_actions.items():
             pybutton = QPushButton( label, self )
-            pybutton.clicked.connect( callback )
+            pybutton.clicked.connect( self.wrapAction(callback) )
             buttonsLayout.addWidget(pybutton)
         vlay.addLayout(buttonsLayout)
 
-    def ButtonClicked(self, buttonName: str ):
-        self.statusBar().showMessage(f'Clicked Button {buttonName}')
+    def wrapAction(self, action: Callable ) -> Callable:
+        def x( event ):
+            action(event )
+            self.vtkFrame.vtkWidget.Render()
+            self.vtkFrame.setFocus()
+            self.vtkFrame.repaint()
+        return x
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)
 
     def show(self):
-        QtWidgets.QMainWindow.show(self)
+        QMainWindow.show(self)
         self.vtkFrame.Initialize()
-
-import xarray as xa
-import vtk, numpy as np
-from PyQt5 import QtCore, QtWidgets, QtGui
-from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.points import VTKFrame
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
-import os, math, sys
-
-block_index = (0, 0)
-refresh = False
-image_name = "ang20170720t004130_corr_v2p9"
-classes = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
-           ('Obscured', [0.6, 0.6, 0.4, 1.0]),
-           ('Forest', [0.0, 1.0, 0.0, 1.0]),
-           ('Non-forested Land', [0.7, 1.0, 0.0, 1.0]),
-           ('Urban', [1.0, 0.0, 1.0, 1.0]),
-           ('Water', [0.0, 0.0, 1.0, 1.0])]
-
-dm = DataManager(image_name)
-tile: Tile = dm.getTile()
-umgr = UMAPManager(tile, classes, refresh=refresh)
-
-app = QtWidgets.QApplication(sys.argv)
-
-window = MainWindow(umgr)
-window.show()
-
-sys.exit(app.exec_())

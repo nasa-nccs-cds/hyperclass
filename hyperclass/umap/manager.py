@@ -116,6 +116,9 @@ class UMAPManager:
         dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
 
+    def update(self):
+        self.point_cloud.update()
+
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
         reduction_axes =  kwargs.pop( 'reduction_axes', 0 )

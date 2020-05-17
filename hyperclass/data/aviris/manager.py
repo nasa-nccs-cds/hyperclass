@@ -144,13 +144,12 @@ class Block:
         self.tile.dm.plotRaster( plot_data, **kwargs )
         return plot_data
 
-    def coords2index(self, cy, cx ) -> Tuple[int,int]:
+    def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
         coords = self.transform.inverse(np.array([[cx, cy], ]))
-        return (math.floor(coords[0, 0]), math.floor(coords[0, 1]))
+        return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
 
     def index2coords(self, iy, ix ) -> Tuple[float,float]:
         return self.transform(np.array([[ix+0.5, iy+0.5], ]))
-
 
 class DataManager:
 
