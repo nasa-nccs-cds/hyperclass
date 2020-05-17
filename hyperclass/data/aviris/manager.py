@@ -132,8 +132,8 @@ class Block:
         result: xa.DataArray =  self.tile.dm.raster2points( self.data )
         return result if subsample is None else result[::subsample]
 
-    def getSinglePointData( self, cy: float, cx: float ) -> xa.DataArray:
-        indices = self.coords2index(  cy, cx )
+    def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> xa.DataArray:
+        indices = self.coords2indices(cy, cx)
         return self.data.isel( y=indices[0], x=indices[1] )
 
     def plot(self,  **kwargs ) -> xa.DataArray:
@@ -148,11 +148,16 @@ class Block:
         self.tile.dm.plotRaster( plot_data, **kwargs )
         return plot_data
 
-    def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
+    def coord2index(self, cy, cx) -> Tuple[int, int]:     # -> iy, ix
         coords = self.transform.inverse(np.array([[cx, cy], ]))
         return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
 
-    def index2coords(self, iy, ix ) -> Tuple[float,float]:
+    def coords2indices(self, cy: List[float], cx: List[float] ) -> np.ndarray:
+        coords = np.vstack( np.array(cx), np.array(cy) )
+        indices = self.transform.inverse(coords)
+        return indices.floor()
+
+    def index2coord(self, iy, ix) -> Tuple[float, float]:
         return self.transform(np.array([[ix+0.5, iy+0.5], ]))
 
 class DataManager:

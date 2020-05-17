@@ -13,6 +13,7 @@ class UMAPManager:
 
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
+        self._block: Optional[Block] = None
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._embedding: xa.DataArray = None
@@ -33,7 +34,7 @@ class UMAPManager:
     def embedding(self) -> xa.DataArray:
         return self._embedding
 
-    def _getMapper( self, block = None ):
+    def _getMapper( self ):
         if self.mapper is None:
             parms = self.tile.dm.config.section("umap").toDict()
             self.mapper = umap.UMAP(**parms)
@@ -81,9 +82,9 @@ class UMAPManager:
 
     def fit( self, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
-        block: Optional[Block] = self.getBlock( **kwargs )
-        self._getMapper(block)
-        point_data: xa.DataArray = block.getPointData( **kwargs ) if block else self.tile.getPointData( **kwargs )
+        self._block = self.getBlock( **kwargs )
+        self._getMapper()
+        point_data: xa.DataArray = self._block.getPointData( **kwargs ) if self._block else self.tile.getPointData( **kwargs )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
@@ -109,9 +110,8 @@ class UMAPManager:
             labels = np.where( labels == -1, 0, labels )
             self.point_cloud.set_point_colors( labels )
 
-    def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[List[float]] ):
-        point_data = np.array( list( zip( xcoords, ycoords) ) )
-#        block.getSinglePointData
+    def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]] ):
+        point_data = self._block.getSelectedPointData( ycoords, xcoords )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         self.point_cloud.plotMarkers( transformed_data, colors )
 
@@ -121,8 +121,7 @@ class UMAPManager:
     def view_model( self, **kwargs ):
         color_band = kwargs.pop( 'color_band', None )
         reduction_axes =  kwargs.pop( 'reduction_axes', 0 )
-        block = kwargs.pop('block', None)
-        self._getMapper(block)
+        self._getMapper()
         model_data = self.mapper.embedding_
         plot_parms = dict( cmap="jet", **kwargs )
         if color_band is not None:
@@ -138,7 +137,7 @@ class UMAPManager:
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
         plot = kwargs.get( 'plot', False )
-        self._getMapper(block)
+        self._getMapper()
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = self.mapper.transform( point_data )
         t1 = time.time()

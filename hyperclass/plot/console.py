@@ -294,7 +294,7 @@ class LabelingConsole:
     def updateLabels(self):
         print( f"Updating {len(self.point_selection)} labels")
         for ( cy, cx, c ) in self.point_selection:
-            iy, ix = self.block.coords2index( cy, cx )
+            iy, ix = self.block.coord2index(cy, cx)
             try:
                 lable0 = self.labels[iy, ix].values
                 self.labels[ iy, ix ] = c
@@ -462,7 +462,7 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
- #           self.umgr.plot_markers( xcoords, ycoords, colors )     TODO: get this working.
+            self.umgr.plot_markers( xcoords, ycoords, colors )   #  TODO: get this working.
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
