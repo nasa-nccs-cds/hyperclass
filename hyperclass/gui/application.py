@@ -44,20 +44,8 @@ class MainWindow(QMainWindow):
         framesLayout.addWidget(self.vtkFrame)
         vlay.addLayout(framesLayout)
 
-        buttonsLayout = QHBoxLayout()
-        for label, callback in self.console.button_actions.items():
-            pybutton = QPushButton( label, self )
-            pybutton.clicked.connect( self.wrapAction(callback) )
-            buttonsLayout.addWidget(pybutton)
-        vlay.addLayout(buttonsLayout)
-
-    def wrapAction(self, action: Callable ) -> Callable:
-        def x( event ):
-            action(event )
-            self.vtkFrame.vtkWidget.Render()
-            self.vtkFrame.setFocus()
-            self.vtkFrame.repaint()
-        return x
+    def ButtonClicked(self, buttonName: str ):
+        self.statusBar().showMessage(f'Clicked Button {buttonName}')
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)

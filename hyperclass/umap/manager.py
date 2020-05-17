@@ -109,11 +109,9 @@ class UMAPManager:
             labels = np.where( labels == -1, 0, labels )
             self.point_cloud.set_point_colors( labels )
 
-    def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[Tuple[float]] ):
-        t0 = time.time()
+    def plot_markers(self, xcoords: List[float], ycoords: List[float], colors: List[List[float]] ):
         point_data = np.array( list( zip( xcoords, ycoords) ) )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
-        dt = time.time() - t0
         self.point_cloud.plotMarkers( transformed_data, colors )
 
     def update(self):

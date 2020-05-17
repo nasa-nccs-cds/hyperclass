@@ -377,7 +377,8 @@ class LabelingConsole:
         self.plot_axes.title.set_fontsize( 8 )
 
     def onMouseRelease(self, event):
-        pass
+        if event.inaxes ==  self.plot_axes:
+            pass                                # TODO: reset toolbar mode
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
@@ -460,7 +461,7 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            # self.umgr.plot_markers( xcoords, ycoords, colors )
+            self.umgr.plot_markers( xcoords, ycoords, colors )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()

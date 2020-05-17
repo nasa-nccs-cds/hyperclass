@@ -48,7 +48,7 @@ class PointCloud():
         if self.actor is not None:    self.actor.Modified()
         if self.renWin is not None:   self.renWin.Render()
 
-        # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
+    # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
     #     lut = vtk.vtkLookupTable()
     #     colors = list(class_colors.values())
     #     n = len(colors)
@@ -92,12 +92,12 @@ class PointCloud():
         self.marker_mapper.SetColorModeToMapScalars()
         self.marker_mapper.SetInputData( self.markers )
         self.marker_actor = vtk.vtkActor()
-#        self.marker_actor.GetProperty().SetPointSize( marler_size )
-        self.marker_actor.SetMapper(self.mapper)
+        self.marker_actor.GetProperty().SetPointSize( marler_size )
+        self.marker_actor.SetMapper( self.marker_mapper )
         self.plotMarkers()
         self.renderer.AddActor( self.marker_actor )
 
-    def plotMarkers(self, point_coords: np.ndarray = None, colors: List[Tuple[float]] = None  ):
+    def plotMarkers(self, point_coords: np.ndarray = None, colors: List[List[float]] = None  ):
         marker_points = vtk.vtkPoints()
         marker_verts  = vtk.vtkCellArray()
         marker_colors = vtk.vtkUnsignedCharArray()
