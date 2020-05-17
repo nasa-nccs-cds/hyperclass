@@ -378,7 +378,8 @@ class LabelingConsole:
 
     def onMouseRelease(self, event):
         if event.inaxes ==  self.plot_axes:
-            pass                                # TODO: reset toolbar mode
+            for action in self.toolbar._actions.values():
+                action.setChecked( False )
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
