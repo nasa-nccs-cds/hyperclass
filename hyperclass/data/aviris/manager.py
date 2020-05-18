@@ -133,8 +133,8 @@ class Block:
         return result if subsample is None else result[::subsample]
 
     def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> xa.DataArray:
-        indices = self.coords2indices(cy, cx)
-        return self.data.isel( y=indices[0], x=indices[1] )
+        iy, ix = self.coords2indices(cy, cx)
+        return self.data.isel( y=iy, x=ix )
 
     def getSelectedPoint( self, cy: float, cx: float ) -> xa.DataArray:
         iy, ix = self.coord2index(cy, cx)
@@ -156,10 +156,10 @@ class Block:
         coords = self.transform.inverse(np.array([[cx, cy], ]))
         return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
 
-    def coords2indices(self, cy: List[float], cx: List[float] ) -> np.ndarray:
-        coords = np.vstack( np.array(cx), np.array(cy) )
-        indices = self.transform.inverse(coords)
-        return indices.floor()
+    def coords2indices(self, cy: List[float], cx: List[float] ) -> Tuple[ np.ndarray, np.ndarray ]:
+        coords = np.array( list( zip( cx, cy ) ) )
+        indices = np.floor( self.transform.inverse(coords) ).transpose().astype( np.int16 )
+        return indices[1], indices[0]
 
     def index2coord(self, iy, ix) -> Tuple[float, float]:
         return self.transform(np.array([[ix+0.5, iy+0.5], ]))
