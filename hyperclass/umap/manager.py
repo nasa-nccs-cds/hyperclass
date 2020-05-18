@@ -134,11 +134,9 @@ class UMAPManager:
         if update and self.updateCallback is not None: self.updateCallback()
 
     def plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
-        if (self.taskRunner is None) or not update:
-            self.run_plot_marker(  ycoord, xcoord, color, update )
-        else:
-            self.taskRunner.setAction( self.run_plot_marker, ycoord, xcoord, color, update )
-            self.taskRunner.start()
+#        from PyQt5 import QtGui
+#        QtGui.QGuiApplication.processEvents()
+        self.run_plot_marker(  ycoord, xcoord, color, update )
 
     def update(self):
         self.point_cloud.update()
