@@ -6,11 +6,13 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from .tasks import QtTaskRunner
 
 class MplWidget(QWidget):
     def __init__(self, umgr: UMAPManager, *args, **kwargs):
         QWidget.__init__(self, *args, **kwargs)
         self.setLayout(QVBoxLayout())
+        umgr.setTaskRunner( QtTaskRunner() )
         self.canvas = MplCanvas(self, umgr, width=10, height=8)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.toolbar)
