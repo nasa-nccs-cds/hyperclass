@@ -28,6 +28,7 @@ class VTKFrame(QtWidgets.QFrame):
     def __init__( self, umgr: UMAPManager  ):
         QtWidgets.QFrame.__init__( self  )
         self.umgr = umgr
+        umgr.setUpdateCallback( self.update )
 
         self.vl = QtWidgets.QVBoxLayout()
         self.vtkWidget = QVTKRenderWindowInteractor(self)
@@ -51,6 +52,10 @@ class VTKFrame(QtWidgets.QFrame):
     def Initialize(self):
         self.iren.Initialize()
         self.iren.Start()
+
+    def update(self):
+        self.vtkWidget.Render()
+        QtWidgets.QFrame.update(self)
 
 
 

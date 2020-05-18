@@ -2,7 +2,7 @@ import xarray as xa
 import umap, time, pickle, copy
 import numpy as np
 from collections import OrderedDict
-from typing import List, Union, Tuple, Optional, Dict
+from typing import List, Union, Tuple, Optional, Dict, Callable
 from hyperclass.plot.points import datashade_points, point_cloud_3d, point_cloud_vtk
 from hyperclass.plot.point_cloud import PointCloud
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
@@ -15,6 +15,7 @@ class UMAPManager:
         self.tile = tile
         self._block: Optional[Block] = None
         self.refresh = kwargs.pop('refresh', False)
+        self.updateCallback = None
         self.conf = kwargs
         self._embedding: xa.DataArray = None
         self.mapper: umap.UMAP = None
@@ -29,6 +30,9 @@ class UMAPManager:
             self.class_labels.append( elem[0] )
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
+
+    def setUpdateCallback( self, update: Callable ):
+        self.updateCallback = update
 
     @property
     def embedding(self) -> xa.DataArray:
@@ -112,16 +116,18 @@ class UMAPManager:
 
     def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]] ):
         for ic, color in enumerate( colors ):
-            self.plot_marker( ycoords[ic], xcoords[ic], color )
+            self.plot_marker( ycoords[ic], xcoords[ic], color, False )
+        if self.updateCallback is not None: self.updateCallback()
 
         # point_data = self._block.getSelectedPointData( ycoords, xcoords )
         # transformed_data: np.ndarray = self.mapper.transform(point_data)
         # self.point_cloud.plotMarkers( transformed_data, colors )
 
-    def plot_marker(self, ycoord: float, xcoord: float, color: List[float] ):
+    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
         point_data = self._block.getSelectedPoint( ycoord, xcoord )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         self.point_cloud.plotMarker( transformed_data[0].tolist(), color )
+        if update and self.updateCallback is not None: self.updateCallback()
 
     def update(self):
         self.point_cloud.update()

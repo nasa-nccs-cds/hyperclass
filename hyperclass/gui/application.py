@@ -54,12 +54,7 @@ class MainWindow(QMainWindow):
     def wrapAction(self, action: Callable ) -> Callable:
         def x( event ):
             action(event )
-            self.vtkFrame.vtkWidget.Render()
-            self.vtkFrame.setFocus()
             self.vtkFrame.update()
-            self.vtkFrame.activateWindow()
-            self.vtkFrame.show()
-            self.vtkFrame.clearFocus()
         return x
 
     def setBlock(self, block_coords: Tuple[int]):
