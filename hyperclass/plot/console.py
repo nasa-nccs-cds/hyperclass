@@ -390,8 +390,13 @@ class LabelingConsole:
                     self.dataLims = event.inaxes.dataLim
 
     def add_point_selection(self, event ):
-        self.point_selection.append( [ event.ydata, event.xdata, self.selectedClass ] )
-        self.umgr.plot_marker( event.ydata, event.xdata, self.get_color() )
+        point = [ event.ydata, event.xdata, self.selectedClass ]
+        self.point_selection.append( point )
+        self.plot_points()
+        self.plot_marker( *point )
+
+    def plot_marker(self, y: float, x: float, c: int = None ):
+        self.umgr.plot_marker( y, x, self.get_color(c) )
 
     def undo_point_selection(self, event ):
         self.point_selection.pop()
@@ -445,7 +450,7 @@ class LabelingConsole:
         if class_index is None: class_index = self.selectedClass
         return self.class_colors[self.class_labels[ class_index ]]
 
-    def plot_points(self):
+    def plot_points(self, plot_markers = False ):
         if self.point_selection:
             xcoords = [ ps[1] for ps in self.point_selection ]
             ycoords = [ ps[0] for ps in self.point_selection ]
@@ -454,7 +459,11 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            self.umgr.plot_markers( ycoords, xcoords, colors )
+            if plot_markers:
+                for psel in self.point_selection:
+                    self.plot_marker( *psel )
+
+
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
@@ -483,8 +492,8 @@ class LabelingConsole:
         self.training_points = self.plot_axes.scatter( [],[], s=50, zorder=2, alpha=1 )
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
-        self.plot_points()
         self.umgr.init_pointcloud(self.getLabeledPointData().values)
+        self.plot_points( True )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
