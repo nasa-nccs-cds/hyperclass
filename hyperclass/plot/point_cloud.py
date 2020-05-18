@@ -87,24 +87,23 @@ class PointCloud():
             self.actor.Modified()
 
     def initMarkers( self, **kwargs ):
-        marker_size = kwargs.get( 'marker_size', 10 )
-        self.markers = vtk.vtkPolyData()
-        self.marker_mapper = vtk.vtkPolyDataMapper()
-        self.marker_mapper.SetScalarModeToUsePointData()
-        self.marker_mapper.SetColorModeToMapScalars()
-        self.marker_mapper.SetInputData( self.markers )
-        self.marker_actor = vtk.vtkActor()
-        self.marker_actor.GetProperty().SetPointSize( marker_size )
-        self.marker_actor.SetMapper( self.marker_mapper )
-        self.marker_points = vtk.vtkPoints()
-        self.marker_verts  = vtk.vtkCellArray()
-        self.marker_colors = vtk.vtkUnsignedCharArray()
-        self.marker_colors.SetNumberOfComponents(3)
-        self.marker_colors.SetName("Colors")
-        self.markers.GetPointData().SetScalars(self.marker_colors)
-        self.markers.SetPoints( self.marker_points )
-        self.markers.SetVerts( self.marker_verts )
-        if self.renderer is not None: self.renderer.AddActor( self.marker_actor )
+        if self.marker_actor is None:
+            marker_size = kwargs.get( 'marker_size', 10 )
+            self.markers = vtk.vtkPolyData()
+            self.marker_mapper = vtk.vtkPolyDataMapper()
+            self.marker_mapper.SetInputData( self.markers )
+            self.marker_actor = vtk.vtkActor()
+            self.marker_actor.GetProperty().SetPointSize( marker_size )
+            self.marker_actor.SetMapper( self.marker_mapper )
+            self.marker_points = vtk.vtkPoints()
+            self.marker_verts  = vtk.vtkCellArray()
+            self.marker_colors = vtk.vtkUnsignedCharArray()
+            self.marker_colors.SetNumberOfComponents(3)
+            self.marker_colors.SetName("colors")
+            self.markers.SetPoints( self.marker_points )
+            self.markers.SetVerts( self.marker_verts )
+            self.markers.GetPointData().SetScalars(self.marker_colors)
+            self.markers.GetPointData().SetActiveScalars('colors')
 
     def plotMarker(self, point_coords: List[float], color: List[float]  ):
         id = self.marker_points.InsertNextPoint( *point_coords  )
@@ -112,9 +111,14 @@ class PointCloud():
         self.marker_verts.InsertCellPoint(id)
         vtk_color = [ math.floor(color[ic]*255.99) for ic in range(3) ]
         self.marker_colors.InsertNextTuple3( *vtk_color )
+        self.markers.GetPointData().Modified()
+        self.marker_points.Modified()
+        self.marker_verts.Modified()
         self.markers.Modified()
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
+        if self.renWin is not None:
+            self.renWin.Render()
 
     # def create_LUT(self, **args):
     #     lut = vtk.vtkLookupTable()
@@ -172,8 +176,10 @@ class PointCloud():
         self.actor = vtk.vtkActor()
         self.actor.SetMapper(self.mapper)
         self.actor.GetProperty().SetPointSize(1)
+        self.initMarkers()
         if self.renderer is not None:
             self.renderer.AddActor( self.actor )
+            self.renderer.AddActor( self.marker_actor )
         return self.actor
 
     def show(self):

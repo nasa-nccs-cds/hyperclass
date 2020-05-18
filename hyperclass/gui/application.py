@@ -10,7 +10,7 @@ class MainWindow(QMainWindow):
     def __init__(self, umgr: UMAPManager):
         QMainWindow.__init__(self)
 
-        self.title = 'test'
+        self.title = 'hyperclass'
         self.left = 10
         self.top = 10
         self.width = 1920
@@ -44,8 +44,23 @@ class MainWindow(QMainWindow):
         framesLayout.addWidget(self.vtkFrame)
         vlay.addLayout(framesLayout)
 
-    def ButtonClicked(self, buttonName: str ):
-        self.statusBar().showMessage(f'Clicked Button {buttonName}')
+        buttonsLayout = QHBoxLayout()
+        for label, callback in self.console.button_actions.items():
+            pybutton = QPushButton( label, self )
+            pybutton.clicked.connect( self.wrapAction(callback) )
+            buttonsLayout.addWidget(pybutton)
+        vlay.addLayout(buttonsLayout)
+
+    def wrapAction(self, action: Callable ) -> Callable:
+        def x( event ):
+            action(event )
+            self.vtkFrame.vtkWidget.Render()
+            self.vtkFrame.setFocus()
+            self.vtkFrame.update()
+            self.vtkFrame.activateWindow()
+            self.vtkFrame.show()
+            self.vtkFrame.clearFocus()
+        return x
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)
