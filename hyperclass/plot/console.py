@@ -453,7 +453,7 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            self.umgr.plot_markers( xcoords, ycoords, colors )
+            self.umgr.plot_markers( ycoords, xcoords, colors )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
