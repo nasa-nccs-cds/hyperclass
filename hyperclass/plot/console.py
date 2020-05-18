@@ -377,9 +377,10 @@ class LabelingConsole:
         self.plot_axes.title.set_fontsize( 8 )
 
     def onMouseRelease(self, event):
-        if event.inaxes ==  self.plot_axes:
-            for action in self.toolbar._actions.values():
-                action.setChecked( False )
+        pass
+        # if event.inaxes ==  self.plot_axes:
+        #     for action in self.toolbar._actions.values():
+        #         action.setChecked( False )
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
