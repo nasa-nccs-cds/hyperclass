@@ -111,7 +111,7 @@ class PointCloud():
         self.marker_verts.InsertNextCell(1)
         self.marker_verts.InsertCellPoint(id)
         vtk_color = [ math.floor(c*255.99) for c in color ]
-        self.marker_colors.InsertNextTuple3( vtk_color )
+        self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.Modified()
         self.marker_mapper.Modified()
         self.marker_actor.Modified()

@@ -136,9 +136,9 @@ class Block:
         iy, ix = self.coords2indices(cy, cx)
         return self.data.isel( y=iy, x=ix )
 
-    def getSelectedPoint( self, cy: float, cx: float ) -> xa.DataArray:
+    def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
         iy, ix = self.coord2index(cy, cx)
-        return self.data[:,iy,ix]
+        return self.data[:,iy,ix].values.reshape(1, -1)
 
     def plot(self,  **kwargs ) -> xa.DataArray:
         color_band = kwargs.pop( 'color_band', None )
