@@ -15,11 +15,13 @@ class PointCloud():
         self.colormap = None
         self.mapper = None
         self.actor = None
+        self.marker_actor = None
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
-    def setPoints (self, points: np.ndarray, labels: np.ndarray = None ):
+    def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData(points)
         if labels is not None: self.set_point_colors( labels )
+        self.initMarkers( **kwargs )
 
     def getPolydata(self):
         return self.polydata
@@ -85,36 +87,32 @@ class PointCloud():
             self.actor.Modified()
 
     def initMarkers( self, **kwargs ):
-        marler_size = kwargs.get( 'marler_size', 10 )
+        marker_size = kwargs.get( 'marker_size', 10 )
         self.markers = vtk.vtkPolyData()
         self.marker_mapper = vtk.vtkPolyDataMapper()
         self.marker_mapper.SetScalarModeToUsePointData()
         self.marker_mapper.SetColorModeToMapScalars()
         self.marker_mapper.SetInputData( self.markers )
         self.marker_actor = vtk.vtkActor()
-        self.marker_actor.GetProperty().SetPointSize( marler_size )
+        self.marker_actor.GetProperty().SetPointSize( marker_size )
         self.marker_actor.SetMapper( self.marker_mapper )
-        self.plotMarkers()
-        self.renderer.AddActor( self.marker_actor )
+        self.marker_points = vtk.vtkPoints()
+        self.marker_verts  = vtk.vtkCellArray()
+        self.marker_colors = vtk.vtkUnsignedCharArray()
+        self.marker_colors.SetNumberOfComponents(3)
+        self.marker_colors.SetName("Colors")
+        self.markers.GetPointData().SetScalars(self.marker_colors)
+        self.markers.SetPoints( self.marker_points )
+        self.markers.SetVerts( self.marker_verts )
+        if self.renderer is not None: self.renderer.AddActor( self.marker_actor )
 
-    def plotMarkers(self, point_coords: np.ndarray = None, colors: List[List[float]] = None  ):
-        marker_points = vtk.vtkPoints()
-        marker_verts  = vtk.vtkCellArray()
-        marker_colors = vtk.vtkUnsignedCharArray()
-        marker_colors.SetNumberOfComponents(3)
-        marker_colors.SetName("Colors")
-        self.markers.GetPointData().SetScalars(marker_colors)
-
-        if colors:
-            for ip in range( len( colors ) ):
-                id = marker_points.InsertNextPoint( *point_coords[ip].tolist()  )
-                marker_verts.InsertNextCell(1)
-                marker_verts.InsertCellPoint(id)
-                vtk_color = [ math.floor(c*255.99) for c in colors[ip] ]
-                marker_colors.InsertNextTuple3( vtk_color )
-
-        self.markers.SetPoints( marker_points )
-        self.markers.SetVerts( marker_verts )
+    def plotMarker(self, point_coords: List[float], color: List[float]  ):
+        id = self.marker_points.InsertNextPoint( *point_coords  )
+        self.marker_verts.InsertNextCell(1)
+        self.marker_verts.InsertCellPoint(id)
+        vtk_color = [ math.floor(c*255.99) for c in color ]
+        self.marker_colors.InsertNextTuple3( vtk_color )
+        self.markers.Modified()
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
 
@@ -159,6 +157,8 @@ class PointCloud():
             self.interactorStyle.SetEnabled(1)
             if self.actor is not None:
                 self.renderer.AddActor(self.actor)
+            if self.marker_actor is not None:
+                self.renderer.AddActor(self.marker_actor)
 
 #            self.renderer.SetBackground(1.0, 1.0, 1.0)
 #            self.renderer.SetNearClippingPlaneTolerance( 0.0001 )

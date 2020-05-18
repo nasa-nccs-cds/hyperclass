@@ -390,7 +390,7 @@ class LabelingConsole:
 
     def add_point_selection(self, event ):
         self.point_selection.append( [ event.ydata, event.xdata, self.selectedClass ] )
-        self.plot_points()
+        self.umgr.plot_marker( event.ydata, event.xdata, self.get_color() )
 
     def undo_point_selection(self, event ):
         self.point_selection.pop()
@@ -440,38 +440,25 @@ class LabelingConsole:
             if self.labels_image is not None:
                 self.labels_image.set_alpha( 1.0 )
 
-    def display_manifold(self, event ):
-        print( "display_manifold")
-        labels: xa.DataArray = self.getLabeledPointData()
-        embed = self.umgr.embedding
-        dsu = dict( data=embed.data, name=self.block.data.name, color=[0.5,0.5,0.5,0.5], size=1 )
-        label_mask = labels >=0
-        class_colors: List = list(self.class_colors.values())
-        class_indices: List = labels[ label_mask ].values.tolist()
-        labeled_samples: np.ndarray = embed[ label_mask ].data
-        label_colors: List = [ class_colors[int(ic)] for ic in class_indices ]
-        dsl = dict( data=labeled_samples, name="Labeled", color=label_colors, size=10 )
-        self.tile.dm.plot_pointclouds( [ dsu, dsl ] )
+    def get_color(self, class_index: int = None ):
+        if class_index is None: class_index = self.selectedClass
+        return self.class_colors[self.class_labels[ class_index ]]
 
     def plot_points(self):
         if self.point_selection:
             xcoords = [ ps[1] for ps in self.point_selection ]
             ycoords = [ ps[0] for ps in self.point_selection ]
             cvals   = [ ps[2] for ps in self.point_selection ]
-            colors = [ self.class_colors[ self.class_labels[ic] ] for ic in cvals ]
+            colors = [ self.get_color(ic) for ic in cvals ]
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            self.umgr.plot_markers( xcoords, ycoords, colors )   #  TODO: get this working.
+            self.umgr.plot_markers( xcoords, ycoords, colors )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
 #        self.figure.canvas.flush_events()
         plt.pause(0.01)
-
-    @property
-    def selectedColor(self):
-        return self.class_colors[ self.selectedClass ]
 
     def read_training_data(self):
         self.tile.dm.tdio.readLabelData()
