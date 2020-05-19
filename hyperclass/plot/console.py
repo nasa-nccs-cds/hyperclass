@@ -396,8 +396,11 @@ class LabelingConsole:
         self.plot_points()
         taskRunner.start( self.plot_marker, *point )
 
-    def plot_marker(self, y: float, x: float, c: int = None ):
-        self.umgr.plot_marker( y, x, self.get_color(c) )
+    def plot_marker(self, y: float, x: float, c: int = None, **kwargs ):
+        try:
+            self.umgr.plot_marker( y, x, self.get_color(c), **kwargs )
+        except IndexError:
+            print( f"Skipping out-of-bounds label: [ {x} {y} ]")
 
     def undo_point_selection(self, event ):
         self.point_selection.pop()
@@ -423,7 +426,7 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_map.values  )
-        self.color_pointcloud( sample_labels )
+        taskRunner.start(self.color_pointcloud, sample_labels )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -431,8 +434,8 @@ class LabelingConsole:
             self.update_canvas()
 
 
-    def color_pointcloud(self, sample_labels: xa.DataArray):
-        self.umgr.color_pointcloud( sample_labels )
+    def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
+        self.umgr.color_pointcloud( sample_labels, **kwargs )
 
     def blink( self, event ):
         self.blink_state = not self.blink_state

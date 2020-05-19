@@ -69,8 +69,8 @@ class UMAPManager:
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
 
-    def color_pointcloud( self, labels: xa.DataArray ):
-        self.point_cloud.set_point_colors( labels.values )
+    def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
+        self.point_cloud.set_point_colors( labels.values, **kwargs )
 
     def getBlock( self, **kwargs ) -> Optional[Block]:
         block: Optional[Block] = kwargs.get('block', None)
@@ -110,20 +110,19 @@ class UMAPManager:
             labels = np.where( labels == -1, 0, labels )
             self.point_cloud.set_point_colors( labels )
 
-    def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]] ):
+    def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         for ic, color in enumerate( colors ):
-            self.plot_marker( ycoords[ic], xcoords[ic], color, False )
-        if self.updateCallback is not None: self.updateCallback()
+            self.plot_marker( ycoords[ic], xcoords[ic], color, **kwargs )
 
         # point_data = self._block.getSelectedPointData( ycoords, xcoords )
         # transformed_data: np.ndarray = self.mapper.transform(point_data)
         # self.point_cloud.plotMarkers( transformed_data, colors )
 
 
-    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
+    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], **kwargs ):
         point_data = self._block.getSelectedPoint( ycoord, xcoord )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
-        self.point_cloud.plotMarker( transformed_data[0].tolist(), color )
+        self.point_cloud.plotMarker( transformed_data[0].tolist(), color, **kwargs )
 
     def update(self):
         self.point_cloud.update()

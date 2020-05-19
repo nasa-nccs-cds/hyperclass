@@ -31,7 +31,7 @@ class PointCloud():
         self.colormap = np.vstack( colors )
         print(".")
 
-    def set_point_colors( self, sample_labels: np.array ):
+    def set_point_colors( self, sample_labels: np.array, **kwargs ):
         labels = np.where( sample_labels >= 0, sample_labels, 0 )
         colors = self.colormap[ labels ]
         vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
@@ -42,7 +42,6 @@ class PointCloud():
         vtkpts.SetScalars(vtk_color_data)
         vtkpts.SetActiveScalars('colors')
         vtkpts.Modified()
-        self.update()
 
     def update(self):
         if self.mapper is not None:   self.mapper.Modified()
@@ -105,7 +104,7 @@ class PointCloud():
             self.markers.GetPointData().SetScalars(self.marker_colors)
             self.markers.GetPointData().SetActiveScalars('colors')
 
-    def plotMarker(self, point_coords: List[float], color: List[float]  ):
+    def plotMarker(self, point_coords: List[float], color: List[float], **kwargs  ):
         id = self.marker_points.InsertNextPoint( *point_coords  )
         self.marker_verts.InsertNextCell(1)
         self.marker_verts.InsertCellPoint(id)
