@@ -263,7 +263,6 @@ class LabelingConsole:
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
-#        self.add_button_box( **kwargs )
         atexit.register(self.exit)
         self._update(0)
 
@@ -282,7 +281,7 @@ class LabelingConsole:
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        self.umgr.fit( labels, block = self.block )
+        taskRunner.start( self.umgr.fit, self.flow.nnd, labels, block = self.block )
 
     def clearLabels( self, event = None ):
         nodata_value = -2

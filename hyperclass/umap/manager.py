@@ -1,10 +1,12 @@
 import xarray as xa
-import umap, time, pickle, copy
+import time, pickle, copy
 import numpy as np
+from hyperclass.umap.model import UMAP
 from collections import OrderedDict
 from typing import List, Union, Tuple, Optional, Dict, Callable
 from hyperclass.plot.points import datashade_points, point_cloud_3d, point_cloud_vtk
 from hyperclass.plot.point_cloud import PointCloud
+from pynndescent import NNDescent
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, math
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
@@ -17,7 +19,7 @@ class UMAPManager:
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._embedding: xa.DataArray = None
-        self.mapper: umap.UMAP = None
+        self.mapper: UMAP = None
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
 
@@ -37,7 +39,7 @@ class UMAPManager:
     def _getMapper( self ):
         if self.mapper is None:
             parms = self.tile.dm.config.section("umap").toDict()
-            self.mapper = umap.UMAP(**parms)
+            self.mapper = UMAP(**parms)
 
     def _getMapper1( self, block = None ):
         if self.mapper is None:
@@ -48,7 +50,7 @@ class UMAPManager:
             self.mapper = self._loadMapper( mapper_file_path )
             if self.mapper is None:
                 parms = self.tile.dm.config.section("umap").toDict()
-                self.mapper = umap.UMAP(**parms)
+                self.mapper = UMAP(**parms)
 
     def _mapperFilePath( self, block: Block = None ) -> str:
         path_cfg = self.tile.dm.config.toStr( ['tiles','umap'] )
@@ -57,8 +59,8 @@ class UMAPManager:
         file_name = f"umap.{self.tile.dm.image_name}.{path_cfg}.pkl"
         return os.path.join( self.tile.dm.config['output_dir'], file_name )
 
-    def _loadMapper( self, mapper_file_path ) -> Optional[umap.UMAP]:
-        mapper: umap.UMAP = None
+    def _loadMapper( self, mapper_file_path ) -> Optional[UMAP]:
+        mapper: UMAP = None
         if os.path.isfile( mapper_file_path ):
             t0 = time.time()
             mapper = pickle.load( open( mapper_file_path, "rb" ) )
@@ -80,7 +82,7 @@ class UMAPManager:
                 block = self.tile.getBlock( *block_index )
         return block
 
-    def fit( self, labels: xa.DataArray = None, **kwargs  ):
+    def fit( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
         self._block = self.getBlock( **kwargs )
         self._getMapper()
@@ -88,7 +90,7 @@ class UMAPManager:
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
-        self.mapper.fit( point_data.data, labels_data )
+        self.mapper.fit( point_data.data, nnd, labels_data )
         edata = self.mapper.embedding_
         self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
         self.point_cloud.setPoints( edata, labels_data )

@@ -22,8 +22,8 @@ class ActivationFlow:
 
     def setNodeData(self, nodes_data: xa.DataArray, **kwargs ):
         self.nodes = nodes_data
-        n_trees = 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0))
-        n_iters = max(5, int(round(np.log2(self.nodes.shape[0]))))
+        n_trees =  kwargs.get( 'ntree', 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0)) )
+        n_iters = kwargs.get( 'niter', max(5, int(round(np.log2(self.nodes.shape[0])))))
         self.nnd = NNDescent( self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_jobs = -1, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
         self.I = self.nnd.neighbor_graph[0]
         self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
