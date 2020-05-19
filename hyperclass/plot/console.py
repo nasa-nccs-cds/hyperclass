@@ -1,5 +1,6 @@
 import matplotlib.widgets
 import matplotlib.patches
+from pynndescent import NNDescent
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
@@ -274,14 +275,25 @@ class LabelingConsole:
     def tile(self):
         return self.umgr.tile
 
-    def setBlock( self, block_coords: Tuple[int] ):
+    def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        taskRunner.start( self.umgr.fit, self.flow.nnd, labels, block = self.block )
+        use_tasks = kwargs.get( 'use_tasks', False )
+        if use_tasks:
+            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block )
+        else:
+            from hyperclass.gui.tasks import Task
+            self.init_pointcloud( self.flow.nnd, labels, block = self.block )
+            Task.mainWindow().update( )
+
+    def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
+        self.umgr.fit( nnd, labels, **kwargs )
+        self.umgr.init_pointcloud( self.getLabeledPointData().values )
+        self.plot_markers()
 
     def clearLabels( self, event = None ):
         nodata_value = -2
@@ -453,7 +465,7 @@ class LabelingConsole:
         if class_index is None: class_index = self.selectedClass
         return self.class_colors[self.class_labels[ class_index ]]
 
-    def plot_points(self, plot_markers = False ):
+    def plot_points(self ):
         if self.point_selection:
             xcoords = [ ps[1] for ps in self.point_selection ]
             ycoords = [ ps[0] for ps in self.point_selection ]
@@ -462,9 +474,10 @@ class LabelingConsole:
             self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
             self.training_points.set_facecolor( colors )
             self.update_canvas()
-            if plot_markers:
-                for psel in self.point_selection:
-                    self.plot_marker( *psel )
+
+    def plot_markers(self):
+        for psel in self.point_selection:
+            self.plot_marker(*psel)
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
@@ -493,8 +506,7 @@ class LabelingConsole:
         self.training_points = self.plot_axes.scatter( [],[], s=50, zorder=2, alpha=1 )
         self.training_points.set_edgecolor( [0,0,0] )
         self.training_points.set_linewidth( 2 )
-        self.umgr.init_pointcloud(self.getLabeledPointData().values)
-        self.plot_points( True )
+        self.plot_points()
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )

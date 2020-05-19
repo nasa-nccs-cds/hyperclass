@@ -43,7 +43,6 @@ class VTKFrame(QtWidgets.QFrame):
 
         self.setLayout(self.vl)
         self.renderer.ResetCamera()
-        self.umgr.point_cloud.createActor(self.renderer)
 
     def getActors(self):
         return [ self.point_cloud.createActor() ]
@@ -53,6 +52,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Start()
 
     def update(self):
+        self.umgr.point_cloud.createActor(self.renderer)
         self.umgr.point_cloud.update()
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
