@@ -117,8 +117,6 @@ class PointCloud():
         self.markers.Modified()
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
-        if self.renWin is not None:
-            self.renWin.Render()
 
     # def create_LUT(self, **args):
     #     lut = vtk.vtkLookupTable()

@@ -2,7 +2,7 @@ import xarray as xa
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.application import MainWindow
+from hyperclass.gui.application import HyperclassConsole
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, math, sys
 
@@ -22,7 +22,7 @@ umgr = UMAPManager(tile, classes, refresh=refresh)
 
 app = QtWidgets.QApplication(sys.argv)
 
-window = MainWindow(umgr)
-window.show()
+hyperclass = HyperclassConsole(umgr)
+hyperclass.show()
 
 sys.exit(app.exec_())

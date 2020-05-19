@@ -13,6 +13,7 @@ from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
+from hyperclass.gui.tasks import taskRunner
 from threading import  Thread
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
@@ -393,7 +394,7 @@ class LabelingConsole:
         point = [ event.ydata, event.xdata, self.selectedClass ]
         self.point_selection.append( point )
         self.plot_points()
-        self.plot_marker( *point )
+        taskRunner.start( self.plot_marker, *point )
 
     def plot_marker(self, y: float, x: float, c: int = None ):
         self.umgr.plot_marker( y, x, self.get_color(c) )
@@ -462,8 +463,6 @@ class LabelingConsole:
             if plot_markers:
                 for psel in self.point_selection:
                     self.plot_marker( *psel )
-
-
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()

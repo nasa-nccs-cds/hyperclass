@@ -6,7 +6,7 @@ from hyperclass.gui.mpl import MplWidget
 from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
-class MainWindow(QMainWindow):
+class HyperclassConsole(QMainWindow):
     def __init__(self, umgr: UMAPManager):
         QMainWindow.__init__(self)
 
@@ -47,15 +47,12 @@ class MainWindow(QMainWindow):
         buttonsLayout = QHBoxLayout()
         for label, callback in self.console.button_actions.items():
             pybutton = QPushButton( label, self )
-            pybutton.clicked.connect( self.wrapAction(callback) )
+            pybutton.clicked.connect( callback )
             buttonsLayout.addWidget(pybutton)
         vlay.addLayout(buttonsLayout)
 
-    def wrapAction(self, action: Callable ) -> Callable:
-        def x( event ):
-            action(event )
-            self.vtkFrame.update()
-        return x
+    def update(self ):
+        self.vtkFrame.update()
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)

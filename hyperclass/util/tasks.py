@@ -9,7 +9,7 @@ class TaskRunner:
         self.action = action
         self.args = args
 
-    def start(self, timeout ):
+    def start(self, timeout: int ):
         pass
 
     def isRunning(self):

@@ -14,9 +14,7 @@ class UMAPManager:
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
         self._block: Optional[Block] = None
-        self.taskRunner = None
         self.refresh = kwargs.pop('refresh', False)
-        self.updateCallback = None
         self.conf = kwargs
         self._embedding: xa.DataArray = None
         self.mapper: umap.UMAP = None
@@ -31,12 +29,6 @@ class UMAPManager:
             self.class_labels.append( elem[0] )
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
-
-    def setUpdateCallback( self, update: Callable ):
-        self.updateCallback = update
-
-    def setTaskRunner(self, taskRunner ):
-        self.taskRunner = taskRunner
 
     @property
     def embedding(self) -> xa.DataArray:
@@ -127,18 +119,11 @@ class UMAPManager:
         # transformed_data: np.ndarray = self.mapper.transform(point_data)
         # self.point_cloud.plotMarkers( transformed_data, colors )
 
-    def run_plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
+
+    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
         point_data = self._block.getSelectedPoint( ycoord, xcoord )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
         self.point_cloud.plotMarker( transformed_data[0].tolist(), color )
-        if update and self.updateCallback is not None: self.updateCallback()
-
-    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], update = True ):
-        if (self.taskRunner is None) or not update:
-            self.run_plot_marker(  ycoord, xcoord, color, update )
-        else:
-            self.taskRunner.setAction( self.run_plot_marker, ycoord, xcoord, color, update )
-            self.taskRunner.start()
 
     def update(self):
         self.point_cloud.update()
