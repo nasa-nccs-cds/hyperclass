@@ -228,13 +228,12 @@ class LabelingConsole:
 
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
-        default_embedding_type = "spectral"
         self.point_selection = []
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr = umgr
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
-        self.setBlock( kwargs.pop( 'block', block_index ), embedding_type=kwargs.pop( 'embedding_type', default_embedding_type ) )
+        self.setBlock( kwargs.pop( 'block', block_index ) )
         self.global_bounds: Bbox = None
         self.global_crange = None
         self.plot_axes: Axes = None
