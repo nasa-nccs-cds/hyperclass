@@ -1,6 +1,3 @@
-# Author: Leland McInnes <leland.mcinnes@gmail.com>
-#
-# License: BSD 3 clause
 from __future__ import print_function
 
 import locale
@@ -1173,7 +1170,7 @@ class UMAP(BaseEstimator):
         target_weight=0.5,
         transform_seed=42,
         force_approximation_algorithm=False,
-        verbose=False,
+        verbose=True,
         unique=False,
     ):
         self.n_neighbors = n_neighbors
@@ -1383,7 +1380,7 @@ class UMAP(BaseEstimator):
         # True if metric returns iterable of length 2, False otherwise
         return hasattr(metric_out, "__iter__") and len(metric_out) == 2
 
-    def fit( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None ):
+    def embed(self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None):
         """Fit X into an embedded space.
 
         Optionally use y for supervised dimension reduction.
@@ -1425,178 +1422,50 @@ class UMAP(BaseEstimator):
         if self.verbose:
             print(str(self))
 
-        # Check if we should unique the data
-        # We've already ensured that we aren't in the precomputed case
-        if self.unique:
-            # check if the matrix is dense
-            if self._sparse_data:
-                # Call a sparse unique function
-                index, inverse, counts = csr_unique(X)
-            else:
-                index, inverse, counts = np.unique(
-                    X,
-                    return_index=True,
-                    return_inverse=True,
-                    return_counts=True,
-                    axis=0,
-                )[1:4]
-            if self.verbose:
-                print(
-                    "Unique=True -> Number of data points reduced from ",
-                    X.shape[0],
-                    " to ",
-                    X[index].shape[0],
-                )
-                most_common = np.argmax(counts)
-                print(
-                    "Most common duplicate is",
-                    index[most_common],
-                    " with a count of ",
-                    counts[most_common],
-                )
-        # If we aren't asking for unique use the full index.
-        # This will save special cases later.
-        else:
-            index = list(range(X.shape[0]))
-            inverse = list(range(X.shape[0]))
-
-        # Error check n_neighbors based on data size
-        if X[index].shape[0] <= self.n_neighbors:
-            if X[index].shape[0] == 1:
-                self.embedding_ = np.zeros(
-                    (1, self.n_components)
-                )  # needed to sklearn comparability
-                return self
-
-            warn(
-                "n_neighbors is larger than the dataset size; truncating to "
-                "X.shape[0] - 1"
-            )
-            self._n_neighbors = X[index].shape[0] - 1
-        else:
-            self._n_neighbors = self.n_neighbors
+        index = list(range(X.shape[0]))
+        inverse = list(range(X.shape[0]))
+        self._n_neighbors = self.n_neighbors
 
         # Note: unless it causes issues for setting 'index', could move this to
         # initial sparsity check above
-        if self._sparse_data and not X.has_sorted_indices:
-            X.sort_indices()
+#        if self._sparse_data and not X.has_sorted_indices:
+#            X.sort_indices()
 
         random_state = check_random_state(self.random_state)
 
         if self.verbose:
             print("Construct fuzzy simplicial set")
 
-        # Handle small cases efficiently by computing all distances
-        if X[index].shape[0] < 4096 and not self.force_approximation_algorithm:
-            self._small_data = True
-            try:
-                # sklearn pairwise_distances fails for callable metric on sparse data
-                _m = self.metric if self._sparse_data else self._input_distance_func
-                dmat = pairwise_distances(X[index], metric=_m, **self._metric_kwds)
-            except (ValueError, TypeError) as e:
-                # metric is numba.jit'd or not supported by sklearn,
-                # fallback to pairwise special
+        # Standard case
+        self._small_data = False
+        # pass string identifier if pynndescent also defines distance metric
 
-                if self._sparse_data:
-                    # Get a fresh metric since we are casting to dense
-                    if not callable(self.metric):
-                        _m = dist.named_distances[self.metric]
-                        dmat = dist.pairwise_special_metric(
-                            X[index].toarray(), metric=_m, kwds=self._metric_kwds,
-                        )
-                    else:
-                        dmat = dist.pairwise_special_metric(
-                            X[index],
-                            metric=self._input_distance_func,
-                            kwds=self._metric_kwds,
-                        )
-                else:
-                    dmat = dist.pairwise_special_metric(
-                        X[index],
-                        metric=self._input_distance_func,
-                        kwds=self._metric_kwds,
-                    )
-            self.graph_, self._sigmas, self._rhos = fuzzy_simplicial_set(
-                dmat,
-                self._n_neighbors,
-                random_state,
-                "precomputed",
-                self._metric_kwds,
-                None,
-                None,
-                self.angular_rp_forest,
-                self.set_op_mix_ratio,
-                self.local_connectivity,
-                True,
-                self.verbose,
-            )
+        if self._sparse_data and self.metric in pynn_sparse_named_distances:
+            nn_metric = self.metric
+        elif not self._sparse_data and self.metric in pynn_named_distances:
+            nn_metric = self.metric
         else:
-            # Standard case
-            self._small_data = False
-            # pass string identifier if pynndescent also defines distance metric
-            if _HAVE_PYNNDESCENT:
-                if self._sparse_data and self.metric in pynn_sparse_named_distances:
-                    nn_metric = self.metric
-                elif not self._sparse_data and self.metric in pynn_named_distances:
-                    nn_metric = self.metric
-                else:
-                    nn_metric = self._input_distance_func
-            else:
-                nn_metric = self._input_distance_func
+            nn_metric = self._input_distance_func
 
-            self._knn_indices, self._knn_dists = nnd.neighbor_graph
-            self._rp_forest = nnd
+        self._knn_indices, self._knn_dists = nnd.neighbor_graph
+        self._rp_forest = nnd
 
-            self.graph_, self._sigmas, self._rhos = fuzzy_simplicial_set(
-                X[index],
-                self.n_neighbors,
-                random_state,
-                nn_metric,
-                self._metric_kwds,
-                self._knn_indices,
-                self._knn_dists,
-                self.angular_rp_forest,
-                self.set_op_mix_ratio,
-                self.local_connectivity,
-                True,
-                self.verbose,
-            )
-
-            if not _HAVE_PYNNDESCENT:
-                self._search_graph = scipy.sparse.lil_matrix(
-                    (X[index].shape[0], X[index].shape[0]), dtype=np.int8
-                )
-                _rows = []
-                _data = []
-                for i in self._knn_indices:
-                    _non_neg = i[i >= 0]
-                    _rows.append(_non_neg)
-                    _data.append(np.ones(_non_neg.shape[0], dtype=np.int8))
-
-                self._search_graph.rows = _rows
-                self._search_graph.data = _data
-                self._search_graph = self._search_graph.maximum(
-                    self._search_graph.transpose()
-                ).tocsr()
-
-                if (self.metric != "precomputed") and (len(self._metric_kwds) > 0):
-                    # Create a partial function for distances with arguments
-                    _distance_func = self._input_distance_func
-                    _dist_args = tuple(self._metric_kwds.values())
-                    if self._sparse_data:
-
-                        @numba.njit()
-                        def _partial_dist_func(ind1, data1, ind2, data2):
-                            return _distance_func(ind1, data1, ind2, data2, *_dist_args)
-
-                        self._input_distance_func = _partial_dist_func
-                    else:
-
-                        @numba.njit()
-                        def _partial_dist_func(x, y):
-                            return _distance_func(x, y, *_dist_args)
-
-                        self._input_distance_func = _partial_dist_func
+        t0 = time.time()
+        self.graph_, self._sigmas, self._rhos = fuzzy_simplicial_set(
+            X[index],
+            self.n_neighbors,
+            random_state,
+            nn_metric,
+            self._metric_kwds,
+            self._knn_indices,
+            self._knn_dists,
+            self.angular_rp_forest,
+            self.set_op_mix_ratio,
+            self.local_connectivity,
+            True,
+            self.verbose,
+        )
+        print( f"Generated fuzzy_simplicial_set is {time.time()-t0} secs")
 
         # Currently not checking if any duplicate points have differing labels
         # Might be worth throwing a warning...
@@ -1755,7 +1624,7 @@ class UMAP(BaseEstimator):
         X_new : array, shape (n_samples, n_components)
             Embedding of the training data in low-dimensional space.
         """
-        self.fit(X, y)
+        self.embed(X, y)
         return self.embedding_
 
     def transform(self, X):
