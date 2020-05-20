@@ -87,7 +87,7 @@ class PointCloud():
 
     def initMarkers( self, **kwargs ):
         if self.marker_actor is None:
-            marker_size = kwargs.get( 'marker_size', 10 )
+            marker_size = kwargs.get( 'marker_size', 20 )
             self.markers = vtk.vtkPolyData()
             self.marker_mapper = vtk.vtkPolyDataMapper()
             self.marker_mapper.SetInputData( self.markers )

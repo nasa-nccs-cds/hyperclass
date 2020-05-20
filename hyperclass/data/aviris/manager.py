@@ -321,7 +321,7 @@ class DataManager:
     def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
         stacked_raster = raster.stack(samples=['x','y']).transpose()
         if np.issubdtype( raster.dtype, np.integer ):
-            nodata = stacked_raster.attrs['_FillValue']
+            nodata = stacked_raster.attrs.get('_FillValue',-2)
             point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int16)
         else:
             point_data = stacked_raster.dropna(dim='samples', how='any')

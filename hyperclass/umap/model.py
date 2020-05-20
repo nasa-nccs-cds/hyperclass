@@ -1383,7 +1383,7 @@ class UMAP(BaseEstimator):
         # True if metric returns iterable of length 2, False otherwise
         return hasattr(metric_out, "__iter__") and len(metric_out) == 2
 
-    def fit( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None ):
+    def embed( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None, **kwargs ):
         """Fit X into an embedded space.
 
         Optionally use y for supervised dimension reduction.

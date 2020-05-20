@@ -12,6 +12,10 @@ class HVTKRenderWindowInteractor(QVTKRenderWindowInteractor):
         try: QVTKRenderWindowInteractor.leaveEvent(self, ev)
         except TypeError: pass
 
+    def mouseMoveEvent(self, ev):
+        try: QVTKRenderWindowInteractor.mouseMoveEvent(self, ev)
+        except TypeError: pass
+
 class MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, umgr: UMAPManager, parent=None):
