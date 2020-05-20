@@ -285,10 +285,10 @@ class LabelingConsole:
         labels: xa.DataArray = self.getLabeledPointData()
         use_tasks = kwargs.get( 'use_tasks', False )
         if use_tasks:
-            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block )
+            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs )     # This doesn't work so currently disabled
         else:
             from hyperclass.gui.tasks import Task
-            self.init_pointcloud( self.flow.nnd, labels, block = self.block )
+            self.init_pointcloud( self.flow.nnd, labels, block = self.block, **kwargs )
             Task.mainWindow().update( )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
