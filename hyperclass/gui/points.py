@@ -7,6 +7,10 @@ from hyperclass.umap.manager import UMAPManager
 from hyperclass.plot.point_cloud import PointCloud
 from collections import OrderedDict
 
+class HVTKRenderWindowInteractor(QVTKRenderWindowInteractor):
+    def leaveEvent(self, ev):
+        try: QVTKRenderWindowInteractor.leaveEvent(self, ev)
+        except TypeError: pass
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -22,7 +26,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def initPlot( self, block: Block, class_colors: OrderedDict, **kwargs ):
         self.frame.initPlot( block, class_colors, **kwargs )
 
-
 class VTKFrame(QtWidgets.QFrame):
 
     def __init__( self, umgr: UMAPManager  ):
@@ -30,7 +33,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.umgr = umgr
 
         self.vl = QtWidgets.QVBoxLayout()
-        self.vtkWidget = QVTKRenderWindowInteractor(self)
+        self.vtkWidget = HVTKRenderWindowInteractor(self)
         self.vl.addWidget(self.vtkWidget)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
         self.renderer = vtk.vtkRenderer()
