@@ -229,6 +229,7 @@ class LabelingConsole:
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.point_selection = []
+        self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr = umgr
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
@@ -259,7 +260,7 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.button_actions =  dict(submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels)
+        self.button_actions =  OrderedDict( submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels, remodel=self.remodel )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -295,6 +296,13 @@ class LabelingConsole:
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
         self.plot_markers()
 
+    def remodel( self, **kwargs  ):
+        print("Rebuilding model")
+        labels: xa.DataArray = self.getExtendedLabelPoints()
+        self.umgr.fit( self.flow.nnd, labels, **kwargs )
+        self.umgr.color_pointcloud( labels )
+        self.plot_markers()
+
     def clearLabels( self, event = None ):
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
@@ -308,15 +316,18 @@ class LabelingConsole:
         for ( cy, cx, c ) in self.point_selection:
             iy, ix = self.block.coord2index(cy, cx)
             try:
-                lable0 = self.labels[iy, ix].values
                 self.labels[ iy, ix ] = c
             except:
                 print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
 
-    def getLabeledPointData( self, update = True ):
+    def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabels()
         labeledPointData = self.tile.dm.raster2points( self.labels )
         return labeledPointData
+
+    def getExtendedLabelPoints( self ) -> xa.DataArray:
+        if self.label_map is None: return self.getLabeledPointData( True )
+        return self.tile.dm.raster2points( self.label_map )
 
     @property
     def data(self):
@@ -428,15 +439,15 @@ class LabelingConsole:
         self.blinker.activate(6.0)
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
-        label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
-        label_map = label_map.where( label_map >= 0, 0 )
-        print( f" plot_label_map: label bincounts = {np.bincount(label_map.values.flatten())}")
+        self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
+        self.label_map = self.label_map.where( self.label_map >= 0, 0 )
+        print( f" plot_label_map: label bincounts = {np.bincount( self.label_map.values.flatten() )}")
         class_alpha = kwargs.get( 'alpha', 0.5 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
-            self.labels_image = self.tile.dm.plotRaster( label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
+            self.labels_image = self.tile.dm.plotRaster( self.label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
-            self.labels_image.set_data( label_map.values  )
+            self.labels_image.set_data( self.label_map.values  )
         taskRunner.start(self.color_pointcloud, sample_labels )
 
     def show_labels(self):
