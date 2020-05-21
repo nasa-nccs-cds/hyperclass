@@ -23,6 +23,10 @@ class MplWidget(QWidget):
     def button_actions(self) -> Dict[str, Callable]:
         return self.canvas.button_actions
 
+    @property
+    def menu_actions(self) -> Dict:
+        return self.canvas.menu_actions
+
 class MplCanvas(FigureCanvas):
 
     def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100):
@@ -39,5 +43,9 @@ class MplCanvas(FigureCanvas):
     @property
     def button_actions(self) -> Dict[str,Callable]:
         return self.console.button_actions
+
+    @property
+    def menu_actions(self) -> Dict:
+        return self.console.menu_actions
 
 

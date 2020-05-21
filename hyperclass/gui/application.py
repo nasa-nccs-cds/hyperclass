@@ -33,6 +33,15 @@ class HyperclassConsole(QMainWindow):
         exitButton.triggered.connect(self.close)
         fileMenu.addAction(exitButton)
 
+        for menuName, menuItems in self.console.menu_actions.items():
+            menu = mainMenu.addMenu(menuName)
+            for menuItem in menuItems:
+                menuButton = QAction( menuItem[0], self )
+                if menuItem[1] is not None: menuButton.setShortcut( menuItem[1] )
+                if menuItem[2] is not None: menuButton.setStatusTip( menuItem[2] )
+                menuButton.triggered.connect( menuItem[3] )
+                menu.addAction(menuButton)
+
         widget =  QWidget(self)
         self.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)

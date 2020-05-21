@@ -36,52 +36,17 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
 
-class ADirection(Enum):
-    BACKWARD = -1
-    STOP = 0
-    FORWARD = 1
-
-class EventSource:
-
-    def __init__( self, action: Callable, **kwargs ):
-        self.timer = QTimer()
-        self.timer.timeout.connect( action )
-        atexit.register( self.exit )
-
-    def start(self, interval, delay = None ):
-        if delay is not None:
-            start_action = partial( self.timer.start, interval )
-            self.timer = QTimer()
-            self.timer.setSingleShot( True )
-            self.timer.timeout.connect( start_action )
-            self.timer.start( delay )
-        else:
-            self.timer.start( interval )
-
-    def stop(self):
-        self.timer.stop()
-
-    def exit(self):
-        self.timer.stop()
-
 class PageSlider(matplotlib.widgets.Slider):
 
     def __init__(self, ax: Axes, numpages = 10, valinit=0, valfmt='%1d', **kwargs ):
         self.facecolor=kwargs.get('facecolor',"yellow")
         self.activecolor = kwargs.pop('activecolor',"blue" )
         self.stepcolor = kwargs.pop('stepcolor', "#ff6f6f" )
-        self.animcolor = kwargs.pop('animcolor', "#6fff6f" )
         self.on_animcolor = kwargs.pop('on-animcolor', "#006622")
         self.fontsize = kwargs.pop('fontsize', 10)
-        self.animation_controls = kwargs.pop('dynamic', True )
         self.maxIndexedPages = 24
         self.numpages = numpages
-        self.init_anim_delay: float = 0.5   # time between timer events in seconds
-        self.anim_delay: float = self.init_anim_delay
-        self.anim_delay_multiplier = 1.5
-        self.anim_state = ADirection.STOP
         self.axes = ax
-        self.event_source = EventSource( self.step, delay = self.init_anim_delay )
 
         super(PageSlider, self).__init__(ax, "", 0, numpages, valinit=valinit, valfmt=valfmt, **kwargs)
 
@@ -105,35 +70,12 @@ class PageSlider(matplotlib.widgets.Slider):
         self.button_forward = matplotlib.widgets.Button(fax, label='$\u25B7$', color=self.stepcolor, hovercolor=self.activecolor)
         self.button_back.label.set_fontsize(self.fontsize)
         self.button_forward.label.set_fontsize(self.fontsize)
-        self.button_back.on_clicked(self.step_backward)
-        self.button_forward.on_clicked(self.step_forward)
-
-        if self.animation_controls:
-            afax = divider.append_axes("left", size="5%", pad=0.05)
-            asax = divider.append_axes("left", size="5%", pad=0.05)
-            abax = divider.append_axes("left", size="5%", pad=0.05)
-            self.button_aback    = matplotlib.widgets.Button( abax, label='$\u25C0$', color=self.animcolor, hovercolor=self.activecolor)
-            self.button_astop = matplotlib.widgets.Button( asax, label='$\u25FE$', color=self.animcolor, hovercolor=self.activecolor)
-            self.button_aforward = matplotlib.widgets.Button( afax, label='$\u25B6$', color=self.animcolor, hovercolor=self.activecolor)
-
-            self.button_aback.label.set_fontsize(self.fontsize)
-            self.button_astop.label.set_fontsize(self.fontsize)
-            self.button_aforward.label.set_fontsize(self.fontsize)
-            self.button_aback.on_clicked(self.anim_backward)
-            self.button_astop.on_clicked(self.anim_stop)
-            self.button_aforward.on_clicked(self.anim_forward)
-
-    def reset_buttons(self):
-        if self.animation_controls:
-            for button in [ self.button_aback, self.button_astop, self.button_aforward ]:
-                button.color = self.animcolor
-            self.refesh()
+        self.button_back.on_clicked(self.backward)
+        self.button_forward.on_clicked(self. forward)
 
     def refesh(self):
         self.axes.figure.canvas.draw()
 
-    def start(self):
-        self.event_source.start()
 
     def _update(self, event):
         super(PageSlider, self)._update(event)
@@ -145,10 +87,6 @@ class PageSlider(matplotlib.widgets.Slider):
         for j in range(self.numpages):
             self.pageRects[j].set_facecolor(self.facecolor)
         self.pageRects[i].set_facecolor(self.activecolor)
-
-    def step( self, event=None ):
-        if   self.anim_state == ADirection.FORWARD:  self.forward(event)
-        elif self.anim_state == ADirection.BACKWARD: self.backward(event)
 
     def forward(self, event=None):
         current_i = int(self.val)
@@ -163,49 +101,6 @@ class PageSlider(matplotlib.widgets.Slider):
         if i < self.valmin: i = self.valmax -1
         self.set_val(i)
         self._colorize(i)
-
-    def step_forward(self, event=None):
-        self.anim_stop()
-        self.forward(event)
-
-    def step_backward(self, event=None):
-        self.anim_stop()
-        self.backward(event)
-
-    def anim_forward(self, event=None):
-        if self.anim_state == ADirection.FORWARD:
-            self.anim_delay = self.anim_delay / self.anim_delay_multiplier
-            self.event_source.interval = self.anim_delay
-        elif self.anim_state == ADirection.BACKWARD:
-            self.anim_delay = self.anim_delay * self.anim_delay_multiplier
-            self.event_source.interval = self.anim_delay
-        else:
-            self.anim_delay = self.init_anim_delay
-            self.anim_state = ADirection.FORWARD
-            self.event_source.activate( self.anim_delay )
-            self.button_aforward.color = self.on_animcolor
-            self.refesh()
-
-    def anim_backward(self, event=None):
-        if self.anim_state == ADirection.FORWARD:
-            self.anim_delay = self.anim_delay * self.anim_delay_multiplier
-            self.event_source.interval = self.anim_delay
-        elif self.anim_state == ADirection.BACKWARD:
-            self.anim_delay = self.anim_delay / self.anim_delay_multiplier
-            self.event_source.interval = self.anim_delay
-        else:
-            self.anim_delay = self.init_anim_delay
-            self.anim_state = ADirection.BACKWARD
-            self.event_source.activate( self.anim_delay )
-            self.button_aback.color = self.on_animcolor
-            self.refesh()
-
-    def anim_stop(self, event=None):
-        if self.anim_state != ADirection.STOP:
-            self.anim_delay = self.init_anim_delay
-            self.anim_state = ADirection.STOP
-            self.event_source.deactivate()
-            self.reset_buttons()
 
 class LabelingConsole:
 
@@ -242,7 +137,7 @@ class LabelingConsole:
         self.currentFrame = 0
         self.currentClass = 0
         self.button_actions =  OrderedDict( submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels, remodel=self.remodel )
-        self.key_actions =  OrderedDict( [ ["Increase", partial( self.update_lablels_alpha, True ) ], ] )
+        self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_lablels_alpha, True ) ], [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_lablels_alpha, False ) ] ] )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
