@@ -288,7 +288,7 @@ class LabelingConsole:
         point = [ event.ydata, event.xdata, self.selectedClass ]
         self.point_selection.append( point )
         self.plot_points()
-        taskRunner.start( Task( self.plot_marker, *point ), "Plot selected label" )
+        taskRunner.start( Task( self.plot_marker, *point ), f"Plot label at {event.ydata} {event.xdata}" )
 
     def plot_marker(self, y: float, x: float, c: int = None, **kwargs ):
         try:

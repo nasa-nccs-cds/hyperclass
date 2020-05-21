@@ -63,12 +63,24 @@ class TaskRunner(QObject):
     def __init__(self, *args, **kwargs):
         super(TaskRunner, self).__init__()
         self.threadpool = QThreadPool()
+        self.executing_tasks = []
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
     def start(self, task: Task, message: str, **kwargs ):
-        hyperclass = Task.mainWindow()
-        hyperclass.showMessage( message )
-        task.signals.finished.connect( partial( hyperclass.update, **kwargs ) )
-        self.threadpool.start(task)
+        #  Cannot simultaneously run tasks with the same message
+        if message not in self.executing_tasks:
+            print(f"Task running: {message}")
+            self.executing_tasks.append( message )
+            hyperclass = Task.mainWindow()
+            hyperclass.showMessage( message )
+            task.signals.finished.connect( partial( hyperclass.update, **kwargs ) )
+            task.signals.finished.connect( partial( self.complete, message ) )
+            self.threadpool.start(task)
+        else:
+            print( f"Task already running: {message}")
+
+    def complete( self, message, **kwargs ):
+        self.executing_tasks.remove( message )
+        print(f"Task completed: {message}")
 
 taskRunner = TaskRunner()
