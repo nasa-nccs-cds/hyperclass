@@ -20,7 +20,7 @@ if __name__ == '__main__':
     tile: Tile = dm.getTile()
     block: Block = tile.getBlock( *block_index )
     umgr = UMAPManager( tile, refresh = refresh )
-    umgr.fit( block = block, subsample = subsample )
+    umgr.embed(block = block, subsample = subsample)
     umgr.view_model( block = block, color_band=color_band )
 
 

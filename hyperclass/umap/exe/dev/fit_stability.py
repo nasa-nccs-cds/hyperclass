@@ -25,7 +25,7 @@ if __name__ == '__main__':
     plot_data = [ ]
     for color, block_index in zip(colors,block_indices):
         block: Block = tile.getBlock( *block_index )
-        umgr.fit( block = block, subsample = subsample )
+        umgr.embed(block = block, subsample = subsample)
         points1 = umgr.mapper.embedding_
         plot_data.append( go.Scatter3d( x=points1[:,0], y=points1[:,1], z=points1[:,2], mode='markers',  marker= dict( color = color, size=1 ) ) )
 

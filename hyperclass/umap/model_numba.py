@@ -1,4 +1,8 @@
+# Author: Leland McInnes <leland.mcinnes@gmail.com>
+#
+# License: BSD 3 clause
 from __future__ import print_function
+
 import locale
 from warnings import warn
 import time
@@ -15,10 +19,14 @@ try:
 except ImportError:
     # sklearn.externals.joblib is deprecated in 0.21, will be removed in 0.23
     from sklearn.externals import joblib
+
 import numpy as np
 import scipy.sparse
 import scipy.sparse.csgraph
+import numba
+
 import umap.distances as dist
+
 import umap.sparse as sparse
 import umap.sparse_nndescent as sparse_nn
 
@@ -87,6 +95,16 @@ def breadth_first_search(adjmat, start, min_vertices):
 
     return np.array(explored)
 
+
+@numba.njit(
+    locals={
+        "psum": numba.types.float32,
+        "lo": numba.types.float32,
+        "mid": numba.types.float32,
+        "hi": numba.types.float32,
+    },
+    fastmath=True,
+)  # benchmarking `parallel=True` shows it to *decrease* performance
 def smooth_knn_dist(distances, k, n_iter=64, local_connectivity=1.0, bandwidth=1.0):
     """Compute a continuous version of the distance to the kth nearest
     neighbor. That is, this is similar to knn-distance but allows continuous
@@ -190,6 +208,17 @@ def smooth_knn_dist(distances, k, n_iter=64, local_connectivity=1.0, bandwidth=1
 
     return result, rho
 
+
+@numba.njit(
+    locals={
+        "knn_dists": numba.types.float32[:, ::1],
+        "sigmas": numba.types.float32[::1],
+        "rhos": numba.types.float32[::1],
+        "val": numba.types.float32,
+    },
+    parallel=True,
+    fastmath=True,
+)
 def compute_membership_strengths(knn_indices, knn_dists, sigmas, rhos):
     """Construct the membership strength data for the 1-skeleton of each local
     fuzzy simplicial set -- this is formed as a sparse matrix where each row is
@@ -285,7 +314,8 @@ def fuzzy_simplicial_set(
         The metric to use to compute distances in high dimensional space.
         If a string is passed it must match a valid predefined metric. If
         a general metric is required a function that takes two 1d arrays and
-        returns a float can be provided. Valid string metrics
+        returns a float can be provided. For performance purposes it is
+        required that this be a numba jit'd function. Valid string metrics
         include:
             * euclidean (or l2)
             * manhattan (or l1)
@@ -393,6 +423,8 @@ def fuzzy_simplicial_set(
 
     return result, sigmas, rhos
 
+
+@numba.njit()
 def fast_intersection(rows, cols, values, target, unknown_dist=1.0, far_dist=5.0):
     """Under the assumption of categorical distance for the intersecting
     simplicial set perform a fast intersection.
@@ -434,6 +466,8 @@ def fast_intersection(rows, cols, values, target, unknown_dist=1.0, far_dist=5.0
 
     return
 
+
+@numba.jit()
 def fast_metric_intersection(
     rows, cols, values, discrete_space, metric, metric_args, scale
 ):
@@ -457,7 +491,7 @@ def fast_metric_intersection(
     discrete_space: array of shape (n_samples, n_features)
         The vectors of categorical labels to use in the intersection.
 
-    metric: function
+    metric: numba function
         The function used to calculate distance over the target array.
 
     scale: float
@@ -475,6 +509,8 @@ def fast_metric_intersection(
 
     return
 
+
+@numba.njit()
 def reprocess_row(probabilities, k=15, n_iters=32):
     target = np.log2(k)
 
@@ -503,6 +539,8 @@ def reprocess_row(probabilities, k=15, n_iters=32):
 
     return np.power(probabilities, mid)
 
+
+@numba.njit()
 def reset_local_metrics(simplicial_set_indptr, simplicial_set_data):
     for i in range(simplicial_set_indptr.shape[0] - 1):
         simplicial_set_data[
@@ -683,6 +721,7 @@ def simplicial_set_embedding(
     output_metric=dist.named_distances_with_gradients["euclidean"],
     output_metric_kwds={},
     euclidean_output=True,
+    parallel=False,
     verbose=False,
 ):
     """Perform a fuzzy simplicial set embedding, using a specified
@@ -753,6 +792,11 @@ def simplicial_set_embedding(
 
     euclidean_output: bool
         Whether to use the faster code specialised for euclidean output metrics
+
+    parallel: bool (optional, default False)
+        Whether to run the computation using numba parallel.
+        Running in parallel is non-deterministic, and is not used
+        if a random seed has been set, to ensure reproducibility.
 
     verbose: bool (optional, default False)
         Whether to report information on the current progress of the algorithm.
@@ -841,6 +885,7 @@ def simplicial_set_embedding(
             gamma,
             initial_alpha,
             negative_sample_rate,
+            parallel=parallel,
             verbose=verbose,
         )
     else:
@@ -865,6 +910,8 @@ def simplicial_set_embedding(
 
     return embedding
 
+
+@numba.njit()
 def init_transform(indices, weights, embedding):
     """Given indices and weights and an original embeddings
     initialize the positions of new points relative to the
@@ -939,7 +986,8 @@ class UMAP(BaseEstimator):
         The metric to use to compute distances in high dimensional space.
         If a string is passed it must match a valid predefined metric. If
         a general metric is required a function that takes two 1d arrays and
-        returns a float can be provided.  Valid string metrics
+        returns a float can be provided. For performance purposes it is
+        required that this be a numba jit'd function. Valid string metrics
         include:
             * euclidean
             * manhattan
@@ -1232,6 +1280,7 @@ class UMAP(BaseEstimator):
             if in_returns_grad:
                 _m = self.metric
 
+                @numba.njit(fastmath=True)
                 def _dist_only(x, y, *kwds):
                     return _m(x, y, *kwds)[0]
 
@@ -1445,6 +1494,8 @@ class UMAP(BaseEstimator):
                 _m = self.metric if self._sparse_data else self._input_distance_func
                 dmat = pairwise_distances(X[index], metric=_m, **self._metric_kwds)
             except (ValueError, TypeError) as e:
+                # metric is numba.jit'd or not supported by sklearn,
+                # fallback to pairwise special
 
                 if self._sparse_data:
                     # Get a fresh metric since we are casting to dense
@@ -1533,11 +1584,15 @@ class UMAP(BaseEstimator):
                     _distance_func = self._input_distance_func
                     _dist_args = tuple(self._metric_kwds.values())
                     if self._sparse_data:
+
+                        @numba.njit()
                         def _partial_dist_func(ind1, data1, ind2, data2):
                             return _distance_func(ind1, data1, ind2, data2, *_dist_args)
 
                         self._input_distance_func = _partial_dist_func
                     else:
+
+                        @numba.njit()
                         def _partial_dist_func(x, y):
                             return _distance_func(x, y, *_dist_args)
 
@@ -1668,6 +1723,7 @@ class UMAP(BaseEstimator):
             self._output_distance_func,
             self._output_metric_kwds,
             self.output_metric in ("euclidean", "l2"),
+            self.random_state is None,
             self.verbose,
         )[inverse]
 
@@ -1959,9 +2015,15 @@ class UMAP(BaseEstimator):
             for v in neighbors
         ]
         if callable(self.output_metric):
+            # need to create another numba.jit-able wrapper for callable
+            # output_metrics that return a tuple (already checked that it does
+            # during param validation in `fit` method)
             _out_m = self.output_metric
+
+            @numba.njit(fastmath=True)
             def _output_dist_only(x, y, *kwds):
                 return _out_m(x, y, *kwds)[0]
+
             dist_only_func = _output_dist_only
         elif self.output_metric in dist.named_distances.keys():
             dist_only_func = dist.named_distances[self.output_metric]

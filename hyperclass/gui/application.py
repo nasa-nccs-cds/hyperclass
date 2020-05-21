@@ -33,6 +33,9 @@ class HyperclassConsole(QMainWindow):
         exitButton.triggered.connect(self.close)
         fileMenu.addAction(exitButton)
 
+        self.vtkFrame = VTKFrame( umgr )
+        self.console = MplWidget( umgr,self)
+
         for menuName, menuItems in self.console.menu_actions.items():
             menu = mainMenu.addMenu(menuName)
             for menuItem in menuItems:
@@ -45,9 +48,6 @@ class HyperclassConsole(QMainWindow):
         widget =  QWidget(self)
         self.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)
-
-        self.vtkFrame = VTKFrame( umgr )
-        self.console = MplWidget( umgr,self)
 
         framesLayout = QHBoxLayout()
         framesLayout.addWidget( self.console )

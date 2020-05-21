@@ -82,7 +82,7 @@ class UMAPManager:
                 block = self.tile.getBlock( *block_index )
         return block
 
-    def fit( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
+    def embed(self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs):
         t0 = time.time()
         self._block = self.getBlock( **kwargs )
         self._getMapper( True )

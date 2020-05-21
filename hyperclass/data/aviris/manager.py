@@ -325,7 +325,7 @@ class DataManager:
             point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int16)
         else:
             point_data = stacked_raster.dropna(dim='samples', how='any')
-        print(f"  -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")
+        print(f" raster2points -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")
         return point_data
 
     @classmethod

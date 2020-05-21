@@ -160,23 +160,23 @@ class LabelingConsole:
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        use_tasks = kwargs.get( 'use_tasks', False )
+        use_tasks = kwargs.get( 'use_tasks', True )
         if use_tasks:
-            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs )     # This doesn't work so currently disabled
+            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs )
         else:
             from hyperclass.gui.tasks import Task
             self.init_pointcloud( self.flow.nnd, labels, block = self.block, **kwargs )
             Task.mainWindow().update( )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
-        self.umgr.fit( nnd, labels, **kwargs )
+        self.umgr.embed(nnd, labels, **kwargs)
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
         self.plot_markers()
 
     def remodel( self, **kwargs  ):
         print("Rebuilding model")
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.fit( self.flow.nnd, labels, block=self.block )
+        self.umgr.embed(self.flow.nnd, labels, block=self.block)
 #        self.umgr.color_pointcloud( labels )
         time.sleep(0.2)
         self.plot_markers()

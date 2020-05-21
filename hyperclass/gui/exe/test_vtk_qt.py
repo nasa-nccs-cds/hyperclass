@@ -22,7 +22,7 @@ classes = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
 dm = DataManager(image_name)
 tile: Tile = dm.getTile()
 umgr = UMAPManager(tile, classes, refresh=refresh)
-umgr.fit( block_index = block_index )
+umgr.embed(block_index = block_index)
 
 app = QtWidgets.QApplication(sys.argv)
 
