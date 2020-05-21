@@ -36,8 +36,8 @@ class UMAPManager:
     def embedding(self) -> xa.DataArray:
         return self._embedding
 
-    def _getMapper( self ):
-        if self.mapper is None:
+    def _getMapper( self, refresh = False ):
+        if (self.mapper is None) or refresh:
             parms = self.tile.dm.config.section("umap").toDict()
             self.mapper = UMAP(**parms)
 
@@ -85,7 +85,7 @@ class UMAPManager:
     def fit( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         t0 = time.time()
         self._block = self.getBlock( **kwargs )
-        self._getMapper()
+        self._getMapper( True )
         point_data: xa.DataArray = self._block.getPointData( **kwargs ) if self._block else self.tile.getPointData( **kwargs )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")

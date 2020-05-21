@@ -1,6 +1,7 @@
 import matplotlib.widgets
 import matplotlib.patches
 from pynndescent import NNDescent
+from functools import partial
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
@@ -15,7 +16,7 @@ from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
 from hyperclass.gui.tasks import taskRunner
-from threading import  Thread
+from PyQt5.QtCore import QTimer
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from skimage.transform import ProjectiveTransform
@@ -40,46 +41,28 @@ class ADirection(Enum):
     STOP = 0
     FORWARD = 1
 
-class EventSource(Thread):
+class EventSource:
 
     def __init__( self, action: Callable, **kwargs ):
-        Thread.__init__(self)
-        self.event = None
-        self.action = action
-        self.interval = kwargs.get( "delay",0.01 )
-        self.active = False
-        self.running = False
-        self.daemon = True
-        self.delay = 0.0
+        self.timer = QTimer()
+        self.timer.timeout.connect( action )
         atexit.register( self.exit )
 
-    def run(self):
-        while self.running:
-            if self.delay > 0.0:
-                time.sleep( self.delay )
-                self.delay = 0.0
-                self.active = True
-            else:
-                time.sleep( self.interval )
-            if self.active:
-                plt.pause( 0.05 )
-                self.action( self.event )
+    def start(self, interval, delay = None ):
+        if delay is not None:
+            start_action = partial( self.timer.start, interval )
+            self.timer = QTimer()
+            self.timer.setSingleShot( True )
+            self.timer.timeout.connect( start_action )
+            self.timer.start( delay )
+        else:
+            self.timer.start( interval )
 
-    def start(self):
-        if not self.running:
-            self.running = True
-            Thread.start(self)
-
-    def activate(self, delay = None ):
-        self.delay = self.interval if delay is None else delay
-#        print( f"Activate blinker, delay = {self.delay}")
-        self.start()
-
-    def deactivate(self):
-        self.active = False
+    def stop(self):
+        self.timer.stop()
 
     def exit(self):
-        self.running = False
+        self.timer.stop()
 
 class PageSlider(matplotlib.widgets.Slider):
 
@@ -241,7 +224,7 @@ class LabelingConsole:
         if self.figure is None:
             self.figure = plt.figure()
         self.image: AxesImage = None
-        self.blinker = EventSource( self.blink, delay=kwargs.get('blink_delay',1.0) )
+        self.blinker = EventSource( self.blink )
         self.blink_state = True
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
@@ -299,8 +282,9 @@ class LabelingConsole:
     def remodel( self, **kwargs  ):
         print("Rebuilding model")
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.fit( self.flow.nnd, labels, **kwargs )
-        self.umgr.color_pointcloud( labels )
+        self.umgr.fit( self.flow.nnd, labels, block=self.block )
+#        self.umgr.color_pointcloud( labels )
+        time.sleep(0.2)
         self.plot_markers()
 
     def clearLabels( self, event = None ):
@@ -430,13 +414,13 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
-        self.blinker.deactivate()
+        self.blinker.stop()
         self.show_labels()
         labels: xa.DataArray = self.getLabeledPointData()
         new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
         self.show_labels()
-        self.blinker.activate(6.0)
+        self.blinker.start(1.0,6.0)
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
@@ -455,20 +439,19 @@ class LabelingConsole:
             self.labels_image.set_alpha(1.0)
             self.update_canvas()
 
-
     def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
         self.umgr.color_pointcloud( sample_labels, **kwargs )
 
-    def blink( self, event ):
+    def blink( self ):
         self.blink_state = not self.blink_state
         self.labels_image.set_alpha( float(self.blink_state) )
         self.figure.canvas.draw_idle()
 
     def toggle_blinking_layer(self, blinking_on: bool ):
         if blinking_on:
-            self.blinker.activate()
+            self.blinker.start(1.0)
         else:
-            self.blinker.deactivate()
+            self.blinker.stop()
             if self.labels_image is not None:
                 self.labels_image.set_alpha( 1.0 )
 
@@ -488,11 +471,11 @@ class LabelingConsole:
 
     def plot_markers(self):
         for psel in self.point_selection:
-            self.plot_marker(*psel)
+#            taskRunner.start(self.plot_marker, *psel)
+            self.plot_marker( *psel )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
-#        self.figure.canvas.flush_events()
         plt.pause(0.01)
 
     def read_training_data(self):

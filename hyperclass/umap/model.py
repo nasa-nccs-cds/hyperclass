@@ -70,76 +70,6 @@ MIN_K_DIST_SCALE = 1e-3
 NPY_INFINITY = np.inf
 
 
-def spectral_embedding(
-    data,
-    graph,
-    n_components,
-    random_state,
-    metric,
-    metric_kwds,
-):
-    """Perform a fuzzy simplicial set embedding, using a specified
-    initialisation method and then minimizing the fuzzy set cross entropy
-    between the 1-skeletons of the high and low dimensional fuzzy simplicial
-    sets.
-
-    Parameters
-    ----------
-    data: array of shape (n_samples, n_features)
-        The source data to be embedded by UMAP.
-
-    graph: sparse matrix
-        The 1-skeleton of the high dimensional fuzzy simplicial set as
-        represented by a graph for which we require a sparse matrix for the
-        (weighted) adjacency matrix.
-
-    n_components: int
-        The dimensionality of the euclidean space into which to embed the data.
-
-
-    n_epochs: int (optional, default 0)
-        The number of training epochs to be used in optimizing the
-        low dimensional embedding. Larger values result in more accurate
-        embeddings. If 0 is specified a value will be selected based on
-        the size of the input dataset (200 for large datasets, 500 for small).
-
-    random_state: numpy RandomState or equivalent
-        A state capable being used as a numpy random state.
-
-    metric: string or callable
-        The metric used to measure distance in high dimensional space; used if
-        multiple connected components need to be layed out.
-
-    metric_kwds: dict
-        Key word arguments to be passed to the metric function; used if
-        multiple connected components need to be layed out.
-
-    Returns
-    -------
-    embedding: array of shape (n_samples, n_components)
-        The optimized of ``graph`` into an ``n_components`` dimensional
-        euclidean space.
-    """
-    graph = graph.tocoo()
-    graph.sum_duplicates()
-
-    n_epochs = 200
-    graph.data[graph.data < (graph.data.max() / float(n_epochs))] = 0.0
-    graph.eliminate_zeros()
-
-    initialisation = spectral_layout(
-        data,
-        graph,
-        n_components,
-        random_state,
-        metric=metric,
-        metric_kwds=metric_kwds,
-    )
-    expansion = 10.0 / np.abs(initialisation).max()
-    embedding = (initialisation * expansion).astype( np.float32 )
-    embedding = ( 10.0 * (embedding - np.min(embedding, 0)) / (np.max(embedding, 0) - np.min(embedding, 0)) ).astype(np.float32, order="C")
-    return embedding
-
 def breadth_first_search(adjmat, start, min_vertices):
     explored = []
     queue = [start]
@@ -1472,7 +1402,7 @@ class UMAP(BaseEstimator):
             The relevant attributes are ``target_metric`` and
             ``target_metric_kwds``.
         """
-        embedding_type = kwargs.get( 'embedding_type', 'umap' )
+
         X = check_array(X, dtype=np.float32, accept_sparse="csr", order="C")
         self._raw_data = X
 
@@ -1776,29 +1706,26 @@ class UMAP(BaseEstimator):
         if self.verbose:
             print(ts(), "Construct embedding")
 
-        if embedding_type == "umap":
-            self.embedding_ = simplicial_set_embedding(
-                self._raw_data[index],  # JH why raw data?
-                self.graph_,
-                self.n_components,
-                self._initial_alpha,
-                self._a,
-                self._b,
-                self.repulsion_strength,
-                self.negative_sample_rate,
-                n_epochs,
-                init,
-                random_state,
-                self._input_distance_func,
-                self._metric_kwds,
-                self._output_distance_func,
-                self._output_metric_kwds,
-                self.output_metric in ("euclidean", "l2"),
-                self.random_state is None,
-                self.verbose,
-            )[inverse]
-        else:
-            self.embedding_ = spectral_embedding( self._raw_data[index], self.graph_, self.n_components, random_state, self._input_distance_func, self._metric_kwds )
+        self.embedding_ = simplicial_set_embedding(
+            self._raw_data[index],  # JH why raw data?
+            self.graph_,
+            self.n_components,
+            self._initial_alpha,
+            self._a,
+            self._b,
+            self.repulsion_strength,
+            self.negative_sample_rate,
+            n_epochs,
+            init,
+            random_state,
+            self._input_distance_func,
+            self._metric_kwds,
+            self._output_distance_func,
+            self._output_metric_kwds,
+            self.output_metric in ("euclidean", "l2"),
+            self.random_state is None,
+            self.verbose,
+        )[inverse]
 
         if self.verbose:
             print(ts() + " Finished embedding")
