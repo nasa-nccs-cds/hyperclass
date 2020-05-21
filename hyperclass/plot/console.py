@@ -224,8 +224,6 @@ class LabelingConsole:
         if self.figure is None:
             self.figure = plt.figure()
         self.image: AxesImage = None
-        self.blinker = EventSource( self.blink )
-        self.blink_state = True
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.training_points: PathCollection = None
@@ -244,6 +242,7 @@ class LabelingConsole:
         self.currentFrame = 0
         self.currentClass = 0
         self.button_actions =  OrderedDict( submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels, remodel=self.remodel )
+        self.key_actions =  OrderedDict( [ ["Increase", partial( self.update_lablels_alpha, True ) ], ] )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -414,13 +413,10 @@ class LabelingConsole:
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
-        self.blinker.stop()
-        self.show_labels()
         labels: xa.DataArray = self.getLabeledPointData()
         new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
         self.show_labels()
-        self.blinker.start(1.0,6.0)
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
@@ -439,21 +435,16 @@ class LabelingConsole:
             self.labels_image.set_alpha(1.0)
             self.update_canvas()
 
+
     def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
         self.umgr.color_pointcloud( sample_labels, **kwargs )
 
-    def blink( self ):
-        self.blink_state = not self.blink_state
-        self.labels_image.set_alpha( float(self.blink_state) )
+    def update_lablels_alpha( self, increase: bool, event ):
+        current = self.labels_image.get_alpha()
+        if increase:   new_alpha = min( 1.0, current + 0.1 )
+        else:          new_alpha = max( 0.0, current - 0.1 )
+        self.labels_image.set_alpha( new_alpha )
         self.figure.canvas.draw_idle()
-
-    def toggle_blinking_layer(self, blinking_on: bool ):
-        if blinking_on:
-            self.blinker.start(1.0)
-        else:
-            self.blinker.stop()
-            if self.labels_image is not None:
-                self.labels_image.set_alpha( 1.0 )
 
     def get_color(self, class_index: int = None ):
         if class_index is None: class_index = self.selectedClass
@@ -550,6 +541,5 @@ class LabelingConsole:
         self.exit()
 
     def exit(self):
-        self.blinker.exit()
         self.write_training_data()
 
