@@ -137,7 +137,10 @@ class LabelingConsole:
         self.currentFrame = 0
         self.currentClass = 0
         self.button_actions =  OrderedDict( submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels, remodel=self.remodel )
-        self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_lablels_alpha, True ) ], [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_lablels_alpha, False ) ] ] )
+        self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
+                                                    [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
+                                                    [ "Increase Band Alpha", 'Alt+>', None, partial( self.update_image_alpha, "bands", True ) ],
+                                                    [ "Decrease Band Alpha", 'Alt+<', None, partial( self.update_image_alpha, "bands", False ) ]] )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -322,11 +325,17 @@ class LabelingConsole:
     def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
         self.umgr.color_pointcloud( sample_labels, **kwargs )
 
-    def update_lablels_alpha( self, increase: bool, event ):
-        current = self.labels_image.get_alpha()
+    def get_layer(self, layer_id: str ):
+        if layer_id == "bands": return self.image
+        if layer_id == "labels": return self.labels_image
+        raise Exception( f"Unrecognized layer: {layer_id}")
+
+    def update_image_alpha( self, layer: str, increase: bool, *args, **kwargs ):
+        image = self.get_layer( layer )
+        current = image.get_alpha()
         if increase:   new_alpha = min( 1.0, current + 0.1 )
         else:          new_alpha = max( 0.0, current - 0.1 )
-        self.labels_image.set_alpha( new_alpha )
+        image.set_alpha( new_alpha )
         self.figure.canvas.draw_idle()
 
     def get_color(self, class_index: int = None ):
