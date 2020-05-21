@@ -3,7 +3,7 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
-import time
+from functools import partial
 import traceback, sys
 
 class TaskSignals(QObject):
@@ -65,11 +65,10 @@ class TaskRunner(QObject):
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-    def start(self, fn: Callable, message: str, *args, **kwargs ):
-        task= Task( fn, *args, **kwargs )
+    def start(self, task: Task, message: str, **kwargs ):
         hyperclass = Task.mainWindow()
         hyperclass.showMessage( message )
-        task.signals.finished.connect( hyperclass.update )
+        task.signals.finished.connect( partial( hyperclass.update, **kwargs ) )
         self.threadpool.start(task)
 
 taskRunner = TaskRunner()

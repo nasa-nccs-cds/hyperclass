@@ -15,7 +15,7 @@ from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
-from hyperclass.gui.tasks import taskRunner
+from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtCore import QTimer
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
@@ -160,7 +160,7 @@ class LabelingConsole:
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        taskRunner.start( self.init_pointcloud, "Computing embedding...", self.flow.nnd, labels, block=self.block, **kwargs )
+        taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding...", init_viewpoint = True )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         self.umgr.embed(nnd, labels, **kwargs)
@@ -168,11 +168,11 @@ class LabelingConsole:
         self.plot_markers()
 
     def remodel( self, event ):
-        taskRunner.start( self.rebuild_model, "Rebuilding model..." )
+        taskRunner.start( Task(  self.rebuild_model ), "Rebuilding model...", init_viewpoint = True )
 
-    def rebuild_model(self):
+    def rebuild_model( self, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.embed(self.flow.nnd, labels, block=self.block)
+        self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
         self.plot_markers()
 
     def clearLabels( self, event = None ):
@@ -288,7 +288,7 @@ class LabelingConsole:
         point = [ event.ydata, event.xdata, self.selectedClass ]
         self.point_selection.append( point )
         self.plot_points()
-        taskRunner.start( self.plot_marker, "Plot selected label", *point )
+        taskRunner.start( Task( self.plot_marker, *point ), "Plot selected label" )
 
     def plot_marker(self, y: float, x: float, c: int = None, **kwargs ):
         try:
@@ -317,7 +317,7 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( self.label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( self.label_map.values  )
-        taskRunner.start(self.color_pointcloud, "Plot labels", sample_labels )
+        taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
 
     def show_labels(self):
         if self.labels_image is not None:

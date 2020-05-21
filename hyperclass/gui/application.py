@@ -64,9 +64,9 @@ class HyperclassConsole(QMainWindow):
     def showMessage( self, message: str ):
         self.statusBar().showMessage(message)
 
-    def update(self ):
+    def update( self, **kwargs ):
         self.showMessage('Ready')
-        self.vtkFrame.update()
+        self.vtkFrame.update( **kwargs )
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)

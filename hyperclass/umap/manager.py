@@ -83,6 +83,7 @@ class UMAPManager:
         return block
 
     def embed(self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs):
+        progress_callback = kwargs.get('progress_callback')
         t0 = time.time()
         self._block = self.getBlock( **kwargs )
         self._getMapper( True )

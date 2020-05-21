@@ -21,7 +21,7 @@ class PointCloud():
     def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData(points)
         if labels is not None: self.set_point_colors( labels )
-        self.initMarkers( **kwargs )
+        self.resetMarkers( **kwargs )
 
     def getPolydata(self):
         return self.polydata
@@ -103,6 +103,19 @@ class PointCloud():
             self.markers.SetVerts( self.marker_verts )
             self.markers.GetPointData().SetScalars(self.marker_colors)
             self.markers.GetPointData().SetActiveScalars('colors')
+
+    def resetMarkers( self, **kwargs ):
+        if self.marker_actor is None:
+            self.initMarkers( **kwargs )
+        else:
+            self.markers = vtk.vtkPolyData()
+            self.marker_mapper.SetInputData(self.markers)
+            self.marker_points = vtk.vtkPoints()
+            self.marker_verts = vtk.vtkCellArray()
+            self.marker_colors = vtk.vtkUnsignedCharArray()
+            self.markers.SetPoints(self.marker_points)
+            self.markers.SetVerts(self.marker_verts)
+            self.markers.GetPointData().SetScalars(self.marker_colors)
 
     def plotMarker(self, point_coords: List[float], color: List[float], **kwargs  ):
         id = self.marker_points.InsertNextPoint( *point_coords  )
