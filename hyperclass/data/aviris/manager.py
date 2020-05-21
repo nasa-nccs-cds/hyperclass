@@ -132,9 +132,9 @@ class Block:
         result: xa.DataArray =  self.tile.dm.raster2points( self.data )
         return result if subsample is None else result[::subsample]
 
-    def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> xa.DataArray:
-        iy, ix = self.coords2indices(cy, cx)
-        return self.data.isel( y=iy, x=ix )
+    def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> np.ndarray:
+        yIndices, xIndices = self.coords2indices(cy, cx)
+        return np.vstack( [ self.data.isel( y=iy, x=ix ).values for (iy,ix) in zip(yIndices, xIndices) ] )
 
     def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
         iy, ix = self.coord2index(cy, cx)

@@ -108,13 +108,14 @@ class PointCloud():
         self.marker_actor.Modified()
         self.marker_mapper.Modified()
 
-    def plotMarker(self, point_coords: List[float], color: List[float], **kwargs  ):
-        print(f"Plotting Marker: {point_coords[0]} {point_coords[1]} {color}" )
-        id = self.marker_points.InsertNextPoint( *point_coords  )
-        self.marker_verts.InsertNextCell(1)
-        self.marker_verts.InsertCellPoint(id)
-        vtk_color = [ math.floor(color[ic]*255.99) for ic in range(3) ]
-        self.marker_colors.InsertNextTuple3( *vtk_color )
+    def plotMarkers(self, points: List[List[float]], colors: List[List[float]], **kwargs  ):
+        for point_coords in points:
+            id = self.marker_points.InsertNextPoint( *point_coords  )
+            self.marker_verts.InsertNextCell(1)
+            self.marker_verts.InsertCellPoint(id)
+        for color in colors:
+            vtk_color = [ math.floor(color[ic]*255.99) for ic in range(3) ]
+            self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.GetPointData().Modified()
         self.marker_points.Modified()
         self.marker_verts.Modified()

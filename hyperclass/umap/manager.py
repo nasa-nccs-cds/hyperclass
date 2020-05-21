@@ -114,18 +114,9 @@ class UMAPManager:
             self.point_cloud.set_point_colors( labels )
 
     def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
-        for ic, color in enumerate( colors ):
-            self.plot_marker( ycoords[ic], xcoords[ic], color, **kwargs )
-
-        # point_data = self._block.getSelectedPointData( ycoords, xcoords )
-        # transformed_data: np.ndarray = self.mapper.transform(point_data)
-        # self.point_cloud.plotMarkers( transformed_data, colors )
-
-
-    def plot_marker(self, ycoord: float, xcoord: float, color: List[float], **kwargs ):
-        point_data = self._block.getSelectedPoint( ycoord, xcoord )
+        point_data = self._block.getSelectedPointData( ycoords, xcoords )
         transformed_data: np.ndarray = self.mapper.transform(point_data)
-        self.point_cloud.plotMarker( transformed_data[0].tolist(), color, **kwargs )
+        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
 
     def update(self):
         self.point_cloud.update()

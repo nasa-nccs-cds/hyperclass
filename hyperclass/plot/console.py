@@ -290,12 +290,6 @@ class LabelingConsole:
         self.plot_points()
         taskRunner.start( Task( self.plot_marker, *point ), f"Plot label at {event.ydata} {event.xdata}" )
 
-    def plot_marker(self, y: float, x: float, c: int = None, **kwargs ):
-        try:
-            self.umgr.plot_marker( y, x, self.get_color(c), **kwargs )
-        except IndexError:
-            print( f"Skipping out-of-bounds label: [ {x} {y} ]")
-
     def undo_point_selection(self, event ):
         self.point_selection.pop()
         self.plot_points()
@@ -349,9 +343,14 @@ class LabelingConsole:
             self.training_points.set_facecolor( colors )
             self.update_canvas()
 
-    def plot_markers(self):
-        for psel in self.point_selection:
-            self.plot_marker( *psel )
+    def plot_markers( self, **kwargs ):
+        xcoords = [ps[1] for ps in self.point_selection]
+        ycoords = [ps[0] for ps in self.point_selection]
+        cvals = [ps[2] for ps in self.point_selection]
+        self.umgr.plot_markers( ycoords, xcoords, [ self.get_color(c) for c in cvals], **kwargs )
+
+    def plot_marker(self, yc, xc, c, **kwargs ):
+        self.umgr.plot_markers( [yc], [xc], [ self.get_color(c) ], **kwargs )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
