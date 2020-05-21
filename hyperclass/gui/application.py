@@ -20,7 +20,7 @@ class HyperclassConsole(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        self.statusBar().showMessage('Ready')
+        self.showMessage('Ready')
 
         mainMenu = self.menuBar()
         mainMenu.setNativeMenuBar(False)
@@ -61,7 +61,11 @@ class HyperclassConsole(QMainWindow):
             buttonsLayout.addWidget(pybutton)
         vlay.addLayout(buttonsLayout)
 
+    def showMessage( self, message: str ):
+        self.statusBar().showMessage(message)
+
     def update(self ):
+        self.showMessage('Ready')
         self.vtkFrame.update()
 
     def setBlock(self, block_coords: Tuple[int]):

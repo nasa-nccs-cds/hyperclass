@@ -160,25 +160,19 @@ class LabelingConsole:
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        use_tasks = kwargs.get( 'use_tasks', True )
-        if use_tasks:
-            taskRunner.start( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs )
-        else:
-            from hyperclass.gui.tasks import Task
-            self.init_pointcloud( self.flow.nnd, labels, block = self.block, **kwargs )
-            Task.mainWindow().update( )
+        taskRunner.start( self.init_pointcloud, "Computing embedding...", self.flow.nnd, labels, block=self.block, **kwargs )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         self.umgr.embed(nnd, labels, **kwargs)
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
         self.plot_markers()
 
-    def remodel( self, **kwargs  ):
-        print("Rebuilding model")
+    def remodel( self, event ):
+        taskRunner.start( self.rebuild_model, "Rebuilding model..." )
+
+    def rebuild_model(self):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed(self.flow.nnd, labels, block=self.block)
-#        self.umgr.color_pointcloud( labels )
-        time.sleep(0.2)
         self.plot_markers()
 
     def clearLabels( self, event = None ):
@@ -294,7 +288,7 @@ class LabelingConsole:
         point = [ event.ydata, event.xdata, self.selectedClass ]
         self.point_selection.append( point )
         self.plot_points()
-        taskRunner.start( self.plot_marker, *point )
+        taskRunner.start( self.plot_marker, "Plot selected label", *point )
 
     def plot_marker(self, y: float, x: float, c: int = None, **kwargs ):
         try:
@@ -323,7 +317,7 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( self.label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( self.label_map.values  )
-        taskRunner.start(self.color_pointcloud, sample_labels )
+        taskRunner.start(self.color_pointcloud, "Plot labels", sample_labels )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -357,7 +351,6 @@ class LabelingConsole:
 
     def plot_markers(self):
         for psel in self.point_selection:
-#            taskRunner.start(self.plot_marker, *psel)
             self.plot_marker( *psel )
 
     def update_canvas(self):

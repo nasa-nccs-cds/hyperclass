@@ -65,9 +65,10 @@ class TaskRunner(QObject):
         self.threadpool = QThreadPool()
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-    def start(self, fn, *args, **kwargs ):
+    def start(self, fn: Callable, message: str, *args, **kwargs ):
         task= Task( fn, *args, **kwargs )
         hyperclass = Task.mainWindow()
+        hyperclass.setMessage( message )
         task.signals.finished.connect( hyperclass.update )
         self.threadpool.start(task)
 
