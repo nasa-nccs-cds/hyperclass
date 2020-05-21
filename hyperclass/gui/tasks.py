@@ -68,7 +68,7 @@ class TaskRunner(QObject):
     def start(self, fn: Callable, message: str, *args, **kwargs ):
         task= Task( fn, *args, **kwargs )
         hyperclass = Task.mainWindow()
-        hyperclass.setMessage( message )
+        hyperclass.showMessage( message )
         task.signals.finished.connect( hyperclass.update )
         self.threadpool.start(task)
 
