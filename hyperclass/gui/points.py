@@ -49,7 +49,6 @@ class VTKFrame(QtWidgets.QFrame):
         interactorStyle.SetEnabled(1)
 
         self.setLayout(self.vl)
-        self.renderer.ResetCamera()
 
     def getActors(self):
         return [ self.point_cloud.createActor() ]
@@ -61,6 +60,7 @@ class VTKFrame(QtWidgets.QFrame):
     def update(self):
         self.umgr.point_cloud.createActor(self.renderer)
         self.umgr.point_cloud.update()
+        self.renderer.ResetCamera()
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
 
