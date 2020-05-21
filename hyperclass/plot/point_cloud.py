@@ -86,6 +86,7 @@ class PointCloud():
             self.actor.Modified()
 
     def initMarkers( self, **kwargs ):
+        print( "Initializing Markers")
         if self.marker_actor is None:
             marker_size = kwargs.get( 'marker_size', 20 )
             self.markers = vtk.vtkPolyData()
@@ -108,6 +109,7 @@ class PointCloud():
         self.marker_mapper.Modified()
 
     def plotMarker(self, point_coords: List[float], color: List[float], **kwargs  ):
+        print(f"Plotting Marker: {point_coords[0]} {point_coords[1]} {color}" )
         id = self.marker_points.InsertNextPoint( *point_coords  )
         self.marker_verts.InsertNextCell(1)
         self.marker_verts.InsertCellPoint(id)
@@ -177,7 +179,6 @@ class PointCloud():
             self.actor = vtk.vtkActor()
             self.actor.SetMapper(self.mapper)
             self.actor.GetProperty().SetPointSize(2)
-            self.initMarkers()
             if self.renderer is not None:
                 self.renderer.AddActor( self.actor )
                 self.renderer.AddActor( self.marker_actor )
