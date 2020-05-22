@@ -80,7 +80,7 @@ class Tile:
 
     @property
     def nBlocks(self) -> List[ List[int] ]:
-        return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in [1,2] ]
+        return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in range(2) ]
 
     def getBlock(self, iy: int, ix: int) -> "Block":
         return Block( self, iy, ix )

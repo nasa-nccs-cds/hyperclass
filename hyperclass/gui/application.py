@@ -47,8 +47,7 @@ class HyperclassConsole(QMainWindow):
                 menuButton.triggered.connect( menuItem[3] )
                 menu.addAction(menuButton)
 
-        tile: Tile =  umgr.tile
-        nBlocks = tile.nBlocks
+        nBlocks = umgr.tile.nBlocks
         load_menu = blocksMenu.addMenu("load")
 
         widget =  QWidget(self)
