@@ -19,7 +19,7 @@ class UMAPManager:
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._embedding: xa.DataArray = None
-        self.mapper: UMAP = None
+        self.mapper: Dict[str,UMAP] = {}
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
 
