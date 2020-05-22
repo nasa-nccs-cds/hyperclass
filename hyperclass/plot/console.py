@@ -107,12 +107,15 @@ class LabelingConsole:
 
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
+        self.currentFrame = 0
+        self.image: AxesImage = None
         self.point_selection = []
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svc: SVC = None
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
+        self.read_training_data()
         self.setBlock( kwargs.pop( 'block', block_index ) )
         self.global_bounds: Bbox = None
         self.global_crange = None
@@ -120,7 +123,6 @@ class LabelingConsole:
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
             self.figure = plt.figure()
-        self.image: AxesImage = None
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.training_points: PathCollection = None
@@ -136,7 +138,6 @@ class LabelingConsole:
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
         self.training_data = []
-        self.currentFrame = 0
         self.currentClass = 0
         self.button_actions =  OrderedDict(  spread=  self.submit_training_set,
                                              undo=    self.undo_point_selection,
@@ -170,8 +171,8 @@ class LabelingConsole:
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
-        self.read_training_data()
         self.clearLabels()
+        self.update_plots()
         labels: xa.DataArray = self.getLabeledPointData()
         taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
 
@@ -212,7 +213,8 @@ class LabelingConsole:
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
-    def updateLabels(self):
+    def updateLabels(self, clear = False ):
+        if clear: self.clearLabels()
         print( f"Updating {len(self.point_selection)} labels")
         for ( cy, cx, c ) in self.point_selection:
             iy, ix = self.block.coord2index(cy, cx)
@@ -294,11 +296,13 @@ class LabelingConsole:
              (y0, y1) = ax.get_ylim()
              print(f"ZOOM Event: Updated bounds: ({x0},{x1}), ({y0},{y1})")
 
-    def update_plots(self ):
-        frame_data = self.data[ self.currentFrame]
-        self.image.set_data( frame_data  )
-        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
-        self.plot_axes.title.set_fontsize( 8 )
+    def update_plots(self):
+        if self.image is not None:
+            frame_data = self.data[ self.currentFrame ]
+            self.image.set_data( frame_data  )
+            self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
+            self.plot_axes.title.set_fontsize( 8 )
+#            Task.mainWindow().update()
 
     def onMouseRelease(self, event):
         pass

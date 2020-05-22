@@ -136,6 +136,10 @@ class Block:
         yIndices, xIndices = self.coords2indices(cy, cx)
         return  self.data.values[ :, yIndices, xIndices ].transpose()
 
+    def getSelectedPointIndices( self, cy: List[float], cx: List[float] ) -> np.ndarray:
+        yIndices, xIndices = self.coords2indices(cy, cx)
+        return  yIndices * self.shape[1] + xIndices
+
     def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
         iy, ix = self.coord2index(cy, cx)
         return self.data[:,iy,ix].values.reshape(1, -1)

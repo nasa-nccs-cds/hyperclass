@@ -40,7 +40,8 @@ class UMAPManager:
         if mid == None: mid = self.point_cloud_mid
         return self._embedding.get( mid, None )
 
-    def getMapper(self, mid: str, **kwargs ) -> UMAP:
+    def getMapper(self, mid: str = None, **kwargs ) -> UMAP:
+        if mid == None: mid = self.point_cloud_mid
         refresh = kwargs.pop( 'refresh', False )
         if ( self[mid] is None ) or refresh:
             parms = self.tile.dm.config.section("umap").toDict()
