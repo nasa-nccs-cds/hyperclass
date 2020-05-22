@@ -16,7 +16,7 @@ from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
 from hyperclass.gui.tasks import taskRunner, Task
-from PyQt5.QtCore import QTimer
+from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from skimage.transform import ProjectiveTransform
@@ -109,7 +109,8 @@ class LabelingConsole:
         self.point_selection = []
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
-        self.umgr = umgr
+        self.umgr: UMAPManager = umgr
+        self.svc: SVC = None
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
         self.setBlock( kwargs.pop( 'block', block_index ) )
         self.global_bounds: Bbox = None
@@ -192,7 +193,11 @@ class LabelingConsole:
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.flow.nnd, labels, block=self.block, mid=mid, ndim=ndim, **kwargs )
         embedding = self.umgr.embedding( mid )
-        print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {time.time()-t0} sec")
+        t1 = time.time()
+        print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
+        self.svc = SVC.instance( "SVCL" )
+        self.svc.fit( embedding, labels )
+        print(f"Fit SVC model (sv-shape: {self.svc.support_vectors.shape}) in {time.time() - t1} sec")
 
     def clearLabels( self, event = None ):
         nodata_value = -2
