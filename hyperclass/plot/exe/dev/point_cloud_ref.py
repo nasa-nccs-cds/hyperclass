@@ -107,7 +107,7 @@ class vtkPointCloud():
         self.polydata.SetVerts(self.vertices)
 
     #        self.polydata.Modified()
-    #        self.mapper.Modified()
+    #        self._mapper.Modified()
     #        self.actor.Modified()
     #        self.actor.SetVisibility( True  )
 
@@ -244,7 +244,7 @@ class vtkPointCloud():
         if lut:  self.mapper.SetLookupTable(lut)
 
     #        if self.vrange:
-    #            self.mapper.SetScalarRange( self.vrange[0], self.vrange[1] )
+    #            self._mapper.SetScalarRange( self.vrange[0], self.vrange[1] )
     #            self.printLogMessage( " init scalar range %s " % str(self.vrange) )
 
     def getNumberOfPoints(self):

@@ -18,8 +18,9 @@ class UMAPManager:
         self._block: Optional[Block] = None
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
-        self._embedding: xa.DataArray = None
-        self.mapper: Dict[str,UMAP] = {}
+        self._embedding: Dict[str,xa.DataArray] = {}
+        self._mapper: Dict[str, UMAP] = {}
+        self.point_cloud_mid = "pcm"
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
 
@@ -32,41 +33,20 @@ class UMAPManager:
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
 
-    @property
-    def embedding(self) -> xa.DataArray:
-        return self._embedding
+    def __getitem__(self, key: str ) -> Optional[UMAP]:
+        return self._mapper.get(key, None)
 
-    def _getMapper( self, refresh = False ):
-        if (self.mapper is None) or refresh:
+    def embedding( self, mid: str = None ) -> Optional[xa.DataArray]:
+        if mid == None: mid = self.point_cloud_mid
+        return self._embedding.get( mid, None )
+
+    def getMapper(self, mid: str, **kwargs ) -> UMAP:
+        refresh = kwargs.pop( 'refresh', False )
+        if ( self[mid] is None ) or refresh:
             parms = self.tile.dm.config.section("umap").toDict()
-            self.mapper = UMAP(**parms)
-
-    def _getMapper1( self, block = None ):
-        if self.mapper is None:
-            mapper_file_path = self._mapperFilePath( block )
-            if self.refresh and os.path.isfile( mapper_file_path):
-                print( f"Removing older version of mapper at {mapper_file_path}")
-                os.remove( mapper_file_path)
-            self.mapper = self._loadMapper( mapper_file_path )
-            if self.mapper is None:
-                parms = self.tile.dm.config.section("umap").toDict()
-                self.mapper = UMAP(**parms)
-
-    def _mapperFilePath( self, block: Block = None ) -> str:
-        path_cfg = self.tile.dm.config.toStr( ['tiles','umap'] )
-        if block is not None:
-            path_cfg = path_cfg + f"_b-{block.block_coords[0]}-{block.block_coords[1]}"
-        file_name = f"umap.{self.tile.dm.image_name}.{path_cfg}.pkl"
-        return os.path.join( self.tile.dm.config['output_dir'], file_name )
-
-    def _loadMapper( self, mapper_file_path ) -> Optional[UMAP]:
-        mapper: UMAP = None
-        if os.path.isfile( mapper_file_path ):
-            t0 = time.time()
-            mapper = pickle.load( open( mapper_file_path, "rb" ) )
-            t1 = time.time()
-            print( f"Completed loading UMAP in {(t1-t0)} sec from file {mapper_file_path}.")
-        return mapper
+            parms.update( kwargs )
+            self._mapper[mid] = UMAP(**parms)
+        return self[mid]
 
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
@@ -84,23 +64,22 @@ class UMAPManager:
 
     def embed(self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs):
         progress_callback = kwargs.get('progress_callback')
+        mid = kwargs.get( "mid", self.point_cloud_mid )
         t0 = time.time()
         self._block = self.getBlock( **kwargs )
-        self._getMapper( True )
+        ndim = 3 if mid == self.point_cloud_mid else kwargs.get( 'ndim', 8 )
+        mapper = self.getMapper( mid, refresh=True, n_components=ndim )
         point_data: xa.DataArray = self._block.getPointData( **kwargs ) if self._block else self.tile.getPointData( **kwargs )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
-        self.mapper.embed( point_data.data, nnd, labels_data, **kwargs )
-        edata = self.mapper.embedding_
-        self._embedding = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
-        self.point_cloud.setPoints( edata, labels_data )
+        mapper.embed(point_data.data, nnd, labels_data, **kwargs)
+        edata = mapper.embedding_
+        self._embedding[ mid ] = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
+        if mid == self.point_cloud_mid:
+            self.point_cloud.setPoints( edata, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec")
-        # mapper_path = self._mapperFilePath( block )
-        # if not os.path.isfile( mapper_path ):
-        #     print(f"Serializing mapper to file {mapper_path}")
-        #     pickle.dump( self.mapper, open( mapper_path, 'wb' ) )
 
     @property
     def conf_keys(self) -> List[str]:
@@ -115,7 +94,8 @@ class UMAPManager:
 
     def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         point_data = self._block.getSelectedPointData( ycoords, xcoords )
-        transformed_data: np.ndarray = self.mapper.transform(point_data)
+        mapper = self.getMapper( self.point_cloud_mid )
+        transformed_data: np.ndarray = mapper.transform(point_data)
         self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
 
     def update(self):
@@ -123,9 +103,10 @@ class UMAPManager:
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
-        self._getMapper()
+        mid = kwargs.get( 'mid', self.point_cloud_mid )
+        mapper = self.getMapper( mid )
         point_data: xa.DataArray = block.getPointData()
-        transformed_data: np.ndarray = self.mapper.transform( point_data )
+        transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
         block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs,

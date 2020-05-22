@@ -19,7 +19,7 @@ if __name__ == '__main__':
     plot_data = [ ]
     for color, ss in zip(colors,subsamples):
         umgr.embed(block = block, subsample = ss)
-        points1 = umgr.mapper.embedding_
+        points1 = umgr._mapper.embedding_
         plot_data.append( go.Scatter3d( x=points1[:,0], y=points1[:,1], z=points1[:,2], mode='markers',  marker= dict( color = color, size=1 ) ) )
 
     fig = go.Figure( data=plot_data )
