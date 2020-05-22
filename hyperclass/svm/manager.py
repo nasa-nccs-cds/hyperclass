@@ -44,7 +44,8 @@ class SVCL(SVC):
         self.svc.fit( X, y )
         self._score = self.decision_function(X)
         print(f"Completed SVC fit, in {time.time()-t0} secs")
-#        self._support_vector_indices = np.where( (2 * y - 1) * DX <= 1 )[0]
+
+#        self._support_vector_indices = np.where( (2 * y - 1) * self._score <= 1 )[0]    # For binary classifier
 #        self._support_vectors = X[ self.support_vector_indices ]
 
     def predict( self, X: np.ndarray ) -> np.ndarray:
