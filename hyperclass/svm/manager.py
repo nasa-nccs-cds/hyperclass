@@ -26,8 +26,8 @@ class SVC:
     def support_vector_indices(self) -> np.ndarray:
         return self._support_vector_indices
 
-    @abc.abstractmethod
     @property
+    @abc.abstractmethod
     def decision_function(self) -> Callable: pass
 
     @classmethod
