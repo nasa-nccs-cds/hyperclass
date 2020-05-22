@@ -15,6 +15,7 @@ class PointCloud():
         self.colormap = None
         self.mapper = None
         self.actor = None
+        self.polydata = None
         self.marker_actor = None
         self.points_modified = False
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
@@ -33,16 +34,19 @@ class PointCloud():
         print(".")
 
     def set_point_colors( self, sample_labels: np.array, **kwargs ):
-        labels = np.where( sample_labels >= 0, sample_labels, 0 )
-        colors = self.colormap[ labels ]
-        vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
-        vtk_color_data.SetNumberOfComponents( colors.shape[1] )
-        vtk_color_data.SetNumberOfTuples( colors.shape[0] )
-        vtk_color_data.SetName('colors')
-        vtkpts = self.polydata.GetPointData()
-        vtkpts.SetScalars(vtk_color_data)
-        vtkpts.SetActiveScalars('colors')
-        vtkpts.Modified()
+        if self.polydata is None:
+            print( "Points are not yet available" )
+        else:
+            labels = np.where( sample_labels >= 0, sample_labels, 0 )
+            colors = self.colormap[ labels ]
+            vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
+            vtk_color_data.SetNumberOfComponents( colors.shape[1] )
+            vtk_color_data.SetNumberOfTuples( colors.shape[0] )
+            vtk_color_data.SetName('colors')
+            vtkpts = self.polydata.GetPointData()
+            vtkpts.SetScalars(vtk_color_data)
+            vtkpts.SetActiveScalars('colors')
+            vtkpts.Modified()
 
     def update(self):
         if self.mapper is not None:   self.mapper.Modified()

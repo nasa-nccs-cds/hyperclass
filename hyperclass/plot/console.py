@@ -136,7 +136,11 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.button_actions =  OrderedDict( submit=self.submit_training_set, undo=self.undo_point_selection, clear=self.clearLabels, remodel=self.remodel )
+        self.button_actions =  OrderedDict(  spread=self.submit_training_set,
+                                             undo=self.undo_point_selection,
+                                             clear=self.clearLabels,
+                                             remodel=self.remodel,
+                                             learn=self.learn_classification )
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
                                                     [ "Increase Band Alpha", 'Alt+>', None, partial( self.update_image_alpha, "bands", True ) ],
@@ -173,10 +177,16 @@ class LabelingConsole:
     def remodel( self, event ):
         taskRunner.start( Task(  self.rebuild_model ), "Rebuilding model..." )
 
+    def learn_classification(self, event ):
+        taskRunner.start( Task(  self.learn_model ), "Learning class boundaries..." )
+
     def rebuild_model( self, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
         self.plot_markers()
+
+    def learn_model( self, **kwargs ):
+        pass
 
     def clearLabels( self, event = None ):
         nodata_value = -2
@@ -320,7 +330,6 @@ class LabelingConsole:
         if self.labels_image is not None:
             self.labels_image.set_alpha(1.0)
             self.update_canvas()
-
 
     def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
         self.umgr.color_pointcloud( sample_labels, **kwargs )

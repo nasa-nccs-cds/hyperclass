@@ -35,6 +35,9 @@ class Task(QRunnable):
         # Add the callback to our kwargs
         self.kwargs['progress_callback'] = self.signals.progress
 
+    def id(self):
+        return f"{id(self.fn):0X}{id(self.args):0X}{id(self.kwargs):0X}"
+
     @pyqtSlot()
     def run(self):
         try:
@@ -67,7 +70,6 @@ class TaskRunner(QObject):
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
     def start(self, task: Task, message: str, **kwargs ):
-        #  Cannot simultaneously run tasks with the same message
         if message not in self.executing_tasks:
             print(f"Task running: {message}")
             self.executing_tasks.append( message )
