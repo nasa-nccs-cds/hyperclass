@@ -186,7 +186,13 @@ class LabelingConsole:
         self.plot_markers()
 
     def learn_model( self, **kwargs ):
-        pass
+        t0 = time.time()
+        mid = kwargs.pop( "mid", "svm" )
+        ndim = kwargs.pop( "ndim", 8 )
+        labels: xa.DataArray = self.getExtendedLabelPoints()
+        self.umgr.embed( self.flow.nnd, labels, block=self.block, mid=mid, ndim=ndim, **kwargs )
+        embedding = self.umgr.embedding( mid )
+        print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {time.time()-t0} sec")
 
     def clearLabels( self, event = None ):
         nodata_value = -2
