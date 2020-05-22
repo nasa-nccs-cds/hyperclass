@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import numba
 from warnings import warn
 import datashader as ds
 import datashader.transfer_functions as tf
@@ -13,7 +12,7 @@ import plotly
 import plotly.graph_objs as go
 from matplotlib.patches import Patch
 import vtk
-from .point_cloud import PointCloud
+from hyperclass.plot.point_cloud import PointCloud
 
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
 darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -35,25 +34,17 @@ plt.register_cmap("darkgreen", darkgreen_cmap)
 plt.register_cmap("darkred", darkred_cmap)
 plt.register_cmap("darkpurple", darkpurple_cmap)
 
-
 def _to_hex(arr):
     return [matplotlib.colors.to_hex(c) for c in arr]
 
-
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
 def _red(x):
     return (x & 0xFF0000) >> 16
 
-
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
 def _green(x):
     return (x & 0x00FF00) >> 8
 
-
-@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
 def _blue(x):
     return x & 0x0000FF
-
 
 _themes = {
     "fire": {

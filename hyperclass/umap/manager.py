@@ -1,14 +1,14 @@
 import xarray as xa
-import time, pickle, copy
+import time, pickle
 import numpy as np
 from hyperclass.umap.model import UMAP
 from collections import OrderedDict
-from typing import List, Union, Tuple, Optional, Dict, Callable
-from hyperclass.plot.points import datashade_points, point_cloud_3d, point_cloud_vtk
+from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
 from pynndescent import NNDescent
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
-import os, math
+from hyperclass.data.aviris.manager import Tile, Block
+import os
+
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager:
@@ -121,25 +121,8 @@ class UMAPManager:
     def update(self):
         self.point_cloud.update()
 
-    def view_model( self, **kwargs ):
-        color_band = kwargs.pop( 'color_band', None )
-        reduction_axes =  kwargs.pop( 'reduction_axes', 0 )
-        self._getMapper()
-        model_data = self.mapper.embedding_
-        plot_parms = dict( cmap="jet", **kwargs )
-        if color_band is not None:
-            plot_parms['values'] = self.tile.getBandPointData( color_band  )
-        if model_data.shape[1] == 2:
-            datashade_points( model_data, **plot_parms )
-        elif model_data.shape[1] == 3:
-            point_cloud_vtk( model_data, **plot_parms )
-        else:
-            xmodel_data = xa.DataArray( model_data, dims=["samples","band"], coords=dict(samples=range(model_data.shape[0]),band=range(model_data.shape[1])))
-            point_cloud_vtk( xmodel_data.drop_sel(band=reduction_axes).values, **plot_parms )
-
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
-        plot = kwargs.get( 'plot', False )
         self._getMapper()
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = self.mapper.transform( point_data )
@@ -147,19 +130,8 @@ class UMAPManager:
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
         block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs,
                                     coords=dict( samples=point_data.coords['samples'], model=np.arange(0,transformed_data.shape[1]) ) )
-        if plot:
-            color_band = kwargs.pop( 'color_band', 200 )
-            color_data = point_data[:,color_band]
-            self.view_transform( block_model, values=color_data, **kwargs )
 
         transposed_raster = block.data.stack(samples=block.data.dims[1:]).transpose()
         new_raster = block_model.reindex(samples=transposed_raster.samples).unstack()
         new_raster.attrs['long_name'] = [ f"d-{i}" for i in range( new_raster.shape[0] ) ]
         return   dict( raster=new_raster, points=block_model )
-
-    def view_transform( self, model_data: xa.DataArray,  **kwargs ):
-        plot_parms = dict( cmap="jet", **kwargs )
-        if model_data.shape[1] == 2:
-            datashade_points( model_data, **plot_parms )
-        else:
-            point_cloud_vtk( model_data, **plot_parms )

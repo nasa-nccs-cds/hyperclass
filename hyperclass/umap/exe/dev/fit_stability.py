@@ -1,12 +1,6 @@
-import xarray as xa
-import umap, time, pickle
-import umap.plot
-from typing import List, Union, Tuple, Optional
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.plot.points import datashade_points, point_cloud_3d
 import plotly.graph_objs as go
-import os, math
 
 # Fit UMAP to hyperspectral data and view embedding
 

@@ -1,13 +1,9 @@
 from pynndescent import NNDescent
-import xarray as xa
 import numpy as np
 import numpy.ma as ma
-from typing import List, Union, Tuple, Optional
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.plot.points import datashade_points, point_cloud_3d
-import plotly.graph_objs as go
-import os, time
+import time
 
 # Fit compute NN graph over block
 

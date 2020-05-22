@@ -353,10 +353,11 @@ class LabelingConsole:
             self.update_canvas()
 
     def plot_markers( self, **kwargs ):
-        xcoords = [ps[1] for ps in self.point_selection]
-        ycoords = [ps[0] for ps in self.point_selection]
-        cvals = [ps[2] for ps in self.point_selection]
-        self.umgr.plot_markers( ycoords, xcoords, [ self.get_color(c) for c in cvals], **kwargs )
+        if len(self.point_selection):
+            xcoords = [ps[1] for ps in self.point_selection]
+            ycoords = [ps[0] for ps in self.point_selection]
+            cvals = [ps[2] for ps in self.point_selection]
+            self.umgr.plot_markers( ycoords, xcoords, [ self.get_color(c) for c in cvals], **kwargs )
 
     def plot_marker(self, yc, xc, c, **kwargs ):
         self.umgr.plot_markers( [yc], [xc], [ self.get_color(c) ], **kwargs )
