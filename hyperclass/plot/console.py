@@ -197,7 +197,7 @@ class LabelingConsole:
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
         self.svc = SVC.instance( "SVCL" )
         self.svc.fit( embedding, labels )
-        print(f"Fit SVC model (sv-shape: {self.svc.support_vectors.shape}) in {time.time() - t1} sec")
+        print(f"Fit SVC model (score shape: {self.svc.score.shape}) in {time.time() - t1} sec")
 
     def clearLabels( self, event = None ):
         nodata_value = -2

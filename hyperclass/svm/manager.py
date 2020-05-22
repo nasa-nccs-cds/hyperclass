@@ -9,8 +9,7 @@ class SVC:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
-        self._support_vector_indices: np.ndarray = None
-        self._support_vectors: np.ndarray = None
+        self._score: Optional[np.ndarray] = None
 
     @abc.abstractmethod
     def fit(self, X: np.ndarray, y: np.ndarray): pass
@@ -19,12 +18,8 @@ class SVC:
     def predict( self, X: np.ndarray ) -> np.ndarray: pass
 
     @property
-    def support_vectors(self) -> np.ndarray:
-        return self._support_vectors
-
-    @property
-    def support_vector_indices(self) -> np.ndarray:
-        return self._support_vector_indices
+    def score(self) -> Optional[np.ndarray]:
+        return self._score
 
     @property
     @abc.abstractmethod
@@ -42,13 +37,12 @@ class SVCL(SVC):
         SVC.__init__(self, **kwargs )
         tol = kwargs.pop( 'tol', 1e-5 )
         self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
-        self._support_vector_indices:  np.ndarray = None
-        self._support_vectors:  np.ndarray = None
 
     def fit( self, X: np.ndarray, y: np.ndarray ):
         self.svc.fit( X, y )
-        self._support_vector_indices = np.where( (2 * y - 1) * self.decision_function(X) <= 1 )[0]
-        self._support_vectors = X[ self.support_vector_indices ]
+        self._score = self.decision_function(X)
+#        self._support_vector_indices = np.where( (2 * y - 1) * DX <= 1 )[0]
+#        self._support_vectors = X[ self.support_vector_indices ]
 
     def predict( self, X: np.ndarray ) -> np.ndarray:
         return self.svc.predict( X )
