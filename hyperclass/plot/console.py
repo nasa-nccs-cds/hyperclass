@@ -448,11 +448,7 @@ class LabelingConsole:
         self.update_plots()
 
     def show(self):
-        self.slider.start()
         plt.show()
-
-    def start(self):
-        self.slider.start()
 
     def __del__(self):
         self.exit()
