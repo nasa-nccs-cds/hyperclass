@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from  matplotlib.transforms import Bbox
 from collections import OrderedDict
 from hyperclass.umap.manager import UMAPManager
+from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
@@ -137,15 +138,19 @@ class LabelingConsole:
         self.training_data = []
         self.currentFrame = 0
         self.currentClass = 0
-        self.button_actions =  OrderedDict(  spread=self.submit_training_set,
-                                             undo=self.undo_point_selection,
-                                             clear=self.clearLabels,
-                                             remodel=self.remodel,
-                                             learn=self.learn_classification )
+        self.button_actions =  OrderedDict(  spread=  self.submit_training_set,
+                                             undo=    self.undo_point_selection,
+                                             clear=   self.clearLabels,
+                                             remodel= partial(  self.run_task, self.rebuild_model,          "Rebuilding model..." ),
+                                             learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
+                                             apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
+                                          )
+
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
                                                     [ "Increase Band Alpha", 'Alt+>', None, partial( self.update_image_alpha, "bands", True ) ],
-                                                    [ "Decrease Band Alpha", 'Alt+<', None, partial( self.update_image_alpha, "bands", False ) ]] )
+                                                    [ "Decrease Band Alpha", 'Alt+<', None, partial( self.update_image_alpha, "bands", False ) ]]
+                                       )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -175,18 +180,15 @@ class LabelingConsole:
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
         self.plot_markers()
 
-    def remodel( self, event ):
-        taskRunner.start( Task(  self.rebuild_model ), "Rebuilding model..." )
+    def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
+        taskRunner.start( Task( executable, *args, **kwargs ), messsage )
 
-    def learn_classification(self, event ):
-        taskRunner.start( Task(  self.learn_model ), "Learning class boundaries..." )
-
-    def rebuild_model( self, **kwargs ):
+    def rebuild_model( self, *args, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
         self.plot_markers()
 
-    def learn_model( self, **kwargs ):
+    def learn_classification( self, *args, **kwargs  ):
         t0 = time.time()
         mid = kwargs.pop( "mid", "svm" )
         ndim = kwargs.pop( "ndim", 8 )
@@ -198,6 +200,9 @@ class LabelingConsole:
         self.svc = SVC.instance( "SVCL" )
         self.svc.fit( embedding, labels )
         print(f"Fit SVC model (score shape: {self.svc.score.shape}) in {time.time() - t1} sec")
+
+    def apply_classification( self, *args, **kwargs ):
+        pass
 
     def clearLabels( self, event = None ):
         nodata_value = -2

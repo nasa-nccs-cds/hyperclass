@@ -3,6 +3,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget
+from functools import partial
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
@@ -49,6 +50,13 @@ class HyperclassConsole(QMainWindow):
 
         nBlocks = umgr.tile.nBlocks
         load_menu = blocksMenu.addMenu("load")
+        for ib0 in range( nBlocks[0] ):
+            for ib1 in range( nBlocks[1] ):
+                bname = f"[{ib0},{ib1}]"
+                menuButton = QAction( bname, self)
+                menuButton.setStatusTip(f"Load block at block coords {bname}")
+                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
+                load_menu.addAction(menuButton)
 
         widget =  QWidget(self)
         self.setCentralWidget(widget)
