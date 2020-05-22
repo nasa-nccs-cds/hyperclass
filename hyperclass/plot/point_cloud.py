@@ -48,8 +48,7 @@ class PointCloud():
         if self.mapper is not None:   self.mapper.Modified()
         if self.polydata is not None: self.polydata.Modified()
         if self.actor is not None:    self.actor.Modified()
-        if self.points_modified:
-            self.renderer.ResetCamera()
+        if self.points_modified:      self.renderer.ResetCamera()
         if self.renWin is not None:   self.renWin.Render()
         self.points_modified = False
 
