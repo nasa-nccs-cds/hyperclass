@@ -62,11 +62,8 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Start()
 
     def update(self, **kwargs ):
-        init_viewpoint = kwargs.get( 'init_viewpoint', False )
         self.umgr.point_cloud.createActor(self.renderer)
         self.umgr.point_cloud.update()
-        if init_viewpoint:
-            self.renderer.ResetCamera()
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
 

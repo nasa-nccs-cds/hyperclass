@@ -16,6 +16,7 @@ class PointCloud():
         self.mapper = None
         self.actor = None
         self.marker_actor = None
+        self.points_modified = False
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
     def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
@@ -47,7 +48,11 @@ class PointCloud():
         if self.mapper is not None:   self.mapper.Modified()
         if self.polydata is not None: self.polydata.Modified()
         if self.actor is not None:    self.actor.Modified()
+        if self.points_modified:
+            self.renderer.ResetCamera()
         if self.renWin is not None:   self.renWin.Render()
+        self.points_modified = False
+
 
     # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
     #     lut = vtk.vtkLookupTable()
@@ -79,6 +84,7 @@ class PointCloud():
         self.polydata.SetVerts(vertices)
         self.set_point_colors( np.full( shape=[nPoints], fill_value= 0 ) )
         self.polydata.Modified()
+        self.points_modified = True
         if self.mapper is not None:
             self.mapper.SetInputData(self.polydata)
             self.mapper.Modified()

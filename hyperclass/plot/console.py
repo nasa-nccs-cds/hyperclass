@@ -163,7 +163,7 @@ class LabelingConsole:
         self.read_training_data()
         self.clearLabels()
         labels: xa.DataArray = self.getLabeledPointData()
-        taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding...", init_viewpoint = True )
+        taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         self.umgr.embed(nnd, labels, **kwargs)
@@ -171,7 +171,7 @@ class LabelingConsole:
         self.plot_markers()
 
     def remodel( self, event ):
-        taskRunner.start( Task(  self.rebuild_model ), "Rebuilding model...", init_viewpoint = True )
+        taskRunner.start( Task(  self.rebuild_model ), "Rebuilding model..." )
 
     def rebuild_model( self, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
