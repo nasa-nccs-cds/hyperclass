@@ -71,7 +71,7 @@ class UMAPManager:
         mapper = self.getMapper( mid, refresh=True, n_components=ndim )
         point_data: xa.DataArray = self._block.getPointData( **kwargs ) if self._block else self.tile.getPointData( **kwargs )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap to {self.iparm('n_components')} dims with {point_data.shape[0]} samples")
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{mid}] to {ndim} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
         mapper.embed(point_data.data, nnd, labels_data, **kwargs)
         edata = mapper.embedding_
@@ -79,7 +79,7 @@ class UMAPManager:
         if mid == self.point_cloud_mid:
             self.point_cloud.setPoints( edata, labels_data )
         t2 = time.time()
-        print(f"Completed umap fitting in {(t2 - t1)} sec")
+        print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {edata.shape}")
 
     @property
     def conf_keys(self) -> List[str]:
