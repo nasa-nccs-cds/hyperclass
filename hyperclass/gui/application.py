@@ -3,6 +3,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget
+from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
@@ -26,6 +27,7 @@ class HyperclassConsole(QMainWindow):
         mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('File')
         helpMenu = mainMenu.addMenu('Help')
+        blocksMenu = mainMenu.addMenu('Blocks')
 
         exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
         exitButton.setShortcut('Ctrl+Q')
@@ -44,6 +46,10 @@ class HyperclassConsole(QMainWindow):
                 if menuItem[2] is not None: menuButton.setStatusTip( menuItem[2] )
                 menuButton.triggered.connect( menuItem[3] )
                 menu.addAction(menuButton)
+
+        tile: Tile =  umgr.tile
+        nBlocks = tile.nBlocks
+        load_menu = blocksMenu.addMenu("load")
 
         widget =  QWidget(self)
         self.setCentralWidget(widget)
