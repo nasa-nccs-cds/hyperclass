@@ -19,7 +19,7 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
 
-class TrainingDataIO:
+class MarkerManager:
 
     def __init__(self, file_path: str,  **kwargs ):
         self.file_path = file_path
@@ -31,12 +31,12 @@ class TrainingDataIO:
     def hasData(self):
         return self.values is not None
 
-    def writeLabelData(self, names, colors, values ):
+    def writeMarkers(self, names, colors, values):
         with open( self.file_path, 'wb' ) as f:
             print( f"Saving {len(values)} labeled points to file {self.file_path}")
             pickle.dump( [ names, colors, values ], f )
 
-    def readLabelData(self):
+    def readMarkers(self):
         if os.path.isfile(self.file_path):
             print(f"Reading Label data from file {self.file_path}")
             with open(self.file_path, 'rb') as f:
@@ -179,7 +179,7 @@ class DataManager:
         self.tile_index = self.config.getShape('tile_index')
         [self.iy, self.ix] = self.tile_index
         self.block_shape = self.config.getShape( 'block_shape' )
-        self.tdio = TrainingDataIO( os.path.join( self.config['data_dir'], self.trainingDataFileName() + ".pkl" ) )
+        self.markers = MarkerManager(os.path.join(self.config['data_dir'], self.markerFileName() + ".pkl"))
         self.tile = None
 
     def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
@@ -275,7 +275,7 @@ class DataManager:
     def tileFileName(self) -> str:
         return f"{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
 
-    def trainingDataFileName(self) -> str:
+    def markerFileName(self) -> str:
         return f"tdata_{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
 
     @property

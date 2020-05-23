@@ -2,7 +2,6 @@ import matplotlib.widgets
 import matplotlib.patches
 from pynndescent import NNDescent
 from functools import partial
-from hyperclass.plot.labels import Markers
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
@@ -14,6 +13,7 @@ from hyperclass.umap.manager import UMAPManager
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
+from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
 from hyperclass.gui.tasks import taskRunner, Task
@@ -107,16 +107,14 @@ class LabelingConsole:
 
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
-        self.currentFrame = 0
-        self.image: AxesImage = None
-        self.point_selection = []
+        self.marker_list = []
+        self.marker_plot: PathCollection = None
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
-        self.markers = Markers(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svc: SVC = None
+        self.read_markers()
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
-        self.read_training_data()
         self.setBlock( kwargs.pop( 'block', block_index ) )
         self.global_bounds: Bbox = None
         self.global_crange = None
@@ -124,6 +122,7 @@ class LabelingConsole:
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
             self.figure = plt.figure()
+        self.image: AxesImage = None
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.frame_marker: Line2D = None
@@ -138,14 +137,15 @@ class LabelingConsole:
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
         self.training_data = []
+        self.currentFrame = 0
         self.currentClass = 0
-        self.button_actions =  OrderedDict(  spread=  self.submit_training_set,
-                                             undo=    self.undo_point_selection,
-                                             clear=   self.clearLabels,
-                                             remodel= partial(  self.run_task, self.rebuild_model,          "Rebuilding model..." ),
-                                             learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
-                                             apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
-                                          )
+        self.button_actions =  OrderedDict(spread=  self.submit_training_set,
+                                           undo=    self.undo_marker_selection,
+                                           clear=   self.clearLabels,
+                                           remodel= partial(  self.run_task, self.rebuild_model,          "Rebuilding model..." ),
+                                           learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
+                                           apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
+                                           )
 
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
@@ -171,15 +171,15 @@ class LabelingConsole:
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
+        self.plot_markers_image()
         self.clearLabels()
-        self.update_plots()
-        labels: xa.DataArray = self.getLabeledPointData(True)
+        labels: xa.DataArray = self.getLabeledPointData()
         taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         self.umgr.embed(nnd, labels, **kwargs)
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
-        self.plot_markers()
+        self.plot_markers_volume()
 
     def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
         taskRunner.start( Task( executable, *args, **kwargs ), messsage )
@@ -187,7 +187,7 @@ class LabelingConsole:
     def rebuild_model( self, *args, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
-        self.plot_markers()
+        self.plot_markers_volume()
 
     def learn_classification( self, *args, **kwargs  ):
         t0 = time.time()
@@ -213,10 +213,9 @@ class LabelingConsole:
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
-    def updateLabels(self, clear = False ):
-        if clear: self.clearLabels()
-        print( f"Updating {len(self.point_selection)} labels")
-        for ( cy, cx, c ) in self.point_selection:
+    def updateLabelsFromMarkers(self):
+        print(f"Updating {len(self.marker_list)} labels")
+        for ( cy, cx, c ) in self.marker_list:
             iy, ix = self.block.coord2index(cy, cx)
             try:
                 self.labels[ iy, ix ] = c
@@ -224,7 +223,7 @@ class LabelingConsole:
                 print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
-        if update: self.updateLabels()
+        if update: self.updateLabelsFromMarkers()
         labeledPointData = self.tile.dm.raster2points( self.labels )
         return labeledPointData
 
@@ -296,13 +295,11 @@ class LabelingConsole:
              (y0, y1) = ax.get_ylim()
              print(f"ZOOM Event: Updated bounds: ({x0},{x1}), ({y0},{y1})")
 
-    def update_plots(self):
-        if self.image is not None:
-            frame_data = self.data[ self.currentFrame ]
-            self.image.set_data( frame_data  )
-            self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
-            self.plot_axes.title.set_fontsize( 8 )
-            Task.mainWindow().refresh_image()
+    def update_plots(self ):
+        frame_data = self.data[ self.currentFrame]
+        self.image.set_data( frame_data  )
+        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
+        self.plot_axes.title.set_fontsize( 8 )
 
     def onMouseRelease(self, event):
         pass
@@ -314,18 +311,18 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    self.add_point_selection( event )
+                    self.add_marker(event)
                     self.dataLims = event.inaxes.dataLim
 
-    def add_point_selection(self, event ):
+    def add_marker(self, event):
         point = [ event.ydata, event.xdata, self.selectedClass ]
-        self.point_selection.append( point )
-        self.plot_points()
+        self.marker_list.append(point)
+        self.plot_markers_image()
         taskRunner.start( Task( self.plot_marker, *point ), f"Plot label at {event.ydata} {event.xdata}" )
 
-    def undo_point_selection(self, event ):
-        self.point_selection.pop()
-        self.plot_points()
+    def undo_marker_selection(self, event):
+        self.marker_list.pop()
+        self.plot_markers_image()
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
@@ -371,21 +368,21 @@ class LabelingConsole:
         if class_index is None: class_index = self.selectedClass
         return self.class_colors[self.class_labels[ class_index ]]
 
-    def plot_points(self ):
-        if self.point_selection:
-            xcoords = [ ps[1] for ps in self.point_selection ]
-            ycoords = [ ps[0] for ps in self.point_selection ]
-            cvals   = [ ps[2] for ps in self.point_selection ]
+    def plot_markers_image(self):
+        if self.marker_list:
+            xcoords = [ps[1] for ps in self.marker_list]
+            ycoords = [ps[0] for ps in self.marker_list]
+            cvals   = [ps[2] for ps in self.marker_list]
             colors = [ self.get_color(ic) for ic in cvals ]
-            self.training_points.set_offsets(np.c_[ xcoords, ycoords ] )
-            self.training_points.set_facecolor( colors )
+            self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
+            self.marker_plot.set_facecolor(colors)
             self.update_canvas()
 
-    def plot_markers( self, **kwargs ):
-        if len(self.point_selection):
-            xcoords = [ps[1] for ps in self.point_selection]
-            ycoords = [ps[0] for ps in self.point_selection]
-            cvals = [ps[2] for ps in self.point_selection]
+    def plot_markers_volume(self, **kwargs):
+        if len(self.marker_list):
+            xcoords = [ps[1] for ps in self.marker_list]
+            ycoords = [ps[0] for ps in self.marker_list]
+            cvals = [ps[2] for ps in self.marker_list]
             self.umgr.plot_markers( ycoords, xcoords, [ self.get_color(c) for c in cvals], **kwargs )
 
     def plot_marker(self, yc, xc, c, **kwargs ):
@@ -395,17 +392,17 @@ class LabelingConsole:
         self.figure.canvas.draw_idle()
         plt.pause(0.01)
 
-    def read_training_data(self):
-        self.tile.dm.tdio.readLabelData()
-        if self.tile.dm.tdio.hasData:
-            self.point_selection = self.tile.dm.tdio.values
-            self.umgr.class_labels: List[str] = self.tile.dm.tdio.names
-            self.umgr.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.tdio.colors
-            print( f"Reading {len(self.point_selection)} point labels from file { self.tile.dm.tdio.file_path}")
+    def read_markers(self):
+        self.tile.dm.markers.readMarkers()
+        if self.tile.dm.markers.hasData:
+            self.marker_list = self.tile.dm.markers.values
+            self.umgr.class_labels: List[str] = self.tile.dm.markers.names
+            self.umgr.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.markers.colors
+            print(f"Reading {len(self.marker_list)} point labels from file { self.tile.dm.markers.file_path}")
 
-    def write_training_data(self):
-        print( f"Writing {len(self.point_selection)} point labels ot file {self.tile.dm.tdio.file_path}")
-        self.tile.dm.tdio.writeLabelData( self.class_labels, self.class_colors, self.point_selection )
+    def write_markers(self):
+        print(f"Writing {len(self.marker_list)} point labels ot file {self.tile.dm.markers.file_path}")
+        self.tile.dm.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
     def datalims_changed(self ) -> bool:
         previous_datalims: Bbox = self.dataLims
@@ -414,10 +411,10 @@ class LabelingConsole:
 
     def add_plots(self, **kwargs ):
         self.image = self.create_image(**kwargs)
-        self.training_points = self.plot_axes.scatter( [],[], s=50, zorder=2, alpha=1 )
-        self.training_points.set_edgecolor( [0,0,0] )
-        self.training_points.set_linewidth( 2 )
-        self.plot_points()
+        self.marker_plot = self.plot_axes.scatter([], [], s=50, zorder=2, alpha=1)
+        self.marker_plot.set_edgecolor([0, 0, 0])
+        self.marker_plot.set_linewidth(2)
+        self.plot_markers_image()
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
@@ -434,7 +431,7 @@ class LabelingConsole:
         actions = [ "Submit", "Undo", "Clear" ]
         self.button_box = ButtonBox( cax, [3,3], actions )
         self.button_box.addCallback( actions[0], self.submit_training_set )
-        self.button_box.addCallback( actions[1], self.undo_point_selection )
+        self.button_box.addCallback(actions[1], self.undo_marker_selection)
         self.button_box.addCallback( actions[2], self.clearLabels )
 
 
@@ -463,5 +460,5 @@ class LabelingConsole:
         self.exit()
 
     def exit(self):
-        self.write_training_data()
+        self.write_markers()
 
