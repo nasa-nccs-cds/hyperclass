@@ -120,6 +120,12 @@ class Block:
         return block_raster
 
     @property
+    def xlim(self): return [ self.data.transform[2], self.data.transform[2] + self.data.transform[0] * (self.data.shape[2]) ]
+
+    @property
+    def ylim(self): return [ self.data.transform[5] + self.data.transform[4] * (self.data.shape[1]), self.data.transform[5] ]
+
+    @property
     def shape(self) -> Tuple[int,int]:
         return self.tile.dm.block_shape
 

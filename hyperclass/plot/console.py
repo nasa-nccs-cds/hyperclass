@@ -109,18 +109,16 @@ class LabelingConsole:
         self._debug = False
         self.currentFrame = 0
         self.image: AxesImage = None
+        self.plot_axes: Axes = None
         self.marker_list = []
         self.marker_plot: PathCollection = None
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svc: SVC = None
-        self.read_markers()
-        block_index = umgr.tile.dm.config.getShape( 'block_index' )
-        self.setBlock( kwargs.pop( 'block', block_index ) )
-        self.global_bounds: Bbox = None
-        self.global_crange = None
-        self.plot_axes: Axes = None
+        self.dataLims = {}
+        self.currentClass = 0
+
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
             self.figure = plt.figure()
@@ -128,17 +126,21 @@ class LabelingConsole:
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.frame_marker: Line2D = None
         self.control_axes = {}
-        self.setup_plot(**kwargs)
-        self.dataLims = {}
+
+        self.read_markers()
+        block_index = umgr.tile.dm.config.getShape( 'block_index' )
+        self.setBlock( kwargs.pop( 'block', block_index ) )
+
+        self.nFrames = self.data.shape[0]
         self.band_axis = kwargs.pop('band', 0)
         self.z_axis_name = self.data.dims[ self.band_axis]
         self.x_axis = kwargs.pop( 'x', 2 )
         self.x_axis_name = self.data.dims[ self.x_axis ]
         self.y_axis = kwargs.pop( 'y', 1 )
         self.y_axis_name = self.data.dims[ self.y_axis ]
-        self.nFrames = self.data.shape[0]
-        self.training_data = []
-        self.currentClass = 0
+
+        self.setup_plot(**kwargs)
+
         self.button_actions =  OrderedDict(spread=  self.submit_training_set,
                                            undo=    self.undo_marker_selection,
                                            clear=   self.clearLabels,
@@ -171,11 +173,17 @@ class LabelingConsole:
         self.block: Block = self.tile.getBlock( *block_coords )
         self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
+        self.update_plot_axis_bounds()
         self.plot_markers_image()
         self.clearLabels()
         self.update_plots()
         labels: xa.DataArray = self.getLabeledPointData(True)
         taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
+
+    def update_plot_axis_bounds( self ):
+        if self.plot_axes is not None:
+            self.plot_axes.set_xlim( self.block.xlim )
+            self.plot_axes.set_ylim( self.block.ylim )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
         self.umgr.embed(nnd, labels, **kwargs)
@@ -372,7 +380,7 @@ class LabelingConsole:
         return self.class_colors[self.class_labels[ class_index ]]
 
     def plot_markers_image(self):
-        if self.marker_list:
+        if self.marker_list and self.marker_plot:
             xcoords = [ps[1] for ps in self.marker_list]
             ycoords = [ps[0] for ps in self.marker_list]
             cvals   = [ps[2] for ps in self.marker_list]
