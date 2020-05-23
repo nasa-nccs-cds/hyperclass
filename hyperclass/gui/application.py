@@ -18,6 +18,8 @@ class HyperclassConsole(QMainWindow):
         self.width = 1920
         self.height = 1080
         self.NFunctionButtons = 0
+        self.console = None
+        self.vtkFrame = None
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -79,7 +81,16 @@ class HyperclassConsole(QMainWindow):
 
     def update( self, **kwargs ):
         self.showMessage('Ready')
-        self.vtkFrame.update( **kwargs )
+        self.refresh_points( **kwargs )
+        self.refresh_image( **kwargs )
+
+    def refresh_points( self, **kwargs ):
+        if self.vtkFrame is not None:
+            self.vtkFrame.update( **kwargs )
+
+    def refresh_image( self, **kwargs ):
+        if self.console is not None:
+            self.console.update()
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)

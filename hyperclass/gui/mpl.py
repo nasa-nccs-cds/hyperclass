@@ -27,6 +27,10 @@ class MplWidget(QWidget):
     def menu_actions(self) -> Dict:
         return self.canvas.menu_actions
 
+    def update(self):
+        self.canvas.draw()
+        self.repaint()
+
 class MplCanvas(FigureCanvas):
 
     def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100):

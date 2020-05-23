@@ -2,6 +2,7 @@ import matplotlib.widgets
 import matplotlib.patches
 from pynndescent import NNDescent
 from functools import partial
+from hyperclass.plot.labels import Markers
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
@@ -13,7 +14,6 @@ from hyperclass.umap.manager import UMAPManager
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.dates import num2date
-from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.graph.flow import ActivationFlow
 from hyperclass.gui.tasks import taskRunner, Task
@@ -112,6 +112,7 @@ class LabelingConsole:
         self.point_selection = []
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
+        self.markers = Markers(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svc: SVC = None
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
@@ -125,7 +126,6 @@ class LabelingConsole:
             self.figure = plt.figure()
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
-        self.training_points: PathCollection = None
         self.frame_marker: Line2D = None
         self.control_axes = {}
         self.setup_plot(**kwargs)
@@ -173,7 +173,7 @@ class LabelingConsole:
         self.flow.setNodeData( self.block.getPointData() )
         self.clearLabels()
         self.update_plots()
-        labels: xa.DataArray = self.getLabeledPointData()
+        labels: xa.DataArray = self.getLabeledPointData(True)
         taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
@@ -302,7 +302,7 @@ class LabelingConsole:
             self.image.set_data( frame_data  )
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
-#            Task.mainWindow().update()
+            Task.mainWindow().refresh_image()
 
     def onMouseRelease(self, event):
         pass
