@@ -107,6 +107,8 @@ class LabelingConsole:
 
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
+        self.currentFrame = 0
+        self.image: AxesImage = None
         self.marker_list = []
         self.marker_plot: PathCollection = None
         self.label_map: xa.DataArray = None
@@ -122,7 +124,6 @@ class LabelingConsole:
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
             self.figure = plt.figure()
-        self.image: AxesImage = None
         self.labels_image: AxesImage = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.frame_marker: Line2D = None
@@ -137,7 +138,6 @@ class LabelingConsole:
         self.y_axis_name = self.data.dims[ self.y_axis ]
         self.nFrames = self.data.shape[0]
         self.training_data = []
-        self.currentFrame = 0
         self.currentClass = 0
         self.button_actions =  OrderedDict(spread=  self.submit_training_set,
                                            undo=    self.undo_marker_selection,
@@ -173,7 +173,8 @@ class LabelingConsole:
         self.flow.setNodeData( self.block.getPointData() )
         self.plot_markers_image()
         self.clearLabels()
-        labels: xa.DataArray = self.getLabeledPointData()
+        self.update_plots()
+        labels: xa.DataArray = self.getLabeledPointData(True)
         taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
 
     def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
@@ -295,11 +296,13 @@ class LabelingConsole:
              (y0, y1) = ax.get_ylim()
              print(f"ZOOM Event: Updated bounds: ({x0},{x1}), ({y0},{y1})")
 
-    def update_plots(self ):
-        frame_data = self.data[ self.currentFrame]
-        self.image.set_data( frame_data  )
-        self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
-        self.plot_axes.title.set_fontsize( 8 )
+    def update_plots(self):
+        if self.image is not None:
+            frame_data = self.data[ self.currentFrame ]
+            self.image.set_data( frame_data  )
+            self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
+            self.plot_axes.title.set_fontsize( 8 )
+            Task.mainWindow().refresh_image()
 
     def onMouseRelease(self, event):
         pass
