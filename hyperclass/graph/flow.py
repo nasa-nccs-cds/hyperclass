@@ -26,7 +26,7 @@ class ActivationFlow:
         n_trees =  kwargs.get( 'ntree', 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0)) )
         n_iters = kwargs.get( 'niter', max(5, 2*int(round(np.log2(self.nodes.shape[0])))))
         self.nnd = NNDescent( self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
-        self.nnd._init_search_graph()
+        self.nnd._init_search_graph()  # Allowing this to be executed lazily causes problems with multithreading
         self.I = self.nnd.neighbor_graph[0]
         self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
         print( f"Computed NN[{self.n_neighbors}] Graph in {time.time()-t0} sec")
