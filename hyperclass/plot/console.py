@@ -116,7 +116,7 @@ class LabelingConsole:
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr: UMAPManager = umgr
-        self.svc: SVC = None
+        self.svcs: Dict[str,SVC] = {}
         self.dataLims = {}
         self.currentClass = 0
 
@@ -212,12 +212,25 @@ class LabelingConsole:
         embedding = self.umgr.embedding( mid )
         t1 = time.time()
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
-        self.svc = SVC.instance( "SVCL" )
-        self.svc.fit( embedding, labels )
-        print(f"Fit SVC model (score shape: {self.svc.score.shape}) in {time.time() - t1} sec")
+        if embedding is not None:
+            score = self.get_svc().fit( embedding.values, labels.values )
+            print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+
+    def get_svc( self, **kwargs ):
+        type = kwargs.get('type',"SVCL")
+        key = str(self.block.block_coords)
+        svc = self.svcs.get( key, None )
+        if svc == None:
+            svc = SVC.instance( type )
+            self.svcs[ key ] = svc
+        return svc
 
     def apply_classification( self, *args, **kwargs ):
-        pass
+        mid = kwargs.pop("mid", "svm")
+        embedding = self.umgr.embedding(mid)
+        if embedding is not None:
+            prediction = self.get_svc().predict( embedding.values )
+            pass
 
     def clearLabels( self, event = None ):
         nodata_value = -2

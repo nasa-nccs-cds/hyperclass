@@ -38,12 +38,13 @@ class SVCL(SVC):
         tol = kwargs.pop( 'tol', 1e-5 )
         self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
 
-    def fit( self, X: np.ndarray, y: np.ndarray ):
+    def fit( self, X: np.ndarray, y: np.ndarray ) -> np.ndarray:
         t0 = time.time()
         print(f"Running SVC fit, X shape: {X.shape}), y shape: {y.shape})")
         self.svc.fit( X, y )
         self._score = self.decision_function(X)
         print(f"Completed SVC fit, in {time.time()-t0} secs")
+        return self._score
 
 #        self._support_vector_indices = np.where( (2 * y - 1) * self._score <= 1 )[0]    # For binary classifier
 #        self._support_vectors = X[ self.support_vector_indices ]
