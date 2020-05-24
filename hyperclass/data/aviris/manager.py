@@ -74,6 +74,13 @@ class Tile:
             self._transform = ProjectiveTransform( np.array(list(self.data.transform) + [0, 0, 1]).reshape(3, 3) )
         return self._transform
 
+    def get_block_transform( self, iy, ix ) -> ProjectiveTransform:
+        tr0 = self.data.transform
+        iy0, ix0 = iy*self.dm.block_shape[0], ix*self.dm.block_shape[1]
+        y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
+        tr1 = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0, 0, 0, 1  ]
+        return  ProjectiveTransform( np.array(tr1).reshape(3, 3) )
+
     @property
     def filename(self) -> str:
         return self.data.attrs['filename']
@@ -110,7 +117,11 @@ class Block:
         self.config = kwargs
         self.block_coords = (iy,ix)
         self.data = self._getData()
-        self.transform = ProjectiveTransform( np.array( list(self.data.transform) + [0,0,1] ).reshape(3,3) )
+        self.transform = tile.get_block_transform( iy, ix )
+        self.data.attrs['transform'] = self.transform
+        tr = self.transform.params.flatten()
+        self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
+        self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
 
     def _getData( self ) -> xa.DataArray:
         ybounds, xbounds = self.getBounds()
@@ -120,10 +131,19 @@ class Block:
         return block_raster
 
     @property
-    def xlim(self): return [ self.data.transform[2], self.data.transform[2] + self.data.transform[0] * (self.data.shape[2]) ]
+    def xlim(self): return self._xlim
 
     @property
-    def ylim(self): return [ self.data.transform[5] + self.data.transform[4] * (self.data.shape[1]), self.data.transform[5] ]
+    def ylim(self): return self._ylim
+
+    @property
+    def extent(self):   # left, right, bottom, top
+        return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
+
+    def inBounds(self, yc: float, xc: float ) -> bool:
+        if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False
+        if (xc < self._xlim[0]) or (xc > self._xlim[1]): return False
+        return True
 
     @property
     def shape(self) -> Tuple[int,int]:
@@ -360,8 +380,8 @@ class DataManager:
         rescale = kwargs.pop( 'rescale', None )
         colorbar = kwargs.pop( 'colorbar', True )
         colorstretch = kwargs.pop( 'colorstretch', 1.5 )
-        x = raster.coords[ raster.dims[1] ]
-        y = raster.coords[ raster.dims[0] ]
+        x = raster.coords[ raster.dims[1] ].values
+        y = raster.coords[ raster.dims[0] ].values
         try:
             xstep = (x[1] - x[0]) / 2.0
         except IndexError: xstep = .1

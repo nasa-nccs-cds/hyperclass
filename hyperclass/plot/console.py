@@ -2,6 +2,7 @@ import matplotlib.widgets
 import matplotlib.patches
 from pynndescent import NNDescent
 from functools import partial
+from hyperclass.util.diagnostics import emphasize
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
@@ -110,7 +111,7 @@ class LabelingConsole:
         self.currentFrame = 0
         self.image: AxesImage = None
         self.plot_axes: Axes = None
-        self.marker_list = []
+        self.marker_list: List[Tuple[float,float,int]] = []
         self.marker_plot: PathCollection = None
         self.label_map: xa.DataArray = None
         self.flow = ActivationFlow(**kwargs)
@@ -169,9 +170,12 @@ class LabelingConsole:
     def tile(self):
         return self.umgr.tile
 
+    @property
+    def transform(self):
+        return self.block.transform
+
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
-        self.transform = ProjectiveTransform( np.array( list(self.block.data.transform) + [0, 0, 1] ).reshape(3, 3) )
         self.flow.setNodeData( self.block.getPointData() )
         self.update_plot_axis_bounds()
         self.plot_markers_image()
@@ -182,6 +186,7 @@ class LabelingConsole:
 
     def update_plot_axis_bounds( self ):
         if self.plot_axes is not None:
+            emphasize("Setting plot axis bounds", f"ylim: {self.block.ylim}", f"xlim: {self.block.xlim}")
             self.plot_axes.set_xlim( self.block.xlim )
             self.plot_axes.set_ylim( self.block.ylim )
 
@@ -249,7 +254,7 @@ class LabelingConsole:
         return self.umgr.class_labels
 
     @property
-    def class_colors(self):
+    def class_colors(self) -> Dict[str,List[float]]:
         return self.umgr.class_colors
 
     @property
@@ -296,6 +301,7 @@ class LabelingConsole:
         overlays = kwargs.get( "overlays", {} )
         for color, overlay in overlays.items():
             overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
+        emphasize("Initialize plot axis bounds", f"ylim: {self.plot_axes.get_ylim()}", f"xlim: {self.plot_axes.get_xlim()}")
         return image
 
     def on_lims_change(self, ax ):
@@ -306,8 +312,9 @@ class LabelingConsole:
 
     def update_plots(self):
         if self.image is not None:
-            frame_data = self.data[ self.currentFrame ]
-            self.image.set_data( frame_data  )
+            frame_data: xa.DataArray = self.data[ self.currentFrame ]
+            self.image.set_data( frame_data.values  )
+            self.image.set_extent( self.block.extent )
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
             Task.mainWindow().refresh_image()
@@ -326,7 +333,7 @@ class LabelingConsole:
                     self.dataLims = event.inaxes.dataLim
 
     def add_marker(self, event):
-        point = [ event.ydata, event.xdata, self.selectedClass ]
+        point = ( event.ydata, event.xdata, self.selectedClass )
         self.marker_list.append(point)
         self.plot_markers_image()
         taskRunner.start( Task( self.plot_marker, *point ), f"Plot label at {event.ydata} {event.xdata}" )
@@ -375,26 +382,31 @@ class LabelingConsole:
         image.set_alpha( new_alpha )
         self.figure.canvas.draw_idle()
 
-    def get_color(self, class_index: int = None ):
+    def get_color(self, class_index: int = None ) -> List[float]:
         if class_index is None: class_index = self.selectedClass
         return self.class_colors[self.class_labels[ class_index ]]
 
+    def get_markers(self) -> Tuple[ List[float], List[float], List[List[float]] ]:
+        ycoords, xcoords, colors = [], [], []
+        if self.marker_list:
+            for ps in self.marker_list:
+                if self.block.inBounds(ps[0], ps[1]):
+                    ycoords.append(ps[0])
+                    xcoords.append(ps[1])
+                    colors.append( self.get_color(ps[2]) )
+        return ycoords, xcoords, colors
+
     def plot_markers_image(self):
-        if self.marker_list and self.marker_plot:
-            xcoords = [ps[1] for ps in self.marker_list]
-            ycoords = [ps[0] for ps in self.marker_list]
-            cvals   = [ps[2] for ps in self.marker_list]
-            colors = [ self.get_color(ic) for ic in cvals ]
+        if self.marker_plot:
+            ycoords, xcoords, colors = self.get_markers()
+            emphasize( "Plot markers", f"xcoords: {xcoords}", f"ycoords: {ycoords}")
             self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
             self.marker_plot.set_facecolor(colors)
             self.update_canvas()
 
     def plot_markers_volume(self, **kwargs):
-        if len(self.marker_list):
-            xcoords = [ps[1] for ps in self.marker_list]
-            ycoords = [ps[0] for ps in self.marker_list]
-            cvals = [ps[2] for ps in self.marker_list]
-            self.umgr.plot_markers( ycoords, xcoords, [ self.get_color(c) for c in cvals], **kwargs )
+        ycoords, xcoords, colors = self.get_markers()
+        if len(xcoords): self.umgr.plot_markers( ycoords, xcoords, colors, **kwargs )
 
     def plot_marker(self, yc, xc, c, **kwargs ):
         self.umgr.plot_markers( [yc], [xc], [ self.get_color(c) ], **kwargs )
@@ -407,18 +419,13 @@ class LabelingConsole:
         self.tile.dm.markers.readMarkers()
         if self.tile.dm.markers.hasData:
             self.marker_list = self.tile.dm.markers.values
-            self.umgr.class_labels: List[str] = self.tile.dm.markers.names
-            self.umgr.class_colors: OrderedDict[str,Tuple[float]] = self.tile.dm.markers.colors
+            self.umgr.class_labels = self.tile.dm.markers.names
+            self.umgr.class_colors = self.tile.dm.markers.colors
             print(f"Reading {len(self.marker_list)} point labels from file { self.tile.dm.markers.file_path}")
 
     def write_markers(self):
         print(f"Writing {len(self.marker_list)} point labels ot file {self.tile.dm.markers.file_path}")
         self.tile.dm.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
-
-    def datalims_changed(self ) -> bool:
-        previous_datalims: Bbox = self.dataLims
-        new_datalims: Bbox = self.plot_axes.dataLim
-        return previous_datalims.bounds != new_datalims.bounds
 
     def add_plots(self, **kwargs ):
         self.image = self.create_image(**kwargs)
@@ -444,7 +451,6 @@ class LabelingConsole:
         self.button_box.addCallback( actions[0], self.submit_training_set )
         self.button_box.addCallback(actions[1], self.undo_marker_selection)
         self.button_box.addCallback( actions[2], self.clearLabels )
-
 
     def wait_for_key_press(self):
         keyboardClick = False
