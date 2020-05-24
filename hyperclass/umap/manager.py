@@ -15,14 +15,16 @@ class UMAPManager:
 
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
-        self._block: Optional[Block] = None
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
-        self._embedding: Dict[str,xa.DataArray] = {}
-        self._mapper: Dict[str, UMAP] = {}
+        self._mapper: Dict[ str, UMAP ] = {}
         self.point_cloud_mid = "pcm"
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
+
+    def mid( self, block: Block, mtype: str ):
+        if mtype is None: mtype = self.point_cloud_mid
+        return ".".join([str(block.block_coords), mtype])
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
@@ -33,21 +35,23 @@ class UMAPManager:
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
 
-    def __getitem__(self, key: str ) -> Optional[UMAP]:
-        return self._mapper.get(key, None)
+    def embedding( self, block: Block, mtype: str = None ) -> Optional[xa.DataArray]:
+        mapper: UMAP = self.getMapper( block, mtype )
+        if mapper.embedding_ is None: return None
+        ax_samples = block.data.stack(samples=['x', 'y']).coords['samples']
+        ax_model = np.arange(mapper.embedding_.shape[1])
+        return xa.DataArray( mapper.embedding_, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def embedding( self, mid: str = None ) -> Optional[xa.DataArray]:
-        if mid == None: mid = self.point_cloud_mid
-        return self._embedding.get( mid, None )
-
-    def getMapper(self, mid: str = None, **kwargs ) -> UMAP:
-        if mid == None: mid = self.point_cloud_mid
+    def getMapper(self, block: Block, mtype: str = None, **kwargs ) -> UMAP:
         refresh = kwargs.pop( 'refresh', False )
-        if ( self[mid] is None ) or refresh:
+        mid = self.mid( block, mtype )
+        mapper = self._mapper.get( mid )
+        if ( mapper is None ) or refresh:
             parms = self.tile.dm.config.section("umap").toDict()
             parms.update( kwargs )
-            self._mapper[mid] = UMAP(**parms)
-        return self[mid]
+            mapper = UMAP(**parms)
+            self._mapper[mid] = mapper
+        return mapper
 
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
@@ -65,22 +69,20 @@ class UMAPManager:
 
     def embed(self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs):
         progress_callback = kwargs.get('progress_callback')
-        mid = kwargs.get( "mid", self.point_cloud_mid )
+        mtype = kwargs.get( "mtype", self.point_cloud_mid )
         t0 = time.time()
-        self._block = self.getBlock( **kwargs )
-        ndim = 3 if mid == self.point_cloud_mid else kwargs.get( 'ndim', 8 )
-        mapper = self.getMapper( mid, refresh=True, n_components=ndim )
-        point_data: xa.DataArray = self._block.getPointData( **kwargs ) if self._block else self.tile.getPointData( **kwargs )
+        block = self.getBlock( **kwargs )
+        ndim = 3 if mtype == self.point_cloud_mid else kwargs.get( 'ndim', 8 )
+        mapper = self.getMapper( block, mtype, refresh=True, n_components=ndim )
+        point_data: xa.DataArray = block.getPointData( **kwargs )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{mid}] to {ndim} dims with {point_data.shape[0]} samples")
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{mtype}] to {ndim} dims with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
         mapper.embed(point_data.data, nnd, labels_data, **kwargs)
-        edata = mapper.embedding_
-        self._embedding[ mid ] = xa.DataArray( edata, dims=['samples','model'], coords=dict( samples=point_data.coords['samples'], model=np.arange(edata.shape[1]) ) )
-        if mid == self.point_cloud_mid:
-            self.point_cloud.setPoints( edata, labels_data )
+        if mtype == self.point_cloud_mid:
+            self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
-        print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {edata.shape}")
+        print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {mapper.embedding_.shape}")
 
     @property
     def conf_keys(self) -> List[str]:
@@ -104,8 +106,8 @@ class UMAPManager:
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
-        mid = kwargs.get( 'mid', self.point_cloud_mid )
-        mapper = self.getMapper( mid )
+        mtype = kwargs.get( 'mtype', self.point_cloud_mid )
+        mapper = self.getMapper( mtype )
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()

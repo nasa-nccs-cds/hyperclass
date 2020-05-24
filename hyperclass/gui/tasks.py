@@ -81,6 +81,10 @@ class TaskRunner(QObject):
         else:
             print( f"Task already running: {message}")
 
+
+    def kill_all_tasks(self):
+        self.threadpool.clear()
+
     def complete( self, message, **kwargs ):
         self.executing_tasks.remove( message )
         print(f"Task completed: {message}")
