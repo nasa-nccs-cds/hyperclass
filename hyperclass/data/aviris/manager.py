@@ -10,6 +10,7 @@ from typing import TextIO
 import csv
 import os, math, pickle
 import rioxarray as rio
+from hyperclass.graph.flow import ActivationFlow
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -119,6 +120,8 @@ class Block:
         self.data = self._getData()
         self.transform = tile.get_block_transform( iy, ix )
         self.data.attrs['transform'] = self.transform
+        self.flow = ActivationFlow( n_neighbors=self.iparm('n_neighbors'), **kwargs )
+        self.flow.setNodeData( self.getPointData() )
         tr = self.transform.params.flatten()
         self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
@@ -129,6 +132,9 @@ class Block:
         block_raster.attrs['block_coords'] = self.block_coords
         block_raster.name = f"{self.tile.name}_b-{self.block_coords[0]}-{self.block_coords[1]}"
         return block_raster
+
+    def iparm(self, key: str ):
+        return int( self.tile.dm.config[key] )
 
     @property
     def xlim(self): return self._xlim

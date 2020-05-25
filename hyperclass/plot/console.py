@@ -1,34 +1,26 @@
 import matplotlib.widgets
 import matplotlib.patches
-from pynndescent import NNDescent
-from functools import partial
 from hyperclass.util.diagnostics import emphasize
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
-from  matplotlib.transforms import Bbox
 from collections import OrderedDict
 from hyperclass.umap.manager import UMAPManager
 from functools import partial
 import matplotlib.pyplot as plt
-from matplotlib.dates import num2date
 from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
-from hyperclass.graph.flow import ActivationFlow
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
-from skimage.transform import ProjectiveTransform
-import matplotlib as mpl
 import pandas as pd
 import xarray as xa
 import numpy as np
-from typing import List, Union, Dict, Callable, Tuple, Optional
+from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, atexit, csv
-from enum import Enum
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -114,7 +106,6 @@ class LabelingConsole:
         self.marker_list: List[Tuple[float,float,int]] = []
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
-        self.flow = ActivationFlow(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svcs: Dict[str,SVC] = {}
         self.dataLims = {}
@@ -176,13 +167,12 @@ class LabelingConsole:
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
-        self.flow.setNodeData( self.block.getPointData() )
         self.update_plot_axis_bounds()
         self.plot_markers_image()
         self.clearLabels()
         self.update_plots()
         labels: xa.DataArray = self.getLabeledPointData(True)
-        taskRunner.start( Task( self.init_pointcloud, self.flow.nnd, labels, block=self.block, **kwargs ), "Computing embedding..." )
+        taskRunner.start( Task( self.init_pointcloud, labels, **kwargs ), "Computing embedding..." )
 
     def update_plot_axis_bounds( self ):
         if self.plot_axes is not None:
@@ -190,25 +180,25 @@ class LabelingConsole:
             self.plot_axes.set_xlim( self.block.xlim )
             self.plot_axes.set_ylim( self.block.ylim )
 
-    def init_pointcloud( self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs  ):
-        self.umgr.embed(nnd, labels, **kwargs)
+    def init_pointcloud( self, labels: xa.DataArray = None, **kwargs  ):
+        self.umgr.embed( self.block, labels, **kwargs)
         self.umgr.init_pointcloud( self.getLabeledPointData().values )
         self.plot_markers_volume()
 
     def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
-        taskRunner.start( Task( executable, *args, **kwargs ), messsage )
+        task = Task( executable, *args, **kwargs )
+        taskRunner.start( task, messsage )
 
     def rebuild_model( self, *args, **kwargs ):
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
+        self.umgr.embed( self.block, labels, **kwargs )
         self.plot_markers_volume()
 
-    def learn_classification( self, **kwargs  ):
+    def learn_classification( self, *args, **kwargs  ):
         t0 = time.time()
         ndim = kwargs.get('ndim',self.umgr.iparm("svc_ndim"))
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.embed( self.flow.nnd, labels, block=self.block, ndim=ndim, **kwargs )
-        embedding = self.umgr.embedding( self.block, ndim )
+        embedding: xa.DataArray = self.umgr.embed( self.block, labels, ndim=ndim, **kwargs )
         t1 = time.time()
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
         if embedding is not None:
@@ -216,7 +206,7 @@ class LabelingConsole:
             print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 
     def get_svc( self, **kwargs ):
-        type = kwargs.get('svc_type', self.umgr.iparm("svc_type"))
+        type = kwargs.get( 'svc_type', self.tile.dm.config["svc_type"] )
         key = str(self.block.block_coords)
         svc = self.svcs.get( key, None )
         if svc == None:
@@ -224,12 +214,11 @@ class LabelingConsole:
             self.svcs[ key ] = svc
         return svc
 
-    def apply_classification( self,  **kwargs ):
+    def apply_classification( self, *args, **kwargs ):
         ndim = kwargs.get('ndim', self.umgr.iparm("svc_ndim"))
         embedding = self.umgr.embedding( self.block, ndim )
-        if embedding is not None:
-            prediction = self.get_svc(**kwargs).predict( embedding.values )
-            pass
+        prediction = self.get_svc(**kwargs).predict( embedding.values )
+        pass
 
     def clearLabels( self, event = None ):
         nodata_value = -2
@@ -357,7 +346,7 @@ class LabelingConsole:
     def submit_training_set(self, event ):
         print( "Submitting training set" )
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.flow.spread( labels, self.flow_iterations  )
+        new_labels: xa.DataArray = self.block.flow.spread( labels, self.flow_iterations  )
         self.plot_label_map( new_labels )
         self.show_labels()
 
@@ -418,10 +407,10 @@ class LabelingConsole:
 
     def plot_markers_volume(self, **kwargs):
         ycoords, xcoords, colors = self.get_markers()
-        if len(xcoords): self.umgr.plot_markers( ycoords, xcoords, colors, **kwargs )
+        if len(xcoords): self.umgr.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
 
     def plot_marker(self, yc, xc, c, **kwargs ):
-        self.umgr.plot_markers( [yc], [xc], [ self.get_color(c) ], **kwargs )
+        self.umgr.plot_markers( self.block, [yc], [xc], [ self.get_color(c) ], **kwargs )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
