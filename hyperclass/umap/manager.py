@@ -18,13 +18,11 @@ class UMAPManager:
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
         self._mapper: Dict[ str, UMAP ] = {}
-        self.point_cloud_mid = "pcm"
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
 
-    def mid( self, block: Block, mtype: str ):
-        if mtype is None: mtype = self.point_cloud_mid
-        return ".".join([str(block.block_coords), mtype])
+    def mid( self, block: Block, ndim: int = 3 ):
+        return "-".join( [ ndim, *block.block_coords ] )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
@@ -42,13 +40,14 @@ class UMAPManager:
         ax_model = np.arange(mapper.embedding_.shape[1])
         return xa.DataArray( mapper.embedding_, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, block: Block, mtype: str = None, **kwargs ) -> UMAP:
+    def getMapper(self, block: Block, **kwargs ) -> UMAP:
         refresh = kwargs.pop( 'refresh', False )
-        mid = self.mid( block, mtype )
+        ndim = kwargs.pop( 'ndim', 3 )
+        mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
         if ( mapper is None ) or refresh:
-            parms = self.tile.dm.config.section("umap").toDict()
-            parms.update( kwargs )
+            defaults = self.tile.dm.config.section("umap").toDict()
+            parms = dict( **defaults, **kwargs, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         return mapper
