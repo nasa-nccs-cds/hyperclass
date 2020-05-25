@@ -33,16 +33,15 @@ class UMAPManager:
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
 
-    def embedding( self, block: Block, mtype: str = None ) -> Optional[xa.DataArray]:
-        mapper: UMAP = self.getMapper( block, mtype )
+    def embedding( self, block: Block, ndim: int = 3 ) -> Optional[xa.DataArray]:
+        mapper: UMAP = self.getMapper( block, ndim )
         if mapper.embedding_ is None: return None
         ax_samples = block.data.stack(samples=['x', 'y']).coords['samples']
         ax_model = np.arange(mapper.embedding_.shape[1])
         return xa.DataArray( mapper.embedding_, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, block: Block, **kwargs ) -> UMAP:
+    def getMapper(self, block: Block, ndim: int, **kwargs ) -> UMAP:
         refresh = kwargs.pop( 'refresh', False )
-        ndim = kwargs.pop( 'ndim', 3 )
         mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
         if ( mapper is None ) or refresh:
@@ -68,17 +67,16 @@ class UMAPManager:
 
     def embed(self, nnd: NNDescent, labels: xa.DataArray = None, **kwargs):
         progress_callback = kwargs.get('progress_callback')
-        mtype = kwargs.get( "mtype", self.point_cloud_mid )
+        ndim = kwargs.get( "ndims", 3 )
         t0 = time.time()
         block = self.getBlock( **kwargs )
-        ndim = 3 if mtype == self.point_cloud_mid else kwargs.get( 'ndim', 8 )
-        mapper = self.getMapper( block, mtype, refresh=True, n_components=ndim )
+        mapper = self.getMapper( block, ndim, refresh=True, n_components=ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{mtype}] to {ndim} dims with {point_data.shape[0]} samples")
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
         mapper.embed(point_data.data, nnd, labels_data, **kwargs)
-        if mtype == self.point_cloud_mid:
+        if ndim == 3:
             self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {mapper.embedding_.shape}")
@@ -95,8 +93,9 @@ class UMAPManager:
             self.point_cloud.set_point_colors( labels )
 
     def plot_markers(self, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
-        point_data = self._block.getSelectedPointData( ycoords, xcoords )
-        mapper = self.getMapper( self.point_cloud_mid )
+        block = self.getBlock(**kwargs)
+        point_data = block.getSelectedPointData( ycoords, xcoords )
+        mapper = self.getMapper( block, 3 )
         transformed_data: np.ndarray = mapper.transform(point_data)
         self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
 
@@ -105,8 +104,8 @@ class UMAPManager:
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
-        mtype = kwargs.get( 'mtype', self.point_cloud_mid )
-        mapper = self.getMapper( mtype )
+        ndim = kwargs.get( 'ndim', 3 )
+        mapper = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()

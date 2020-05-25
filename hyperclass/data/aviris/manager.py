@@ -50,10 +50,10 @@ class Tile:
 
     def __init__(self, data_manager: "DataManager", **kwargs ):
         self.config = kwargs
-        self.dm = data_manager
+        self.dm: DataManager = data_manager
         self._data: xa.DataArray = None
         self._transform: ProjectiveTransform = None
-        self.subsampling = self.iparm('sub_sampling')
+        self.subsampling: int = self.iparm('sub_sampling')
 
     @property
     def data(self) -> xa.DataArray:

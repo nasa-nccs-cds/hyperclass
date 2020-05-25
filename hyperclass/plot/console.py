@@ -109,11 +109,11 @@ class LabelingConsole:
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.currentFrame = 0
-        self.image: AxesImage = None
-        self.plot_axes: Axes = None
+        self.image: Optional[AxesImage] = None
+        self.plot_axes: Optional[Axes] = None
         self.marker_list: List[Tuple[float,float,int]] = []
-        self.marker_plot: PathCollection = None
-        self.label_map: xa.DataArray = None
+        self.marker_plot: Optional[PathCollection] = None
+        self.label_map: Optional[xa.DataArray] = None
         self.flow = ActivationFlow(**kwargs)
         self.umgr: UMAPManager = umgr
         self.svcs: Dict[str,SVC] = {}
@@ -123,9 +123,9 @@ class LabelingConsole:
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
             self.figure = plt.figure()
-        self.labels_image: AxesImage = None
+        self.labels_image: Optional[AxesImage] = None
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
-        self.frame_marker: Line2D = None
+        self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
 
         self.read_markers()
@@ -203,21 +203,20 @@ class LabelingConsole:
         self.umgr.embed( self.flow.nnd, labels, block=self.block, **kwargs )
         self.plot_markers_volume()
 
-    def learn_classification( self, *args, **kwargs  ):
+    def learn_classification( self, **kwargs  ):
         t0 = time.time()
-        mid = kwargs.pop( "mid", "svm" )
-        ndim = kwargs.pop( "ndim", 8 )
+        ndim = kwargs.get('ndim',self.umgr.iparm("svc_ndim"))
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.embed( self.flow.nnd, labels, block=self.block, mid=mid, ndim=ndim, **kwargs )
-        embedding = self.umgr.embedding( mid )
+        self.umgr.embed( self.flow.nnd, labels, block=self.block, ndim=ndim, **kwargs )
+        embedding = self.umgr.embedding( self.block, ndim )
         t1 = time.time()
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
         if embedding is not None:
-            score = self.get_svc().fit( embedding.values, labels.values )
+            score = self.get_svc(**kwargs).fit( embedding.values, labels.values )
             print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 
     def get_svc( self, **kwargs ):
-        type = kwargs.get('type',"SVCL")
+        type = kwargs.get('svc_type', self.umgr.iparm("svc_type"))
         key = str(self.block.block_coords)
         svc = self.svcs.get( key, None )
         if svc == None:
@@ -225,11 +224,11 @@ class LabelingConsole:
             self.svcs[ key ] = svc
         return svc
 
-    def apply_classification( self, *args, **kwargs ):
-        mid = kwargs.pop("mid", "svm")
-        embedding = self.umgr.embedding(mid)
+    def apply_classification( self,  **kwargs ):
+        ndim = kwargs.get('ndim', self.umgr.iparm("svc_ndim"))
+        embedding = self.umgr.embedding( self.block, ndim )
         if embedding is not None:
-            prediction = self.get_svc().predict( embedding.values )
+            prediction = self.get_svc(**kwargs).predict( embedding.values )
             pass
 
     def clearLabels( self, event = None ):

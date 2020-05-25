@@ -15,3 +15,6 @@ bi: block_index = 0,0
 nc: n_components = 3
 nn: n_neighbors = 10
 md: min_dist = 0.01
+
+*svc
+sn: svc_ndim = 8
