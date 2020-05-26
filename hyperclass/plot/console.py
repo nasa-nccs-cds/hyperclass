@@ -345,10 +345,9 @@ class LabelingConsole:
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )
-        self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
+        self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).transpose().astype(np.int16)
         extent = self.tile.dm.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
-        print( f" plot_label_map: label bincounts = {np.bincount( self.label_map.values.flatten() )}")
         class_alpha = kwargs.get( 'alpha', 0.7 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
