@@ -192,7 +192,7 @@ class LabelingConsole:
         t0 = time.time()
         ndim = kwargs.get('ndim',self.umgr.iparm("svc_ndim"))
         labels: xa.DataArray = self.getExtendedLabelPoints()
-        embedding: xa.DataArray = self.umgr.embed( self.block, labels, ndim=ndim, **kwargs )
+        embedding: xa.DataArray = self.umgr.learn( self.block, labels, ndim, **kwargs )
         t1 = time.time()
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
         if embedding is not None:
@@ -206,11 +206,11 @@ class LabelingConsole:
         return self.svc
 
     def apply_classification( self, *args, **kwargs ):
-        ndim = kwargs.get('ndim', self.umgr.iparm("svc_ndim"))
-        embedding: xa.DataArray = self.umgr.embedding( self.block, ndim )
-        prediction: np.ndarray = self.get_svc(**kwargs).predict( embedding.values )
-        sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
-        self.plot_label_map( sample_labels, background=True )
+        embedding: Optional[xa.DataArray] = self.umgr.apply( self.block )
+        if embedding is not None:
+            prediction: np.ndarray = self.get_svc(**kwargs).predict( embedding.values )
+            sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
+            self.plot_label_map( sample_labels, background=True )
 
     def clearLabels( self, event = None ):
         nodata_value = -2

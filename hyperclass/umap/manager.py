@@ -17,6 +17,7 @@ class UMAPManager:
         self.tile = tile
         self.refresh = kwargs.pop('refresh', False)
         self.conf = kwargs
+        self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self.setClassColors( class_labels )
@@ -36,13 +37,13 @@ class UMAPManager:
     def embedding( self, block: Block, ndim: int = 3 ) -> xa.DataArray:
         mapper: UMAP = self.getMapper( block, ndim )
         if hasattr( mapper, 'embedding_' ):
-            return self.wrap_embedding( block, mapper )
+            return self.wrap_embedding( block, mapper.embedding_ )
         return self.embed( block, ndim = ndim )
 
-    def wrap_embedding(self, block: Block, mapper: UMAP )-> xa.DataArray:
-        ax_samples = block.data.stack(samples=['x', 'y']).coords['samples']
-        ax_model = np.arange( mapper.embedding_.shape[1] )
-        return xa.DataArray( mapper.embedding_, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
+    def wrap_embedding(self, block: Block, embedding: np.ndarray, **kwargs )-> xa.DataArray:
+        ax_samples = block.getPointData(**kwargs).coords['samples']
+        ax_model = np.arange( embedding.shape[1] )
+        return xa.DataArray( embedding, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
     def getMapper(self, block: Block, ndim: int, **kwargs ) -> UMAP:
         refresh = kwargs.pop( 'refresh', False )
@@ -72,6 +73,20 @@ class UMAPManager:
                 block = self.tile.getBlock( *block_index )
         return block
 
+    def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> xa.DataArray:
+        self.learned_mapping = self.getMapper( block, ndim, refresh=True )
+        point_data: xa.DataArray = block.getPointData( **kwargs )
+        self.learned_mapping.embed(point_data.data, block.flow.nnd, labels.values, **kwargs)
+        return self.wrap_embedding( block, self.learned_mapping.embedding_ )
+
+    def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
+        if self.learned_mapping is None:
+            print( "Error, must learn a classication before it can be applied")
+            return None
+        point_data: xa.DataArray = block.getPointData( **kwargs )
+        embedding: np.ndarray = self.learned_mapping.transform( point_data )
+        return self.wrap_embedding( block, embedding )
+
     def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
         progress_callback = kwargs.get('progress_callback')
         ndim = kwargs.get( "ndim", 3 )
@@ -87,7 +102,7 @@ class UMAPManager:
             self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {mapper.embedding_.shape}")
-        return self.wrap_embedding( block, mapper )
+        return self.wrap_embedding( block, mapper.embedding_ )
 
     @property
     def conf_keys(self) -> List[str]:
@@ -103,8 +118,9 @@ class UMAPManager:
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         point_data = block.getSelectedPointData( ycoords, xcoords )
         mapper = self.getMapper( block, 3 )
-        transformed_data: np.ndarray = mapper.transform(point_data)
-        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
+        if hasattr(mapper, 'embedding_'):
+            transformed_data: np.ndarray = mapper.transform(point_data)
+            self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
 
     def update(self):
         self.point_cloud.update()
