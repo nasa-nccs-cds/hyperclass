@@ -355,6 +355,7 @@ class DataManager:
 
     @classmethod
     def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
+        minv = raster.values.min()
         stacked_raster = raster.stack(samples=['x','y']).transpose()
         if np.issubdtype( raster.dtype, np.integer ):
             nodata = stacked_raster.attrs.get('_FillValue',-2)

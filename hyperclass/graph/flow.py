@@ -35,6 +35,7 @@ class ActivationFlow:
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
         sample_mask = sample_labels == -1
+        valid_data_mask = sample_labels > -2
         if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
@@ -64,7 +65,7 @@ class ActivationFlow:
 
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs, _FillValue=-2 )
-        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs ).where( valid_data_mask, -2)
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
         return result
 
