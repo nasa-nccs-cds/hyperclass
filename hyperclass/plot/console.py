@@ -310,7 +310,7 @@ class LabelingConsole:
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
         if self.labels_image is not None:
-            self.labels_image.set_extent(self.block.extent)
+ #           self.labels_image.set_extent(self.block.extent)
             self.labels_image.set_alpha(0.0)
         Task.mainWindow().refresh_image()
 
@@ -346,15 +346,18 @@ class LabelingConsole:
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )
         self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
-        self.label_map = self.label_map.where( self.label_map >= 0, 0 )
+        extent = self.tile.dm.extent( self.label_map )
+        label_plot = self.label_map.where( self.label_map >= 0, 0 )
         print( f" plot_label_map: label bincounts = {np.bincount( self.label_map.values.flatten() )}")
         class_alpha = kwargs.get( 'alpha', 0.7 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
-            self.labels_image = self.tile.dm.plotRaster( self.label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
+            self.labels_image = self.tile.dm.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
-            self.labels_image.set_data( self.label_map.values  )
+            self.labels_image.set_data( label_plot.values  )
             self.labels_image.set_alpha(class_alpha  )
+
+        self.labels_image.set_extent( extent )
         if in_background:
             self.color_pointcloud(sample_labels)
         else:

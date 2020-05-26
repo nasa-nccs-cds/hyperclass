@@ -143,7 +143,7 @@ class Block:
     def ylim(self): return self._ylim
 
     @property
-    def extent(self):   # left, right, bottom, top
+    def extent(self) -> List[float]:   # left, right, bottom, top
         return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
 
     def inBounds(self, yc: float, xc: float ) -> bool:
@@ -213,6 +213,12 @@ class DataManager:
         self.block_shape = self.config.getShape( 'block_shape' )
         self.markers = MarkerManager(os.path.join(self.config['data_dir'], self.markerFileName() + ".pkl"))
         self.tile = None
+
+    @classmethod
+    def extent(cls, image_data: xa.DataArray ) -> List[float]: # left, right, bottom, top
+        xc, yc = image_data.coords[image_data.dims[-1]].values, image_data.coords[image_data.dims[-2]].values
+        dx2, dy2 = (xc[1]-xc[0])/2, (yc[0]-yc[1])/2
+        return [ xc[0]-dx2,  xc[-1]+dx2,  yc[-1]-dy2,  yc[0]+dy2 ]
 
     def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
         y0, x0 = self.iy*self.tile_shape[0], self.ix*self.tile_shape[1]

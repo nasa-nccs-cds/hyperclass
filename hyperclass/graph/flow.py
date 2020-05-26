@@ -21,21 +21,23 @@ class ActivationFlow:
         self.D = ma.MaskedArray( D )
 
     def setNodeData(self, nodes_data: xa.DataArray, **kwargs ):
-        t0 = time.time()
-        self.nodes = nodes_data
-        n_trees =  kwargs.get( 'ntree', 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0)) )
-        n_iters = kwargs.get( 'niter', max(5, 2*int(round(np.log2(self.nodes.shape[0])))))
-        self.nnd = NNDescent( self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
-        self.nnd._init_search_graph()  # Allowing this to be executed lazily causes problems with multithreading
-        self.I = self.nnd.neighbor_graph[0]
-        self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
-        print( f"Computed NN[{self.n_neighbors}] Graph in {time.time()-t0} sec")
+        if nodes_data.size > 0:
+            t0 = time.time()
+            self.nodes = nodes_data
+            n_trees =  kwargs.get( 'ntree', 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0)) )
+            n_iters = kwargs.get( 'niter', max(5, 2*int(round(np.log2(self.nodes.shape[0])))))
+            self.nnd = NNDescent( self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True )
+            self.nnd._init_search_graph()  # Allowing this to be executed lazily causes problems with multithreading
+            self.I = self.nnd.neighbor_graph[0]
+            self.D = ma.MaskedArray( self.nnd.neighbor_graph[1] )
+            print( f"Computed NN[{self.n_neighbors}] Graph in {time.time()-t0} sec")
+        else:
+            print( "No data available for this block")
 
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
         sample_mask = sample_labels == -1
-        valid_data_mask = sample_labels > -2
         if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
@@ -65,7 +67,7 @@ class ActivationFlow:
 
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs, _FillValue=-2 )
-        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs ).where( valid_data_mask, -2)
+        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
         return result
 
