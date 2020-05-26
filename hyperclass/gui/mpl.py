@@ -28,7 +28,7 @@ class MplWidget(QWidget):
         return self.canvas.menu_actions
 
     def update(self):
-        self.canvas.draw()
+        self.canvas.mpl_update()
         self.repaint()
 
 class MplCanvas(FigureCanvas):
@@ -51,5 +51,9 @@ class MplCanvas(FigureCanvas):
     @property
     def menu_actions(self) -> Dict:
         return self.console.menu_actions
+
+    def mpl_update(self):
+        self.console.update_canvas()
+        self.draw()
 
 

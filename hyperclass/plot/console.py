@@ -107,7 +107,7 @@ class LabelingConsole:
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
         self.umgr: UMAPManager = umgr
-        self.svcs: Dict[str,SVC] = {}
+        self.svc: Optional[SVC] = None
         self.dataLims = {}
         self.currentClass = 0
 
@@ -133,12 +133,12 @@ class LabelingConsole:
 
         self.setup_plot(**kwargs)
 
-        self.button_actions =  OrderedDict(spread=  self.submit_training_set,
-                                           undo=    self.undo_marker_selection,
-                                           clear=   self.clearLabels,
-                                           remodel= partial(  self.run_task, self.rebuild_model,          "Rebuilding model..." ),
-                                           learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
-                                           apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
+        self.button_actions =  OrderedDict( model=   partial(self.run_task, self.build_model, "Computing embedding..."),
+                                            spread=  self.submit_training_set,
+                                            undo=    self.undo_marker_selection,
+                                            clear=   self.clearLabels,
+                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
+                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
                                            )
 
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
@@ -167,31 +167,25 @@ class LabelingConsole:
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
+        self.umgr.clear_pointcloud()
         self.update_plot_axis_bounds()
         self.plot_markers_image()
         self.clearLabels()
         self.update_plots()
-        labels: xa.DataArray = self.getLabeledPointData(True)
-        taskRunner.start( Task( self.init_pointcloud, labels, **kwargs ), "Computing embedding..." )
 
     def update_plot_axis_bounds( self ):
         if self.plot_axes is not None:
-            emphasize("Setting plot axis bounds", f"ylim: {self.block.ylim}", f"xlim: {self.block.xlim}")
             self.plot_axes.set_xlim( self.block.xlim )
             self.plot_axes.set_ylim( self.block.ylim )
-
-    def init_pointcloud( self, labels: xa.DataArray = None, **kwargs  ):
-        self.umgr.embed( self.block, labels, **kwargs)
-        self.umgr.init_pointcloud( self.getLabeledPointData().values )
-        self.plot_markers_volume()
 
     def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
         task = Task( executable, *args, **kwargs )
         taskRunner.start( task, messsage )
 
-    def rebuild_model( self, *args, **kwargs ):
+    def build_model(self, *args, **kwargs):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.block, labels, **kwargs )
+        self.umgr.init_pointcloud(self.getLabeledPointData().values)
         self.plot_markers_volume()
 
     def learn_classification( self, *args, **kwargs  ):
@@ -207,18 +201,16 @@ class LabelingConsole:
 
     def get_svc( self, **kwargs ):
         type = kwargs.get( 'svc_type', self.tile.dm.config["svc_type"] )
-        key = str(self.block.block_coords)
-        svc = self.svcs.get( key, None )
-        if svc == None:
-            svc = SVC.instance( type )
-            self.svcs[ key ] = svc
-        return svc
+        if self.svc == None:
+            self.svc = SVC.instance( type )
+        return self.svc
 
     def apply_classification( self, *args, **kwargs ):
         ndim = kwargs.get('ndim', self.umgr.iparm("svc_ndim"))
-        embedding = self.umgr.embedding( self.block, ndim )
-        prediction = self.get_svc(**kwargs).predict( embedding.values )
-        pass
+        embedding: xa.DataArray = self.umgr.embedding( self.block, ndim )
+        prediction: np.ndarray = self.get_svc(**kwargs).predict( embedding.values )
+        sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
+        self.plot_label_map( sample_labels, background=True )
 
     def clearLabels( self, event = None ):
         nodata_value = -2
@@ -302,7 +294,6 @@ class LabelingConsole:
         overlays = kwargs.get( "overlays", {} )
         for color, overlay in overlays.items():
             overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
-        emphasize("Initialize plot axis bounds", f"ylim: {self.plot_axes.get_ylim()}", f"xlim: {self.plot_axes.get_xlim()}")
         return image
 
     def on_lims_change(self, ax ):
@@ -318,7 +309,9 @@ class LabelingConsole:
             self.image.set_extent( self.block.extent )
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
-            Task.mainWindow().refresh_image()
+        if self.labels_image is not None:
+            self.labels_image.set_extent(self.block.extent)
+        Task.mainWindow().refresh_image()
 
     def onMouseRelease(self, event):
         pass
@@ -346,11 +339,11 @@ class LabelingConsole:
     def submit_training_set(self, event ):
         print( "Submitting training set" )
         labels: xa.DataArray = self.getLabeledPointData()
-        new_labels: xa.DataArray = self.block.flow.spread( labels, self.flow_iterations  )
-        self.plot_label_map( new_labels )
-        self.show_labels()
+        sample_labels: xa.DataArray = self.block.flow.spread( labels, self.flow_iterations  )
+        self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
+        in_background = kwargs.get( 'background', False )
         self.label_map: xa.DataArray =  sample_labels.unstack().transpose().astype(np.int16)
         self.label_map = self.label_map.where( self.label_map >= 0, 0 )
         print( f" plot_label_map: label bincounts = {np.bincount( self.label_map.values.flatten() )}")
@@ -360,7 +353,10 @@ class LabelingConsole:
             self.labels_image = self.tile.dm.plotRaster( self.label_map, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( self.label_map.values  )
-        taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
+        if in_background:
+            self.color_pointcloud(sample_labels)
+        else:
+            taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -400,7 +396,6 @@ class LabelingConsole:
     def plot_markers_image(self):
         if self.marker_plot:
             ycoords, xcoords, colors = self.get_markers()
-            emphasize( "Plot markers", f"xcoords: {xcoords}", f"ycoords: {ycoords}")
             self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
             self.marker_plot.set_facecolor(colors)
             self.update_canvas()

@@ -35,8 +35,9 @@ class UMAPManager:
 
     def embedding( self, block: Block, ndim: int = 3 ) -> xa.DataArray:
         mapper: UMAP = self.getMapper( block, ndim )
-        if mapper.embedding_ is None: self.embed( block, ndim = ndim )
-        return self.wrap_embedding( block, mapper )
+        if hasattr( mapper, 'embedding_' ):
+            return self.wrap_embedding( block, mapper )
+        return self.embed( block, ndim = ndim )
 
     def wrap_embedding(self, block: Block, mapper: UMAP )-> xa.DataArray:
         ax_samples = block.data.stack(samples=['x', 'y']).coords['samples']
@@ -59,6 +60,9 @@ class UMAPManager:
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
         self.point_cloud.set_point_colors( labels.values, **kwargs )
+
+    def clear_pointcloud(self):
+        self.point_cloud.clear()
 
     def getBlock( self, **kwargs ) -> Optional[Block]:
         block: Optional[Block] = kwargs.get('block', None)

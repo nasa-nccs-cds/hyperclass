@@ -69,30 +69,37 @@ class PointCloud():
     #         lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
     #     return lut
 
-    def initPolyData( self, np_points_data: np.ndarray, **kwargs ):
-        nPoints = int(np_points_data.size / 3)
-        vtk_points_data = npsup.numpy_to_vtk( np_points_data.ravel(), deep=1 )
-        vtk_points_data.SetNumberOfComponents(3)
-        vtk_points_data.SetNumberOfTuples(nPoints)
+    def initPolyData( self, np_points_data: Optional[np.ndarray] = None, **kwargs ):
         vtk_points = vtk.vtkPoints()
-        vtk_points.SetData(vtk_points_data)
         self.polydata = vtk.vtkPolyData()
         self.polydata.SetPoints( vtk_points )
         vertices = vtk.vtkCellArray()
-        np_index_seq = np.arange( 0, nPoints )
-        cell_sizes = np.ones_like( np_index_seq )
-        np_cell_data = np.dstack(( cell_sizes, np_index_seq) )
-        vtk_cell_data = npsup.numpy_to_vtkIdTypeArray( np_cell_data.ravel(), deep=1 )
-        vertices.SetCells( cell_sizes.size, vtk_cell_data )
         self.polydata.SetVerts(vertices)
-        self.set_point_colors( np.full( shape=[nPoints], fill_value= 0 ) )
-        self.polydata.Modified()
-        self.points_modified = True
+
+        if np_points_data is not None:
+            nPoints = int(np_points_data.size / 3)
+            vtk_points_data = npsup.numpy_to_vtk( np_points_data.ravel(), deep=1 )
+            vtk_points_data.SetNumberOfComponents(3)
+            vtk_points_data.SetNumberOfTuples(nPoints)
+            vtk_points.SetData(vtk_points_data)
+            np_index_seq = np.arange( 0, nPoints )
+            cell_sizes = np.ones_like( np_index_seq )
+            np_cell_data = np.dstack(( cell_sizes, np_index_seq) )
+            vtk_cell_data = npsup.numpy_to_vtkIdTypeArray( np_cell_data.ravel(), deep=1 )
+            vertices.SetCells( cell_sizes.size, vtk_cell_data )
+            self.set_point_colors( np.full( shape=[nPoints], fill_value= 0 ) )
+            self.polydata.Modified()
+            self.points_modified = True
+
         if self.mapper is not None:
             self.mapper.SetInputData(self.polydata)
             self.mapper.Modified()
         if self.actor is not None:
             self.actor.Modified()
+
+    def clear(self):
+        self.initPolyData()
+        self.initMarkers()
 
     def initMarkers( self, **kwargs ):
         print( "Initializing Markers")
