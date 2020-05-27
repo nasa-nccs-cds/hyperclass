@@ -165,6 +165,9 @@ class LabelingConsole:
     def transform(self):
         return self.block.transform
 
+    def process_event( self, event: Dict ):
+        print( f" LabelingConsole: process_event: {event}")
+
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
         self.umgr.clear_pointcloud()

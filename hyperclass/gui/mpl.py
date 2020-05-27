@@ -19,6 +19,9 @@ class MplWidget(QWidget):
     def setBlock(self, block_coords: Tuple[int]   ):
         self.canvas.setBlock( block_coords )
 
+    def process_event( self, event: Dict ):
+        self.canvas.process_event(event )
+
     @property
     def button_actions(self) -> Dict[str, Callable]:
         return self.canvas.button_actions
@@ -40,6 +43,9 @@ class MplCanvas(FigureCanvas):
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
         self.console = LabelingConsole( umgr, figure=self.figure )
+
+    def process_event( self, event: Dict ):
+        self.console.process_event(event)
 
     def setBlock(self, block_coords: Tuple[int]   ):
         self.console.setBlock( block_coords )

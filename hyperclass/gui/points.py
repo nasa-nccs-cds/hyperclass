@@ -10,6 +10,7 @@ from collections import OrderedDict
 class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
 
     def __init__(self):
+        self.debug = False
         vtk.vtkGenericRenderWindowInteractor.__init__(self)
         self.renderer = None
         self.enable_pick_sym = "Alt_L"
@@ -19,29 +20,37 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
         self.SetInteractorStyle(interactorStyle)
         interactorStyle.KeyPressActivationOff()
         interactorStyle.SetEnabled(1)
+        self.event_listeners = []
 
     def setRenderer( self, renderer: vtk.vtkRenderer ):
         self.renderer = renderer
+
+    def addEventListener( self, listener ):
+        self.event_listeners.append( listener )
 
     def RightButtonPressEvent( self, *args  ):
         if self.pick_enabled:
             clickPos = self.GetEventPosition()
             picker = self.GetPicker()
             picker.Pick(clickPos[0], clickPos[1], 0, self.renderer )
-            print( f"Picked point {picker.GetPointId()}")
+            picked_point = picker.GetPointId()
+            if self.debug: print( f"Picked point {picked_point}")
+            for listener in self.pick_listeners:
+                event = dict( type="pick", pid=picked_point )
+                listener.process_event(event)
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 
     def KeyPressEvent( self, *args ):
         vtk.vtkGenericRenderWindowInteractor.KeyPressEvent( self, *args )
         sym = self.GetKeySym()
-        print( f"KeyPressEvent: {sym}")
+        if self.debug: print( f"KeyPressEvent: {sym}")
         if sym == self.enable_pick_sym: self.pick_enabled = True
 
     def KeyReleaseEvent( self, *args ):
         vtk.vtkGenericRenderWindowInteractor.KeyReleaseEvent( self, *args )
         sym = self.GetKeySym()
-        print( f"KeyReleaseEvent: {sym}")
+        if self.debug: print( f"KeyReleaseEvent: {sym}")
         if sym == self.enable_pick_sym: self.pick_enabled = False
 
 class VTKWidget(QVTKRenderWindowInteractor):
@@ -100,20 +109,20 @@ class VTKFrame(QtWidgets.QFrame):
     def __init__( self, umgr: UMAPManager  ):
         QtWidgets.QFrame.__init__( self  )
         self.umgr = umgr
-
         self.vl = QtWidgets.QVBoxLayout()
         self.vtkWidget = VTKWidget(self)
         self.vl.addWidget(self.vtkWidget)
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
+        self.iren.addEventListener( self.umgr.point_cloud )
+
+    def addEventListener( self, listener ):
+        self.iren.addEventListener( listener )
 
     @property
     def iren(self):
         return self.vtkWidget.iren
-
-    def getActors(self):
-        return [ self.point_cloud.createActor() ]
 
     def Initialize(self):
         self.iren.Initialize()

@@ -41,6 +41,7 @@ class HyperclassConsole(QMainWindow):
 
         self.vtkFrame = VTKFrame( umgr )
         self.console = MplWidget( umgr,self)
+        self.vtkFrame.addEventListener( self.console )
 
         for menuName, menuItems in self.console.menu_actions.items():
             menu = mainMenu.addMenu(menuName)

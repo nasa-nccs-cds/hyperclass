@@ -52,6 +52,9 @@ class PointCloud():
         self.points_modified = False
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
+    def process_event(self, event: Dict ):
+        print( f" PointCloud.process_event: {event}")
+
     def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData(points)
         if labels is not None: self.set_point_colors( labels )
