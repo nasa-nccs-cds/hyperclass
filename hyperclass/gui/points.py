@@ -35,8 +35,8 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
             picker.Pick(clickPos[0], clickPos[1], 0, self.renderer )
             picked_point = picker.GetPointId()
             if self.debug: print( f"Picked point {picked_point}")
-            for listener in self.pick_listeners:
-                event = dict( type="pick", pid=picked_point )
+            for listener in self.event_listeners:
+                event = dict( event="pick", type="vtkpoint", pid=picked_point )
                 listener.process_event(event)
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
@@ -74,7 +74,6 @@ class VTKWidget(QVTKRenderWindowInteractor):
         except TypeError: pass
 
     def mousePressEvent(self, ev: QtGui.QMouseEvent):
-        print( "mousePressEvent" )
         try:
             QVTKRenderWindowInteractor.mousePressEvent(self, ev)
         except TypeError: pass
@@ -86,7 +85,6 @@ class VTKWidget(QVTKRenderWindowInteractor):
 
     def keyPressEvent(self, ev):
         try:
-            print( "Key Press event")
             QVTKRenderWindowInteractor.keyPressEvent(self, ev)
         except TypeError: pass
 

@@ -167,6 +167,19 @@ class LabelingConsole:
 
     def process_event( self, event: Dict ):
         print( f" LabelingConsole: process_event: {event}")
+        if event['event'] == 'pick':
+            if event['type'] == 'vtkpoint':
+                point_index = event['pid']
+                self.mark_point( point_index )
+
+    def point_coords( self, point_index: int ):
+        point_data: xa.DataArray = self.block.getPointData()
+        yc, xc = [ point_data.coords[ point_data.dims[-2] ].data, point_data.coords[ point_data.dims[-1] ].data ]
+        return ( yc[point_index], xc[point_index] )
+
+    def mark_point( self, point_index: int ):
+        (y, x) = self.point_coords( point_index )
+        print( f"mark_point: {y} {x}" )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
