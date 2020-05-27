@@ -206,11 +206,11 @@ class DataManager:
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         self.config = Configuration( **kwargs )
+        self.block_shape = kwargs.pop('block_shape', self.config.getShape('block_shape'))
         self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
         self.tile_shape = self.config.getShape( 'tile_shape' )
         self.tile_index = self.config.getShape('tile_index')
         [self.iy, self.ix] = self.tile_index
-        self.block_shape = self.config.getShape( 'block_shape' )
         self.markers = MarkerManager(os.path.join(self.config['data_dir'], self.markerFileName() + ".pkl"))
         self.tile = None
 

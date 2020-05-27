@@ -63,7 +63,7 @@ class Section:
 
 class Configuration:
 
-    def __init__(self, config_dir = "~/.hyperclass" ):
+    def __init__(self, config_dir = "~/.hyperclass", **kwargs ):
         CONFIG_DIR = os.path.expanduser(config_dir)
         self._sections: Dict[str,Section] = {}
         self._pindex = {}
