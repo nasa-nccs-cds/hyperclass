@@ -203,7 +203,7 @@ class Block:
 
     def index2coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.getPointData().coords['samples']
-        selected_sample: np.ndarray = samples[ point_index ].values
+        selected_sample = samples[ point_index ].values.tolist()
         return dict( y = selected_sample[1], x = selected_sample[0] )
 
 class DataManager:
