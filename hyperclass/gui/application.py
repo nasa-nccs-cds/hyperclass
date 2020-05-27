@@ -20,6 +20,7 @@ class HyperclassConsole(QMainWindow):
         self.NFunctionButtons = 0
         self.console = None
         self.vtkFrame = None
+        self.message_stack = []
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -77,10 +78,13 @@ class HyperclassConsole(QMainWindow):
         vlay.addLayout(buttonsLayout)
 
     def showMessage( self, message: str ):
+        self.message_stack.append( message )
         self.statusBar().showMessage(message)
 
-    def update( self, **kwargs ):
-        self.showMessage('Ready')
+    def refresh( self, message, **kwargs ):
+        self.message_stack.remove( message )
+        new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
+        self.showMessage( new_message )
         self.refresh_points( **kwargs )
         self.refresh_image( **kwargs )
 

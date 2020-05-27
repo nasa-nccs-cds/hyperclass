@@ -70,12 +70,13 @@ class TaskRunner(QObject):
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
     def start(self, task: Task, message: str, **kwargs ):
+        from hyperclass.gui.application import HyperclassConsole
         if message not in self.executing_tasks:
             print(f"Task running: {message}")
             self.executing_tasks.append( message )
-            hyperclass = Task.mainWindow()
+            hyperclass: HyperclassConsole = Task.mainWindow()
             hyperclass.showMessage( message )
-            task.signals.finished.connect( partial( hyperclass.update, **kwargs ) )
+            task.signals.finished.connect( partial( hyperclass.refresh, message, **kwargs ) )
             task.signals.finished.connect( partial( self.complete, message ) )
             self.threadpool.start(task)
         else:

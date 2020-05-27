@@ -6,6 +6,37 @@ import vtk.util.numpy_support as npsup
 from collections import OrderedDict
 import vtk
 
+#
+# class PointPickInteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
+#
+#     def __init__(self, parent=None):
+#         self.AddObserver("LeftButtonPressEvent", self.leftButtonPressEvent)
+#         self.AddObserver("RightButtonPressEvent", self.rightButtonPressEvent)
+#         self.AddObserver( "KeyPressEvent",self.keyPressEvent )
+#
+#     def OnRightButtonDown( self, *args ):
+#         print("ZZZ")
+#         super(self).OnRightButtonDown( *args )
+#
+#     def OnKeyPress(self):
+#         print("SSSSSS")
+#         super(self).OnKeyPress()
+#
+#     def keyPressEvent(self, obj, event):
+#         print("YYY")
+#
+#     def rightButtonPressEvent(self, obj, event):
+#         print("XXX")
+#         self.OnRightButtonDown()
+#         return
+#
+#     def leftButtonPressEvent(self, obj, event):
+#         clickPos = self.GetInteractor().GetEventPosition()
+#         picker = self.GetInteractor().GetPicker()
+#         picker.Pick(clickPos[0], clickPos[1], 0, self.GetDefaultRenderer())
+#         print( f"Picked point {picker.GetPointId()}")
+#         self.OnLeftButtonDown()
+#         return
 
 class PointCloud():
 
@@ -15,6 +46,7 @@ class PointCloud():
         self.colormap = None
         self.mapper = None
         self.actor = None
+        self.picker = None
         self.polydata = None
         self.marker_actor = None
         self.points_modified = False
@@ -32,6 +64,9 @@ class PointCloud():
         colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
         self.colormap = np.vstack( colors )
         print(".")
+
+    def keyPressEvent( self, *args ):
+        print("YYY")
 
     def set_point_colors( self, sample_labels: np.array, **kwargs ):
         if self.polydata is None:
@@ -167,14 +202,19 @@ class PointCloud():
     def createRenderWindow( self, **kwargs ):
         if self.renWin is None:
             self.renWin = vtk.vtkRenderWindow()
-            self.rendWinInteractor =  vtk.vtkGenericRenderWindowInteractor()
+            self.rendWinInteractor =  HCRenderWindowInteractor()
             self.renWin.SetInteractor( self.rendWinInteractor )
+            self.picker = vtk.vtkPointPicker()
+            self.rendWinInteractor.SetPicker( self.picker )
             self.rendWinInteractor.SetRenderWindow( self.renWin )
+
+            self.rendWinInteractor.AddObserver( "KeyPressEvent", self.keyPressEvent )
 
             self.renderer = vtk.vtkRenderer()
             self.renWin.AddRenderer( self.renderer )
 
-            self.interactorStyle = vtk.vtkInteractorStyleTrackballCamera( )
+            self.interactorStyle = vtk.vtkInteractorStyleTrackballCamera()
+            self.interactorStyle.SetDefaultRenderer( self.renderer )
             self.rendWinInteractor.SetInteractorStyle( self.interactorStyle )
             self.interactorStyle.KeyPressActivationOff( )
             self.interactorStyle.SetEnabled(1)
