@@ -173,8 +173,8 @@ class Block:
         return  yIndices * self.shape[1] + xIndices
 
     def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
-        iy, ix = self.coord2index(cy, cx)
-        return self.data[:,iy,ix].values.reshape(1, -1)
+        index = self.coord2index(cy, cx)
+        return self.data[ :, index['iy'], index['ix'] ].values.reshape(1, -1)
 
     def plot(self,  **kwargs ) -> xa.DataArray:
         color_band = kwargs.pop( 'color_band', None )
@@ -188,17 +188,23 @@ class Block:
         self.tile.dm.plotRaster( plot_data, **kwargs )
         return plot_data
 
-    def coord2index(self, cy, cx) -> Tuple[int, int]:     # -> iy, ix
+    def coord2index(self, cy, cx) -> Dict:
         coords = self.transform.inverse(np.array([[cx, cy], ]))
-        return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
+        return dict( iy =math.floor(coords[0, 1]), ix = math.floor(coords[0, 0]) )
 
     def coords2indices(self, cy: List[float], cx: List[float] ) -> Tuple[ np.ndarray, np.ndarray ]:
         coords = np.array( list( zip( cx, cy ) ) )
         indices = np.floor( self.transform.inverse(coords) ).transpose().astype( np.int16 )
         return indices[1], indices[0]
 
-    def index2coord(self, iy, ix) -> Tuple[float, float]:
-        return self.transform(np.array([[ix+0.5, iy+0.5], ]))
+    def indices2coords(self, iy, ix) -> Dict:
+        (iy,ix) = self.transform(np.array([[ix+0.5, iy+0.5], ]))
+        return dict( iy = iy, ix = ix )
+
+    def index2coords( self, point_index: int ) -> Dict:
+        samples: xa.DataArray = self.getPointData().coords['samples']
+        selected_sample: np.ndarray = samples[ point_index ].values
+        return dict( y = selected_sample[1], x = selected_sample[0] )
 
 class DataManager:
 

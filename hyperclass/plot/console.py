@@ -172,14 +172,14 @@ class LabelingConsole:
                 point_index = event['pid']
                 self.mark_point( point_index )
 
-    def point_coords( self, point_index: int ) -> List[float]:
+    def point_coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.block.getPointData().coords['samples']
         selected_sample: np.ndarray = samples[ point_index ].values
-        return [ selected_sample[1], selected_sample[0] ]
+        return dict( y = selected_sample[1], x = selected_sample[0] )
 
     def mark_point( self, point_index: int ):
-        [y, x] = self.point_coords( point_index )
-        print( f"mark_point: {y} {x}" )
+        marker = self.block.index2coords( point_index )
+        self.add_marker( dict( c=0, **marker) )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
@@ -239,11 +239,12 @@ class LabelingConsole:
         print(f"Updating {len(self.marker_list)} labels")
         for marker in self.marker_list:
             [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
-            iy, ix = self.block.coord2index(y, x)
-            try:
-                self.labels[ iy, ix ] = c
-            except:
-                print( f"Skipping out of bounds label at local row/col coords {iy} {ix}")
+            if c > 0:
+                index = self.block.coord2index( y, x )
+                try:
+                    self.labels[ index['iy'], index['ix'] ] = c
+                except:
+                    print( f"Skipping out of bounds label at local row/col coords {index['iy']} {index['ix']}")
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabelsFromMarkers()
