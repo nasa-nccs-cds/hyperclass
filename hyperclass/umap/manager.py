@@ -110,11 +110,6 @@ class UMAPManager:
         key_list.sort()
         return key_list
 
-    def init_pointcloud(self, labels: np.ndarray, **kwargs):
-        if labels is not None:
-            labels = np.where( labels == -1, 0, labels )
-            self.point_cloud.set_point_colors( labels )
-
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         point_data = block.getSelectedPointData( ycoords, xcoords )
         mapper = self.getMapper( block, 3 )

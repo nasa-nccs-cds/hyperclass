@@ -185,7 +185,6 @@ class LabelingConsole:
     def build_model(self, *args, **kwargs):
         labels: xa.DataArray = self.getExtendedLabelPoints()
         self.umgr.embed( self.block, labels, **kwargs )
-        self.umgr.init_pointcloud(self.getLabeledPointData().values)
         self.plot_markers_volume()
 
     def learn_classification( self, *args, **kwargs  ):
