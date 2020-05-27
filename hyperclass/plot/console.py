@@ -103,7 +103,7 @@ class LabelingConsole:
         self.currentFrame = 0
         self.image: Optional[AxesImage] = None
         self.plot_axes: Optional[Axes] = None
-        self.marker_list: List[Tuple[float,float,int]] = []
+        self.marker_list: List[Dict] = []
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
         self.umgr: UMAPManager = umgr
@@ -172,13 +172,13 @@ class LabelingConsole:
                 point_index = event['pid']
                 self.mark_point( point_index )
 
-    def point_coords( self, point_index: int ):
-        point_data: xa.DataArray = self.block.getPointData()
-        yc, xc = [ point_data.coords[ point_data.dims[-2] ].data, point_data.coords[ point_data.dims[-1] ].data ]
-        return ( yc[point_index], xc[point_index] )
+    def point_coords( self, point_index: int ) -> List[float]:
+        samples: xa.DataArray = self.block.getPointData().coords['samples']
+        selected_sample: np.ndarray = samples[ point_index ].values
+        return [ selected_sample[1], selected_sample[0] ]
 
     def mark_point( self, point_index: int ):
-        (y, x) = self.point_coords( point_index )
+        [y, x] = self.point_coords( point_index )
         print( f"mark_point: {y} {x}" )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
@@ -237,8 +237,9 @@ class LabelingConsole:
 
     def updateLabelsFromMarkers(self):
         print(f"Updating {len(self.marker_list)} labels")
-        for ( cy, cx, c ) in self.marker_list:
-            iy, ix = self.block.coord2index(cy, cx)
+        for marker in self.marker_list:
+            [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
+            iy, ix = self.block.coord2index(y, x)
             try:
                 self.labels[ iy, ix ] = c
             except:
@@ -339,14 +340,15 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    self.add_marker(event)
-                    self.dataLims = event.inaxes.dataLim
+                    if self.selectedClass > 0:
+                        marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
+                        self.add_marker( marker )
+                        self.dataLims = event.inaxes.dataLim
 
-    def add_marker(self, event):
-        point = ( event.ydata, event.xdata, self.selectedClass )
-        self.marker_list.append(point)
+    def add_marker(self, marker: Dict ):
+        self.marker_list.append( marker )
         self.plot_markers_image()
-        taskRunner.start( Task( self.plot_marker, *point ), f"Plot label at {event.ydata} {event.xdata}" )
+        taskRunner.start( Task( self.plot_marker, marker ), f"Plot label at {marker['y']} {marker['x']}" )
 
     def undo_marker_selection(self, event):
         self.marker_list.pop()
@@ -405,11 +407,12 @@ class LabelingConsole:
     def get_markers(self) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
         if self.marker_list:
-            for ps in self.marker_list:
-                if self.block.inBounds(ps[0], ps[1]):
-                    ycoords.append(ps[0])
-                    xcoords.append(ps[1])
-                    colors.append( self.get_color(ps[2]) )
+            for marker in self.marker_list:
+                [y, x, c] = [ marker[k] for k in ['y', 'x', 'c'] ]
+                if self.block.inBounds(y,x):
+                    ycoords.append(y)
+                    xcoords.append(x)
+                    colors.append( self.get_color(c) )
         return ycoords, xcoords, colors
 
     def plot_markers_image(self):
@@ -423,8 +426,8 @@ class LabelingConsole:
         ycoords, xcoords, colors = self.get_markers()
         if len(xcoords): self.umgr.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
 
-    def plot_marker(self, yc, xc, c, **kwargs ):
-        self.umgr.plot_markers( self.block, [yc], [xc], [ self.get_color(c) ], **kwargs )
+    def plot_marker(self, marker: Dict, **kwargs ):
+        self.umgr.plot_markers( self.block, [marker['y']], [marker['x']], [ self.get_color(marker['c']) ], **kwargs )
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
@@ -433,7 +436,7 @@ class LabelingConsole:
     def read_markers(self):
         self.tile.dm.markers.readMarkers()
         if self.tile.dm.markers.hasData:
-            self.marker_list = self.tile.dm.markers.values
+            self.marker_list = self.tile.dm.markers.markers
             self.umgr.class_labels = self.tile.dm.markers.names
             self.umgr.class_colors = self.tile.dm.markers.colors
             print(f"Reading {len(self.marker_list)} point labels from file { self.tile.dm.markers.file_path}")

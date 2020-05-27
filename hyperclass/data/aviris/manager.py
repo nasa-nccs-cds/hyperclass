@@ -26,16 +26,16 @@ class MarkerManager:
         self.file_path = file_path
         self.names = None
         self.colors = None
-        self.values = None
+        self.markers = None
 
     @property
     def hasData(self):
-        return self.values is not None
+        return self.markers is not None
 
-    def writeMarkers(self, names, colors, values):
+    def writeMarkers(self, names, colors, markers ):
         with open( self.file_path, 'wb' ) as f:
-            print( f"Saving {len(values)} labeled points to file {self.file_path}")
-            pickle.dump( [ names, colors, values ], f )
+            print( f"Saving {len(markers)} labeled points to file {self.file_path}")
+            pickle.dump( [ names, colors, markers ], f )
 
     def readMarkers(self):
         if os.path.isfile(self.file_path):
@@ -45,7 +45,7 @@ class MarkerManager:
                 if label_data:
                     self.names = label_data[0]
                     self.colors = label_data[1]
-                    self.values = label_data[2]
+                    self.markers = label_data[2]
 
 class Tile:
 
