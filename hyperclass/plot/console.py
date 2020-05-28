@@ -178,7 +178,7 @@ class LabelingConsole:
         return dict( y = selected_sample[1], x = selected_sample[0] )
 
     def mark_point( self, point_index: int ):
-        marker = self.block.index2coords( point_index )
+        marker = self.block.pindex2coords(point_index)
         self.add_marker( dict( c=0, **marker) )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
@@ -240,7 +240,7 @@ class LabelingConsole:
         for marker in self.marker_list:
             [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
             if c > 0:
-                index = self.block.coord2index( y, x )
+                index = self.block.coords2indices(y, x)
                 try:
                     self.labels[ index['iy'], index['ix'] ] = c
                 except:

@@ -119,6 +119,7 @@ class Block:
         self.block_coords = (iy,ix)
         self.data = self._getData()
         self.transform = tile.get_block_transform( iy, ix )
+        self.index_array: xa.DataArray = self.get_index_array()
         self.data.attrs['transform'] = self.transform
         self.flow = ActivationFlow( n_neighbors=self.iparm('n_neighbors'), **kwargs )
         self.flow.setNodeData( self.getPointData() )
@@ -132,6 +133,12 @@ class Block:
         block_raster.attrs['block_coords'] = self.block_coords
         block_raster.name = f"{self.tile.name}_b-{self.block_coords[0]}-{self.block_coords[1]}"
         return block_raster
+
+    def get_index_array(self) -> xa.DataArray:
+        point_data: xa.DataArray = self.tile.dm.raster2points(self.data)
+        indices = range( point_data.shape[0] )
+        point_index_array = xa.DataArray( indices, dims=["samples"], coords=dict(samples=point_data.coords['samples']) )
+        return point_index_array.unstack(fill_value=-1)
 
     def iparm(self, key: str ):
         return int( self.tile.dm.config[key] )
@@ -165,15 +172,15 @@ class Block:
         return result if subsample is None else result[::subsample]
 
     def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> np.ndarray:
-        yIndices, xIndices = self.coords2indices(cy, cx)
+        yIndices, xIndices = self.multi_coords2indices(cy, cx)
         return  self.data.values[ :, yIndices, xIndices ].transpose()
 
     def getSelectedPointIndices( self, cy: List[float], cx: List[float] ) -> np.ndarray:
-        yIndices, xIndices = self.coords2indices(cy, cx)
+        yIndices, xIndices = self.multi_coords2indices(cy, cx)
         return  yIndices * self.shape[1] + xIndices
 
     def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
-        index = self.coord2index(cy, cx)
+        index = self.coords2indices(cy, cx)
         return self.data[ :, index['iy'], index['ix'] ].values.reshape(1, -1)
 
     def plot(self,  **kwargs ) -> xa.DataArray:
@@ -188,11 +195,11 @@ class Block:
         self.tile.dm.plotRaster( plot_data, **kwargs )
         return plot_data
 
-    def coord2index(self, cy, cx) -> Dict:
+    def coords2indices(self, cy, cx) -> Dict:
         coords = self.transform.inverse(np.array([[cx, cy], ]))
         return dict( iy =math.floor(coords[0, 1]), ix = math.floor(coords[0, 0]) )
 
-    def coords2indices(self, cy: List[float], cx: List[float] ) -> Tuple[ np.ndarray, np.ndarray ]:
+    def multi_coords2indices(self, cy: List[float], cx: List[float]) -> Tuple[np.ndarray, np.ndarray]:
         coords = np.array( list( zip( cx, cy ) ) )
         indices = np.floor( self.transform.inverse(coords) ).transpose().astype( np.int16 )
         return indices[1], indices[0]
@@ -201,10 +208,21 @@ class Block:
         (iy,ix) = self.transform(np.array([[ix+0.5, iy+0.5], ]))
         return dict( iy = iy, ix = ix )
 
-    def index2coords( self, point_index: int ) -> Dict:
+    def pindex2coords(self, point_index: int) -> Dict:
         samples: xa.DataArray = self.getPointData().coords['samples']
-        selected_sample = samples[ point_index ].values.tolist()
-        return dict( y = selected_sample[1], x = selected_sample[0] )
+        selected_sample: List = samples[ point_index ].values.tolist()
+        return dict( y = selected_sample[0], x = selected_sample[1] )
+
+    def indices2pindex( self, iy, ix ) -> int:
+        return self.index_array.values[ iy, ix ]
+
+    def coords2pindex( self, cy, cx ) -> int:
+        index = self.coords2indices( cy, cx )
+        return self.index_array.values[ index['iy'], index['ix'] ]
+
+    def multi_coords2pindex(self, ycoords: List[float], xcoords: List[float] ) -> np.ndarray:
+        ( yi, xi ) = self.multi_coords2indices( ycoords, xcoords )
+        return self.index_array.values[ yi, xi ]
 
 class DataManager:
 
@@ -367,8 +385,7 @@ class DataManager:
 
     @classmethod
     def raster2points(cls, raster: xa.DataArray ) -> xa.DataArray:
-        minv = raster.values.min()
-        stacked_raster = raster.stack(samples=['x','y']).transpose()
+        stacked_raster = raster.stack(samples=raster.dims[-2:]).transpose()
         if np.issubdtype( raster.dtype, np.integer ):
             nodata = stacked_raster.attrs.get('_FillValue',-2)
             point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int16)

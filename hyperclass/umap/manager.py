@@ -110,11 +110,18 @@ class UMAPManager:
         key_list.sort()
         return key_list
 
-    def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
+    def plot_markers_transform(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         point_data = block.getSelectedPointData( ycoords, xcoords )
         mapper = self.getMapper( block, 3 )
         if hasattr(mapper, 'embedding_'):
             transformed_data: np.ndarray = mapper.transform(point_data)
+            self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
+
+    def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
+        pindices: np.ndarray  = block.multi_coords2pindex( ycoords, xcoords )
+        mapper = self.getMapper( block, 3 )
+        if hasattr(mapper, 'embedding_'):
+            transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
 
     def update(self):
@@ -131,7 +138,7 @@ class UMAPManager:
         block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs,
                                     coords=dict( samples=point_data.coords['samples'], model=np.arange(0,transformed_data.shape[1]) ) )
 
-        transposed_raster = block.data.stack(samples=block.data.dims[1:]).transpose()
+        transposed_raster = block.data.stack(samples=block.data.dims[-2:]).transpose()
         new_raster = block_model.reindex(samples=transposed_raster.samples).unstack()
         new_raster.attrs['long_name'] = [ f"d-{i}" for i in range( new_raster.shape[0] ) ]
         return   dict( raster=new_raster, points=block_model )
