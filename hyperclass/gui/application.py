@@ -78,6 +78,9 @@ class HyperclassConsole(QMainWindow):
             buttonsLayout.addWidget(pybutton)
         vlay.addLayout(buttonsLayout)
 
+    def tabShape(self) -> 'QTabWidget.TabShape':
+        return super().tabShape()
+
     def showMessage( self, message: str ):
         self.message_stack.append( message )
         self.statusBar().showMessage(message)

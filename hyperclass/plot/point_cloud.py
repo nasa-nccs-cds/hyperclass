@@ -163,6 +163,8 @@ class PointCloud():
         self.marker_mapper.Modified()
 
     def plotMarkers(self, points: List[List[float]], colors: List[List[float]], **kwargs  ):
+        reset = kwargs.get( 'reset', False )
+        if reset: self.initMarkers( )
         for point_coords in points:
             id = self.marker_points.InsertNextPoint( *point_coords  )
             self.marker_verts.InsertNextCell(1)

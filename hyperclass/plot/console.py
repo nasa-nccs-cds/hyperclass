@@ -1,11 +1,12 @@
 import matplotlib.widgets
 import matplotlib.patches
-from hyperclass.util.diagnostics import emphasize
+from PyQt5.QtCore import Qt
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
+from matplotlib.backend_bases import PickEvent, MouseEvent
 from collections import OrderedDict
 from hyperclass.umap.manager import UMAPManager
 from functools import partial
@@ -109,6 +110,7 @@ class LabelingConsole:
         self.umgr: UMAPManager = umgr
         self.svc: Optional[SVC] = None
         self.dataLims = {}
+        self.key_mode = None
         self.currentClass = 0
 
         self.figure: Figure = kwargs.pop( 'figure', None )
@@ -171,6 +173,9 @@ class LabelingConsole:
             if event['type'] == 'vtkpoint':
                 point_index = event['pid']
                 self.mark_point( point_index )
+        elif event['event'] == 'key':
+            if   event['type'] == "press":   self.key_mode = event['key']
+            elif event['type'] == "release": self.key_mode = None
 
     def point_coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.block.getPointData().coords['samples']
@@ -179,7 +184,7 @@ class LabelingConsole:
 
     def mark_point( self, point_index: int ):
         marker = self.block.pindex2coords(point_index)
-        self.add_marker( dict( c=0, **marker) )
+        self.add_marker( dict( c=0, **marker), labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords )
@@ -341,19 +346,28 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    if self.selectedClass > 0:
+                    if (self.selectedClass > 0) and (self.key_mode == None):
                         marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
                         self.add_marker( marker )
                         self.dataLims = event.inaxes.dataLim
 
-    def add_marker(self, marker: Dict ):
+    def add_marker(self, marker: Dict, **kwargs ):
+        is_unlabeled = (marker['c'] == 0)
+        if is_unlabeled: self.clear_unlabeled()
         self.marker_list.append( marker )
-        self.plot_markers_image()
-        taskRunner.start( Task( self.plot_marker, marker ), f"Plot label at {marker['y']} {marker['x']}" )
+        self.plot_markers_image( **kwargs )
+        if is_unlabeled:    taskRunner.start( Task( self.plot_markers_volume, reset=True, labeled=False ), f"Plot markers" )
+        else:               taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
 
-    def undo_marker_selection(self, event):
-        self.marker_list.pop()
-        self.plot_markers_image()
+    def undo_marker_selection(self, **kwargs ):
+        labeled = kwargs.pop( 'labeled', False )
+        if len( self.marker_list ):
+            self.marker_list.pop()
+            self.update_marker_plots( labeled=labeled, **kwargs )
+
+    def update_marker_plots( self, **kwargs ):
+        self.plot_markers_image( **kwargs )
+        taskRunner.start( Task(self.plot_markers_volume, reset=True, **kwargs ), f"Plot markers")
 
     def submit_training_set(self, event ):
         print( "Submitting training set" )
@@ -405,27 +419,36 @@ class LabelingConsole:
         if class_index is None: class_index = self.selectedClass
         return self.class_colors[self.class_labels[ class_index ]]
 
-    def get_markers(self) -> Tuple[ List[float], List[float], List[List[float]] ]:
+    def clear_unlabeled(self):
+        if self.marker_list:
+            self.marker_list = [ marker for marker in self.marker_list if marker['c'] > 0 ]
+
+    def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
+        labeled = kwargs.get( 'labeled', True )
         if self.marker_list:
             for marker in self.marker_list:
                 [y, x, c] = [ marker[k] for k in ['y', 'x', 'c'] ]
-                if self.block.inBounds(y,x):
+                if self.block.inBounds(y,x) and not ( labeled and (c==0) ):
                     ycoords.append(y)
                     xcoords.append(x)
                     colors.append( self.get_color(c) )
         return ycoords, xcoords, colors
 
-    def plot_markers_image(self):
+    def plot_markers_image(self, **kwargs ):
         if self.marker_plot:
-            ycoords, xcoords, colors = self.get_markers()
+            ycoords, xcoords, colors = self.get_markers( **kwargs )
             self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
             self.marker_plot.set_facecolor(colors)
             self.update_canvas()
 
     def plot_markers_volume(self, **kwargs):
-        ycoords, xcoords, colors = self.get_markers()
-        if len(xcoords): self.umgr.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
+        ycoords, xcoords, colors = self.get_markers( **kwargs )
+        if len(xcoords):
+            self.umgr.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
+        else:
+            reset = kwargs.get('reset', False)
+            if reset: self.umgr.reset_markers()
 
     def plot_marker(self, marker: Dict, **kwargs ):
         self.umgr.plot_markers( self.block, [marker['y']], [marker['x']], [ self.get_color(marker['c']) ], **kwargs )
@@ -446,11 +469,30 @@ class LabelingConsole:
         print(f"Writing {len(self.marker_list)} point labels ot file {self.tile.dm.markers.file_path}")
         self.tile.dm.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
+    def mpl_pick_marker( self, event: PickEvent ):
+        if ( event.name == "pick_event" ) and ( event.artist == self.marker_plot ) and ( self.key_mode == Qt.Key_Shift ):
+            self.delete_marker( event.mouseevent.ydata, event.mouseevent.xdata )
+            self.update_marker_plots()
+
+    def delete_marker(self, y, x ):
+        pindex = self.block.coords2pindex( y, x )
+        if len( self.marker_list ):
+            current_pindices = []
+            new_marker_list = []
+            for marker in self.marker_list:
+                pindex1 = self.block.coords2pindex( marker['y'], marker['x'] )
+                if (pindex1 != pindex) and ( pindex1 not in current_pindices ):
+                    new_marker_list.append( marker )
+                    current_pindices.append( pindex1 )
+            self.marker_list = new_marker_list
+        print(f"Marker deleted: [{y} {x}], #markers = {len(self.marker_list)}")
+
     def add_plots(self, **kwargs ):
         self.image = self.create_image(**kwargs)
-        self.marker_plot = self.plot_axes.scatter([], [], s=50, zorder=2, alpha=1)
+        self.marker_plot = self.plot_axes.scatter( [], [], s=50, zorder=2, alpha=1, picker=True )
         self.marker_plot.set_edgecolor([0, 0, 0])
         self.marker_plot.set_linewidth(2)
+        self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
         self.plot_markers_image()
 
     def add_slider(self,  **kwargs ):
