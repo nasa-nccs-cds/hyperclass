@@ -71,6 +71,13 @@ class PointCloud():
     def keyPressEvent( self, *args ):
         print("YYY")
 
+    def update_point_sizes(self, increase: bool):
+        psize = self.actor.GetProperty().GetPointSize()
+        psize = psize + 1 if increase else psize - 1
+        print( f"Update point size: {psize}")
+        self.actor.GetProperty().SetPointSize( max( psize, 1 ) )
+        self.update()
+
     def set_point_colors( self, sample_labels: np.array, **kwargs ):
         if self.polydata is None:
             print( "Points are not yet available" )

@@ -65,6 +65,9 @@ class UMAPManager:
     def clear_pointcloud(self):
         self.point_cloud.clear()
 
+    def update_point_sizes(self, increase: bool  ):
+        self.point_cloud.update_point_sizes( increase )
+
     def getBlock( self, **kwargs ) -> Optional[Block]:
         block: Optional[Block] = kwargs.get('block', None)
         if block is None:
