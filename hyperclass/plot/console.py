@@ -145,11 +145,10 @@ class LabelingConsole:
 
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
-                                                    [ "Increase Band Alpha", 'Alt+>', None, partial( self.update_image_alpha, "bands", True ) ],
-                                                    [ "Decrease Band Alpha", 'Alt+<', None, partial( self.update_image_alpha, "bands", False ) ],
-                                                    [ "Increase Point Sizes", 'Ctrl+}', None, partial(self.update_point_sizes, True ) ],
-                                                    [ "Decrease Point Sizes", 'Ctrl+{', None, partial(self.update_point_sizes, False ) ] ]
-        )
+                                                    [ "Increase Band Alpha",   'Alt+>',  None, partial( self.update_image_alpha, "bands", True ) ],
+                                                    [ "Decrease Band Alpha",   'Alt+<',  None, partial( self.update_image_alpha, "bands", False ) ],
+                                                    [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
+                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ]  )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -415,11 +414,14 @@ class LabelingConsole:
             current = image.get_alpha()
             if increase:   new_alpha = min( 1.0, current + 0.1 )
             else:          new_alpha = max( 0.0, current - 0.1 )
+            print( f"Update Image Alpha: {new_alpha}")
             image.set_alpha( new_alpha )
             self.figure.canvas.draw_idle()
 
     def update_point_sizes( self, increase: bool, *args, **kwargs  ):
+        print( " ...update_point_sizes...  ")
         self.umgr.update_point_sizes( increase )
+        Task.mainWindow().refresh_points()
 
     def get_color(self, class_index: int = None ) -> List[float]:
         if class_index is None: class_index = self.selectedClass
