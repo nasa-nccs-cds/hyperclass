@@ -12,7 +12,7 @@ class MplWidget(QWidget):
     def __init__(self, umgr: UMAPManager, *args, **kwargs):
         QWidget.__init__(self, *args, **kwargs)
         self.setLayout(QVBoxLayout())
-        self.canvas = MplCanvas(self, umgr, width=10, height=8)
+        self.canvas = MplCanvas(self, umgr, width=10, height=8, **kwargs )
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
@@ -45,13 +45,13 @@ class MplWidget(QWidget):
 
 class MplCanvas(FigureCanvas):
 
-    def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100):
+    def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100, **kwargs ):
         self.figure = Figure(figsize=(width, height), dpi=dpi)
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
-        self.console = LabelingConsole( umgr, figure=self.figure )
+        self.console = LabelingConsole( umgr, figure=self.figure, **kwargs )
 
     def process_event( self, event: Dict ):
         self.console.process_event(event)

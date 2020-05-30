@@ -1693,7 +1693,7 @@ class UMAP(BaseEstimator):
         random_state = check_random_state(self.transform_seed)
         rng_state = random_state.randint(INT32_MIN, INT32_MAX, 3).astype(np.int64)
 
-        indices, dists = self._rp_forest.query(X, self.n_neighbors) 
+        indices, dists = self._rp_forest.query(X, self.n_neighbors)
         dists = dists.astype(np.float32, order="C")
 
         adjusted_local_connectivity = max(0.0, self.local_connectivity - 1.0)

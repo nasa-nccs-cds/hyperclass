@@ -90,8 +90,11 @@ class Tile:
     def nBlocks(self) -> List[ List[int] ]:
         return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in range(2) ]
 
-    def getBlock(self, iy: int, ix: int) -> "Block":
-        return Block( self, iy, ix )
+    def getBlock(self, iy: int, ix: int, **kwargs ) -> "Block":
+        init_graph = kwargs.get('init_graph',False)
+        block = Block( self, iy, ix, **kwargs )
+        if init_graph: block.flow_init()
+        return block
 
     def getBandPointData( self, iband: int, **kwargs  ) -> xa.DataArray:
         band_data: xa.DataArray = self.data[iband]
@@ -121,11 +124,23 @@ class Block:
         self.transform = tile.get_block_transform( iy, ix )
         self.index_array: xa.DataArray = self.get_index_array()
         self.data.attrs['transform'] = self.transform
-        self.flow = ActivationFlow( n_neighbors=self.iparm('n_neighbors'), **kwargs )
-        self.flow.setNodeData( self.getPointData() )
+        self._flow = None
+        self._samples_axis: Optional[xa.DataArray] = None
         tr = self.transform.params.flatten()
         self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
+
+    def flow_init(self):
+        if self._flow is None:
+            n_neighbors = self.config.pop( 'n_neighbors', self.iparm('n_neighbors') )
+            print( f"Computing NN graph using {n_neighbors} neighbors")
+            self._flow = ActivationFlow( n_neighbors=n_neighbors, **self.config )
+            self._flow.setNodeData( self.getPointData() )
+
+    @property
+    def flow(self):
+        self.flow_init()
+        return self._flow
 
     def _getData( self ) -> xa.DataArray:
         ybounds, xbounds = self.getBounds()
@@ -169,7 +184,15 @@ class Block:
     def getPointData( self, **kwargs ) -> xa.DataArray:
         subsample = kwargs.get( 'subsample', None )
         result: xa.DataArray =  self.tile.dm.raster2points( self.data )
-        return result if subsample is None else result[::subsample]
+        rv =  result if subsample is None else result[::subsample]
+        if self._samples_axis is None:
+            self._samples_axis = rv.coords['samples']
+        return rv
+
+    @property
+    def samples_axis(self) -> xa.DataArray:
+        if self._samples_axis is None: self.getPointData()
+        return  self._samples_axis
 
     def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> np.ndarray:
         yIndices, xIndices = self.multi_coords2indices(cy, cx)
@@ -209,8 +232,7 @@ class Block:
         return dict( iy = iy, ix = ix )
 
     def pindex2coords(self, point_index: int) -> Dict:
-        samples: xa.DataArray = self.getPointData().coords['samples']
-        selected_sample: List = samples[ point_index ].values.tolist()
+        selected_sample: List = self.samples_axis.values[point_index]
         return dict( y = selected_sample[0], x = selected_sample[1] )
 
     def indices2pindex( self, iy, ix ) -> int:

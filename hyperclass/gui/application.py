@@ -9,7 +9,7 @@ from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
 class HyperclassConsole(QMainWindow):
-    def __init__(self, umgr: UMAPManager):
+    def __init__( self, umgr: UMAPManager, **kwargs ):
         QMainWindow.__init__(self)
 
         self.title = 'hyperclass'
@@ -40,7 +40,7 @@ class HyperclassConsole(QMainWindow):
         fileMenu.addAction(exitButton)
 
         self.vtkFrame = VTKFrame( umgr )
-        self.console = MplWidget( umgr,self)
+        self.console = MplWidget( umgr, self, **kwargs )
         self.vtkFrame.addEventListener( self.console )
 
         for menuName, menuItems in self.console.menu_actions.items():
@@ -67,8 +67,8 @@ class HyperclassConsole(QMainWindow):
         vlay = QVBoxLayout(widget)
 
         framesLayout = QHBoxLayout()
-        framesLayout.addWidget( self.console )
-        framesLayout.addWidget( self.vtkFrame )
+        framesLayout.addWidget( self.console, 1 )
+        framesLayout.addWidget( self.vtkFrame, 1 )
         vlay.addLayout(framesLayout)
 
         buttonsLayout = QHBoxLayout()

@@ -123,7 +123,7 @@ class LabelingConsole:
 
         self.read_markers()
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
-        self.setBlock( kwargs.pop( 'block', block_index ) )
+        self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
 
         self.nFrames = self.data.shape[0]
         self.band_axis = kwargs.pop('band', 0)
@@ -135,7 +135,8 @@ class LabelingConsole:
 
         self.setup_plot(**kwargs)
 
-        self.button_actions =  OrderedDict( model=   partial(self.run_task, self.build_model, "Computing embedding..."),
+
+        self.button_actions =  OrderedDict( model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
                                             spread=  self.submit_training_set,
                                             undo=    self.undo_marker_selection,
                                             clear=   self.clearLabels,
@@ -188,7 +189,7 @@ class LabelingConsole:
         self.add_marker( dict( c=0, **marker), labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
-        self.block: Block = self.tile.getBlock( *block_coords )
+        self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
         self.umgr.clear_pointcloud()
         self.update_plot_axis_bounds()
         self.plot_markers_image()

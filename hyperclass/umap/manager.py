@@ -16,6 +16,7 @@ class UMAPManager:
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
         self.refresh = kwargs.pop('refresh', False)
+        self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
@@ -36,7 +37,7 @@ class UMAPManager:
 
     def embedding( self, block: Block, ndim: int = 3 ) -> xa.DataArray:
         mapper: UMAP = self.getMapper( block, ndim )
-        if hasattr( mapper, 'embedding_' ):
+        if mapper.embedding_ is not None:
             return self.wrap_embedding( block, mapper.embedding_ )
         return self.embed( block, ndim = ndim )
 
@@ -45,13 +46,12 @@ class UMAPManager:
         ax_model = np.arange( embedding.shape[1] )
         return xa.DataArray( embedding, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, block: Block, ndim: int, **kwargs ) -> UMAP:
-        refresh = kwargs.pop( 'refresh', False )
+    def getMapper(self, block: Block, ndim: int, refresh=False ) -> UMAP:
         mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
         if ( mapper is None ) or refresh:
             defaults = self.tile.dm.config.section("umap").toDict()
-            parms = dict( **defaults, **kwargs, n_components=ndim )
+            parms = dict( **defaults ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         return mapper
@@ -100,11 +100,18 @@ class UMAPManager:
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
-        mapper.embed(point_data.data, block.flow.nnd, labels_data, **kwargs)
+        if mapper.embedding_ is not None:
+            mapper.init = mapper.embedding_
+        etype = self.embedding_type.lower()
+        if etype == "umap":
+            mapper.embed(point_data.data, block.flow.nnd, labels_data, **kwargs)
+        elif etype == "spectral":
+            mapper.spectral_embed(point_data.data, block.flow.nnd, labels_data, **kwargs)
+        else: raise Exception( f" Unknown embedding type: {etype}")
         if ndim == 3:
             self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
-        print(f"Completed umap fitting in {(t2 - t1)} sec, embedding shape = {mapper.embedding_.shape}")
+        print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = {mapper.embedding_.shape}")
         return self.wrap_embedding( block, mapper.embedding_ )
 
     @property

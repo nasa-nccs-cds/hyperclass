@@ -1,24 +1,17 @@
 xarray
 dask
 matplotlib
+pynndescent
 numpy
-wget
-geopandas
-descartes
+utm
 shapely
 regionmask
-rioxarray
 rasterio
-cligj
 bottleneck
+scikit-image
 umap-learn
 scipy
 scikit-learn
-numba
-plotly
-datashader
-colorcet
-holoviews
 rioxarray
 
 
