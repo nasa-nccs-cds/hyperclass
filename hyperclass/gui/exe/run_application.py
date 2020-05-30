@@ -9,7 +9,7 @@ import os, math, sys
 block_shape = (500, 500)
 image_name = "ang20170720t004130_corr_v2p9"
 n_neighbors = 8
-embedding_type = "spectral"  # "spectral" "umap"
+embedding_type = "umap"  # "spectral" "umap"
 
 classes = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),
            ('Obscured', [0.6, 0.6, 0.4, 1.0]),

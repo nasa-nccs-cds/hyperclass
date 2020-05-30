@@ -15,7 +15,6 @@ class UMAPManager:
 
     def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.tile = tile
-        self.refresh = kwargs.pop('refresh', False)
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
@@ -46,10 +45,10 @@ class UMAPManager:
         ax_model = np.arange( embedding.shape[1] )
         return xa.DataArray( embedding, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, block: Block, ndim: int, refresh=False ) -> UMAP:
+    def getMapper(self, block: Block, ndim: int ) -> UMAP:
         mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
-        if ( mapper is None ) or refresh:
+        if ( mapper is None ):
             defaults = self.tile.dm.config.section("umap").toDict()
             parms = dict( **defaults ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
@@ -77,7 +76,7 @@ class UMAPManager:
         return block
 
     def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> xa.DataArray:
-        self.learned_mapping = self.getMapper( block, ndim, refresh=True )
+        self.learned_mapping = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         self.learned_mapping.embed(point_data.data, block.flow.nnd, labels.values, **kwargs)
         return self.wrap_embedding( block, self.learned_mapping.embedding_ )
@@ -94,8 +93,7 @@ class UMAPManager:
         progress_callback = kwargs.get('progress_callback')
         ndim = kwargs.get( "ndim", 3 )
         t0 = time.time()
-        refresh = kwargs.get('refresh',True)
-        mapper = self.getMapper( block, ndim, refresh=refresh )
+        mapper = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")

@@ -67,8 +67,8 @@ class HyperclassConsole(QMainWindow):
         vlay = QVBoxLayout(widget)
 
         framesLayout = QHBoxLayout()
-        framesLayout.addWidget( self.console, 1 )
-        framesLayout.addWidget( self.vtkFrame, 1 )
+        framesLayout.addWidget( self.console, 10 )
+        framesLayout.addWidget( self.vtkFrame, 7 )
         vlay.addLayout(framesLayout)
 
         buttonsLayout = QHBoxLayout()
