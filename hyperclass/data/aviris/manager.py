@@ -7,6 +7,7 @@ from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 import matplotlib.pyplot as plt
 from typing import TextIO
+from pyproj import Proj, transform
 import csv
 import os, math, pickle
 import rioxarray as rio
@@ -164,9 +165,15 @@ class Block:
     @property
     def ylim(self): return self._ylim
 
-    @property
-    def extent(self) -> List[float]:   # left, right, bottom, top
-        return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
+    def extent(self, epsg: int = None ) -> List[float]:   # left, right, bottom, top
+        if epsg is None:
+            return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
+        else:
+            inProj = Proj( self.data.spatial_ref.crs_wkt )
+            outProj = Proj(epsg)
+            x0, y0 = transform( inProj, outProj, self.xlim[0], self.ylim[0] )
+            x1, y1 = transform( inProj, outProj, self.xlim[1], self.ylim[1] )
+            return [ x0, x1, y0, y1 ]
 
     def inBounds(self, yc: float, xc: float ) -> bool:
         if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False
@@ -224,7 +231,8 @@ class Block:
 
     def multi_coords2indices(self, cy: List[float], cx: List[float]) -> Tuple[np.ndarray, np.ndarray]:
         coords = np.array( list( zip( cx, cy ) ) )
-        indices = np.floor( self.transform.inverse(coords) ).transpose().astype( np.int16 )
+        trans_coords = np.floor(self.transform.inverse(coords))
+        indices = trans_coords.transpose().astype( np.int16 )
         return indices[1], indices[0]
 
     def indices2coords(self, iy, ix) -> Dict:
@@ -415,17 +423,6 @@ class DataManager:
             point_data = stacked_raster.dropna(dim='samples', how='any')
         print(f" raster2points -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")
         return point_data
-
-    @classmethod
-    def plot_pointclouds(cls, datasets: List ):
-        import plotly.graph_objs as go
-        plot_data = []
-        for ip, dataset in enumerate( datasets ):
-            points = dataset.pop( "data" )
-            name = dataset.pop( "name" )
-            plot_data.append( go.Scatter3d( x=points[:, 0], y=points[:, 1], z=points[:, 2], name=name, mode='markers', marker=dataset ) )
-        fig = go.Figure( data=plot_data )
-        fig.show()
 
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):

@@ -330,7 +330,7 @@ class LabelingConsole:
         if self.image is not None:
             frame_data: xa.DataArray = self.data[ self.currentFrame ]
             self.image.set_data( frame_data.values  )
-            self.image.set_extent( self.block.extent )
+            self.image.set_extent( self.block.extent() )
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
         if self.labels_image is not None:
@@ -379,7 +379,7 @@ class LabelingConsole:
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )
-        self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).transpose().astype(np.int16)
+        self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int16)
         extent = self.tile.dm.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
         class_alpha = kwargs.get( 'alpha', 0.7 )

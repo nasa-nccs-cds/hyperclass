@@ -128,7 +128,7 @@ class UMAPManager:
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         pindices: np.ndarray  = block.multi_coords2pindex( ycoords, xcoords )
         mapper = self.getMapper( block, 3 )
-        if hasattr(mapper, 'embedding_'):
+        if mapper.embedding_ is not None:
             transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
 

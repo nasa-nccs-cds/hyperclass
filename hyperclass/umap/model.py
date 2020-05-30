@@ -1508,7 +1508,7 @@ class UMAP(BaseEstimator):
         self._input_hash = joblib.hash(self._raw_data)
         return self
 
-    def embed( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None, **kwargs ):
+    def embed1( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None, **kwargs ):
         """Fit X into an embedded space.
 
         Optionally use y for supervised dimension reduction.
@@ -1809,7 +1809,7 @@ class UMAP(BaseEstimator):
 
         return self
 
-    def embed1( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None, **kwargs ):
+    def embed( self, X: np.ndarray, nnd: NNDescent, y: np.ndarray=None, **kwargs ):
         """Fit X into an embedded space.
 
         Optionally use y for supervised dimension reduction.
