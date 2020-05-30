@@ -464,7 +464,6 @@ class LabelingConsole:
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()
-        plt.pause(0.01)
 
     def read_markers(self):
         self.tile.dm.markers.readMarkers()

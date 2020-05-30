@@ -68,7 +68,7 @@ class HyperclassConsole(QMainWindow):
 
         framesLayout = QHBoxLayout()
         framesLayout.addWidget( self.console, 10 )
-        framesLayout.addWidget( self.vtkFrame, 7 )
+        framesLayout.addWidget( self.vtkFrame, 6 )
         vlay.addLayout(framesLayout)
 
         buttonsLayout = QHBoxLayout()
@@ -98,7 +98,7 @@ class HyperclassConsole(QMainWindow):
 
     def refresh_image( self, **kwargs ):
         if self.console is not None:
-            self.console.update()
+            self.console.mpl_update()
 
     def setBlock(self, block_coords: Tuple[int]):
         self.console.setBlock(block_coords)
