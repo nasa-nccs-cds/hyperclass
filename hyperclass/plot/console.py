@@ -2,6 +2,7 @@ import matplotlib.widgets
 import matplotlib.patches
 from PyQt5.QtCore import Qt
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
+from hyperclass.data.google import GoogleMaps
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
@@ -112,6 +113,7 @@ class LabelingConsole:
         self.dataLims = {}
         self.key_mode = None
         self.currentClass = 0
+        self.google = GoogleMaps()
 
         self.figure: Figure = kwargs.pop( 'figure', None )
         if self.figure is None:
@@ -502,6 +504,8 @@ class LabelingConsole:
         self.marker_plot.set_linewidth(2)
         self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
         self.plot_markers_image()
+        google_image = self.google.get_google_map( self.block )
+        self.google_map = self.plot_axes.imshow( google_image, extent=self.block.extent(), alpha = 1.0 )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
