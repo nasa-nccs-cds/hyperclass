@@ -1,8 +1,11 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton, QMenu, QMenuBar
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+from collections import Mapping
 from functools import partial
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.gui.points import VTKFrame
@@ -21,6 +24,7 @@ class HyperclassConsole(QMainWindow):
         self.console = None
         self.vtkFrame = None
         self.message_stack = []
+        self.newfig : Figure = None
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -43,14 +47,7 @@ class HyperclassConsole(QMainWindow):
         self.console = MplWidget( umgr, self, **kwargs )
         self.vtkFrame.addEventListener( self.console )
 
-        for menuName, menuItems in self.console.menu_actions.items():
-            menu = mainMenu.addMenu(menuName)
-            for menuItem in menuItems:
-                menuButton = QAction( menuItem[0], self )
-                if menuItem[1] is not None: menuButton.setShortcut( menuItem[1] )
-                if menuItem[2] is not None: menuButton.setStatusTip( menuItem[2] )
-                menuButton.triggered.connect( menuItem[3] )
-                menu.addAction(menuButton)
+        self.addMenues( mainMenu, self.console.menu_actions )
 
         nBlocks = umgr.tile.nBlocks
         load_menu = blocksMenu.addMenu("load")
@@ -78,6 +75,20 @@ class HyperclassConsole(QMainWindow):
             buttonsLayout.addWidget(pybutton)
         vlay.addLayout(buttonsLayout)
 
+    def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
+        for menuName, menuItems in menuSpec.items():
+            menu = parent_menu.addMenu(menuName)
+            for menuItem in menuItems:
+                if isinstance(menuItem, Mapping):   self.addMenues( menu, menuItem )
+                else:                               self.addMenuAction( menu, menuItem )
+
+    def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
+        menuButton = QAction(menuItem[0], self)
+        if menuItem[1] is not None: menuButton.setShortcut(menuItem[1])
+        if menuItem[2] is not None: menuButton.setStatusTip(menuItem[2])
+        menuButton.triggered.connect(menuItem[3])
+        parent_menu.addAction(menuButton)
+
     def tabShape(self) -> 'QTabWidget.TabShape':
         return super().tabShape()
 
@@ -85,12 +96,19 @@ class HyperclassConsole(QMainWindow):
         self.message_stack.append( message )
         self.statusBar().showMessage(message)
 
-    def refresh( self, message, **kwargs ):
+    def refresh( self, message, task_type: str,  **kwargs ):
         self.message_stack.remove( message )
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
-        self.refresh_points( **kwargs )
-        self.refresh_image( **kwargs )
+        if task_type == "console":
+            self.refresh_points( **kwargs )
+            self.refresh_image( **kwargs )
+        elif task_type == "newfig":
+            self.newfig, ax = plt.subplots(1, 1)
+            ax.imshow( self.console.getNewImage(), extent=self.console.extent(), alpha=1.0)
+            plt.show( block = False )
+        else:
+            print( f"Warning, unknown task type: {task_type}, doing nothing for refresh.")
 
     def refresh_points( self, **kwargs ):
         if self.vtkFrame is not None:

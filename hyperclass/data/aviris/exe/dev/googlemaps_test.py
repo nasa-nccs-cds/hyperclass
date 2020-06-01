@@ -3,7 +3,7 @@ from datetime import datetime
 from googlemaps.maps import StaticMapMarker
 from googlemaps.maps import StaticMapPath
 
-client = googlemaps.Client(key='AIzaSyCnZ5le4NJhODIolA8SRv37NVN4f6q75Rw')
+client = googlemaps.Client(key='zzzz')
 url = "https://maps.googleapis.com/maps/api/staticmap"
 responses.add(responses.GET, url, status=200)
 

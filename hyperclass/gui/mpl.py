@@ -1,7 +1,7 @@
 import sys
 from hyperclass.plot.console import LabelingConsole
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
-from PyQt5.QtCore import Qt
+from hyperclass.data.aviris.manager import DataManager, Block, Tile
 from hyperclass.umap.manager import UMAPManager
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.figure import Figure
@@ -19,6 +19,15 @@ class MplWidget(QWidget):
 
     def setBlock(self, block_coords: Tuple[int]   ):
         self.canvas.setBlock( block_coords )
+
+    def getNewImage(self):
+        return self.canvas.getNewImage()
+
+    def getBlock(self) -> Block:
+        return self.canvas.getBlock()
+
+    def extent(self):
+        return self.canvas.extent()
 
     def keyPressEvent( self, event ):
         event = dict( event="key", type="press", key=event.key() )
@@ -73,4 +82,11 @@ class MplCanvas(FigureCanvas):
         self.update()
         self.repaint()
 
+    def getNewImage(self):
+        return self.console.getNewImage()
 
+    def getBlock(self) -> Block:
+        return self.console.block
+
+    def extent(self):
+        return self.console.block.extent()

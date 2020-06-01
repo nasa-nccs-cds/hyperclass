@@ -4,6 +4,19 @@ from io import BytesIO
 from math import log, exp, tan, atan, ceil
 from PIL import Image
 import sys
+from hyperclass.data.aviris.manager import DataManager, Tile, Block
+import matplotlib.pyplot as plt
+
+from hyperclass.data.google import GoogleMaps
+
+block_shape = (250, 250)
+image_name = "ang20170720t004130_corr_v2p9"
+
+dm = DataManager( image_name, block_shape=block_shape )
+tile: Tile = dm.getTile()
+block: Block = tile.getBlock( 0, 0 )
+google = GoogleMaps( block )
+extent = google.extent( 4326 ) # left, right, bottom, top
 
 # circumference/radius
 tau = 6.283185307179586
@@ -13,7 +26,7 @@ tau = 6.283185307179586
 DEGREE = tau/360
 
 ZOOM_OFFSET = 8
-GOOGLE_MAPS_API_KEY = 'AIzaSyCnZ5le4NJhODIolA8SRv37NVN4f6q75Rw'
+GOOGLE_MAPS_API_KEY = google.api_key
 
 # Max width or height of a single image grabbed from Google.
 MAXSIZE = 640
@@ -97,8 +110,9 @@ def get_maps_image(NW_lat_long, SE_lat_long, zoom=18):
 
 if __name__ == '__main__':
     # a neighbourhood in Lajeado, Brazil:
-    NW_lat_long =  (-29.44*DEGREE, -52.0*DEGREE)
-    SE_lat_long = (-29.45*DEGREE, -51.98*DEGREE)
+
+    NW_lat_long =  (extent[3]*DEGREE, extent[0]*DEGREE)
+    SE_lat_long =  (extent[2]*DEGREE, extent[1]*DEGREE)
 
     zoom = 18   # be careful not to get too many images!
 

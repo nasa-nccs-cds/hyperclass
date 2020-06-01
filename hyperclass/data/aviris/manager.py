@@ -171,9 +171,8 @@ class Block:
         else:
             inProj = Proj( self.data.spatial_ref.crs_wkt )
             outProj = Proj(epsg)
-            x0, y0 = transform( inProj, outProj, self.xlim[0], self.ylim[0] )
-            x1, y1 = transform( inProj, outProj, self.xlim[1], self.ylim[1] )
-            return [ x0, x1, y0, y1 ]
+            y, x = transform( inProj, outProj, self.xlim, self.ylim )
+            return x + y
 
     def inBounds(self, yc: float, xc: float ) -> bool:
         if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False

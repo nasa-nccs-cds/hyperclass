@@ -113,9 +113,12 @@ class LabelingConsole:
         self.dataLims = {}
         self.key_mode = None
         self.currentClass = 0
-        self.google = GoogleMaps()
+        self.google: GoogleMaps = None
+        self.google_maps_zoom_level = 17
+        self.new_image = None
 
         self.figure: Figure = kwargs.pop( 'figure', None )
+        self.google_figure: Figure = None
         if self.figure is None:
             self.figure = plt.figure()
         self.labels_image: Optional[AxesImage] = None
@@ -138,20 +141,22 @@ class LabelingConsole:
         self.setup_plot(**kwargs)
 
 
-        self.button_actions =  OrderedDict( model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
-                                            spread=  self.submit_training_set,
-                                            undo=    self.undo_marker_selection,
-                                            clear=   self.clearLabels,
-                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
-                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
+        self.button_actions =  OrderedDict(model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
+                                           spread=  self.spread_labels,
+                                           undo=    self.undo_marker_selection,
+                                           clear=   self.clearLabels,
+                                           learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
+                                           apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
                                            )
 
+        google_actions = [[maptype, None, None, partial(self.run_task, self.download_google_map, "Accessing Landsat Image...", maptype, type='newfig')] for maptype in ['satellite', 'hybrid', 'terrain', 'roadmap']]
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
                                                     [ "Increase Band Alpha",   'Alt+>',  None, partial( self.update_image_alpha, "bands", True ) ],
                                                     [ "Decrease Band Alpha",   'Alt+<',  None, partial( self.update_image_alpha, "bands", False ) ],
                                                     [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
-                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ]  )
+                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ],
+                                                    OrderedDict( GoogleMaps=google_actions )  ]  )
 
         self.add_plots( **kwargs )
         self.add_slider( **kwargs )
@@ -192,11 +197,18 @@ class LabelingConsole:
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ):
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
+        self.google = GoogleMaps( self.block )
         self.umgr.clear_pointcloud()
         self.update_plot_axis_bounds()
         self.plot_markers_image()
         self.clearLabels()
         self.update_plots()
+
+    def getNewImage(self):
+        return self.new_image
+
+    def download_google_map(self, type: str, *args, **kwargs):
+        self.new_image = self.google.get_tiled_google_map( type, self.google_maps_zoom_level )
 
     def update_plot_axis_bounds( self ):
         if self.plot_axes is not None:
@@ -336,7 +348,7 @@ class LabelingConsole:
             self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
         if self.labels_image is not None:
- #           self.labels_image.set_extent(self.block.extent)
+            self.labels_image.set_extent( self.block.extent() )
             self.labels_image.set_alpha(0.0)
         Task.mainWindow().refresh_image()
 
@@ -373,7 +385,7 @@ class LabelingConsole:
         self.plot_markers_image( **kwargs )
         taskRunner.start( Task(self.plot_markers_volume, reset=True, **kwargs ), f"Plot markers")
 
-    def submit_training_set(self, event ):
+    def spread_labels(self, event):
         print( "Submitting training set" )
         labels: xa.DataArray = self.getLabeledPointData()
         sample_labels: xa.DataArray = self.block.flow.spread( labels, self.flow_iterations  )
@@ -504,8 +516,6 @@ class LabelingConsole:
         self.marker_plot.set_linewidth(2)
         self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
         self.plot_markers_image()
-        google_image = self.google.get_google_map( self.block )
-        self.google_map = self.plot_axes.imshow( google_image, extent=self.block.extent(), alpha = 1.0 )
 
     def add_slider(self,  **kwargs ):
         self.slider = PageSlider( self.slider_axes, self.nFrames )
@@ -521,7 +531,7 @@ class LabelingConsole:
         cax.title.set_text('Actions')
         actions = [ "Submit", "Undo", "Clear" ]
         self.button_box = ButtonBox( cax, [3,3], actions )
-        self.button_box.addCallback( actions[0], self.submit_training_set )
+        self.button_box.addCallback(actions[0], self.spread_labels)
         self.button_box.addCallback(actions[1], self.undo_marker_selection)
         self.button_box.addCallback( actions[2], self.clearLabels )
 
