@@ -1,5 +1,6 @@
 import sys
 from hyperclass.plot.console import LabelingConsole
+from hyperclass.plot.spectra import SpectralPlot
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
 from hyperclass.data.aviris.manager import DataManager, Block, Tile
 from hyperclass.umap.manager import UMAPManager
@@ -90,3 +91,36 @@ class MplCanvas(FigureCanvas):
 
     def extent(self):
         return self.console.block.extent()
+
+
+
+class SpectralPlotCanvas(FigureCanvas):
+
+    def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100, **kwargs ):
+        self.figure = Figure(figsize=(width, height), dpi=dpi)
+        FigureCanvas.__init__(self, self.figure )
+        self.setParent(parent)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+        self.plot = SpectralPlot( umgr, figure=self.figure, **kwargs )
+
+    def process_event( self, event: Dict ):
+        self.plot.process_event(event)
+
+    def setBlock(self, block_coords: Tuple[int]   ):
+        self.plot.setBlock( block_coords )
+
+    @property
+    def button_actions(self) -> Dict[str,Callable]:
+        return self.plot.button_actions
+
+    @property
+    def menu_actions(self) -> Dict:
+        return self.plot.menu_actions
+
+    def mpl_update(self):
+        self.plot.update_canvas()
+        self.update()
+        self.repaint()
+
+

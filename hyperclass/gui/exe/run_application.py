@@ -9,7 +9,7 @@ import os, math, sys
 block_shape = (250, 250)
 image_name = "ang20170720t004130_corr_v2p9"
 n_neighbors = 8
-n_epochs = 200
+n_epochs = 400
 embedding_init = "random" # "spectral" "random"
 
 classes1 = [('Unlabeled', [1.0, 1.0, 1.0, 0.5]),

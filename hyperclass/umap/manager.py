@@ -90,7 +90,6 @@ class UMAPManager:
         return self.wrap_embedding( block, embedding )
 
     def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
-        progress_callback = kwargs.get('progress_callback')
         ndim = kwargs.get( "ndim", 3 )
         t0 = time.time()
         mapper = self.getMapper( block, ndim )

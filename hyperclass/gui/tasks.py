@@ -29,7 +29,7 @@ class Task(QRunnable):
         super(Task, self).__init__()
         self.fn = fn
         self.args = args
-        self.type = kwargs.pop('type','console')
+        self.context = kwargs.pop('task_context','console')
         self.kwargs = kwargs
         self.signals = TaskSignals()
 
@@ -73,12 +73,11 @@ class TaskRunner(QObject):
     def start(self, task: Task, message: str, **kwargs ):
         from hyperclass.gui.application import HyperclassConsole
         if message not in self.executing_tasks:
-            ttype = task.type
-            print(f"Task[{ttype}] running: {message}")
+            print(f"Task[{task.context}] running: {message}")
             self.executing_tasks.append( message )
             hyperclass: HyperclassConsole = Task.mainWindow()
             hyperclass.showMessage( message )
-            task.signals.finished.connect( partial( hyperclass.refresh, message, ttype, **kwargs ) )
+            task.signals.finished.connect( partial( hyperclass.refresh, message, task.context, **kwargs ) )
             task.signals.finished.connect( partial( self.complete, message ) )
             self.threadpool.start(task)
         else:

@@ -62,7 +62,6 @@ SMOOTH_K_TOLERANCE = 1e-5
 MIN_K_DIST_SCALE = 1e-3
 NPY_INFINITY = np.inf
 
-
 def breadth_first_search(adjmat, start, min_vertices):
     explored = []
     queue = [start]
@@ -706,6 +705,7 @@ def spectral_embedding( data, graph, n_components = 3, sparsify = False ):
     print( f"Completed spectral_embedding in {(time.time()-t0)/60.0} min.")
     return rv
 
+
 def simplicial_set_embedding(
     data,
     graph,
@@ -720,9 +720,7 @@ def simplicial_set_embedding(
     random_state,
     metric,
     metric_kwds,
-    output_metric=dist.named_distances_with_gradients["euclidean"],
-    output_metric_kwds={},
-    euclidean_output=True,
+    progress_callback,
     verbose=False,
 ):
     """Perform a fuzzy simplicial set embedding, using a specified
@@ -1401,9 +1399,9 @@ class UMAP(BaseEstimator):
                 "n_neighbors is larger than the dataset size; truncating to "
                 "X.shape[0] - 1"
             )
-            self._n_neighbors = X.shape[0] - 1
+            self.n_neighbors = X.shape[0] - 1
         else:
-            self._n_neighbors = self.n_neighbors
+            self.n_neighbors = self.n_neighbors
 
         # Note: unless it causes issues for setting 'index', could move this to
         # initial sparsity check above
@@ -1476,7 +1474,7 @@ class UMAP(BaseEstimator):
                 if len(y_.shape) == 1:
                     y_ = y_.reshape(-1, 1)
                 if self.target_n_neighbors == -1:
-                    target_n_neighbors = self._n_neighbors
+                    target_n_neighbors = self.n_neighbors
                 else:
                     target_n_neighbors = self.target_n_neighbors
 
@@ -1523,7 +1521,7 @@ class UMAP(BaseEstimator):
             The relevant attributes are ``target_metric`` and
             ``target_metric_kwds``.
         """
-
+        progress_callback = kwargs.get('progress_callback')
         X = check_array(X, dtype=np.float32, accept_sparse="csr", order="C")
         self._raw_data = X
 
@@ -1610,7 +1608,7 @@ class UMAP(BaseEstimator):
                 if len(y_.shape) == 1:
                     y_ = y_.reshape(-1, 1)
                 if self.target_n_neighbors == -1:
-                    target_n_neighbors = self._n_neighbors
+                    target_n_neighbors = self.n_neighbors
                 else:
                     target_n_neighbors = self.target_n_neighbors
 
@@ -1648,9 +1646,7 @@ class UMAP(BaseEstimator):
             random_state,
             self._input_distance_func,
             self._metric_kwds,
-            self._output_distance_func,
-            self._output_metric_kwds,
-            self.output_metric in ("euclidean", "l2"),
+            progress_callback,
             self.verbose,
         )
 
@@ -1719,24 +1715,16 @@ class UMAP(BaseEstimator):
         dists = dists.astype(np.float32, order="C")
 
         adjusted_local_connectivity = max(0.0, self.local_connectivity - 1.0)
-        sigmas, rhos = smooth_knn_dist(
-            dists,
-            float(self._n_neighbors),
-            local_connectivity=float(adjusted_local_connectivity),
-        )
-
+        sigmas, rhos = smooth_knn_dist( dists, float(self.n_neighbors), local_connectivity=float(adjusted_local_connectivity) )
         rows, cols, vals = compute_membership_strengths(indices, dists, sigmas, rhos)
-
-        graph = scipy.sparse.coo_matrix(
-            (vals, (rows, cols)), shape=(X.shape[0], self._raw_data.shape[0])
-        )
+        graph = scipy.sparse.coo_matrix( (vals, (rows, cols)), shape=(X.shape[0], self._raw_data.shape[0])  )
 
         # This was a very specially constructed graph with constant degree.
         # That lets us do fancy unpacking by reshaping the csr matrix indices
         # and data. Doing so relies on the constant degree assumption!
         csr_graph = normalize(graph.tocsr(), norm="l1")
-        inds = csr_graph.indices.reshape(X.shape[0], self._n_neighbors)
-        weights = csr_graph.data.reshape(X.shape[0], self._n_neighbors)
+        inds = csr_graph.indices.reshape(X.shape[0], self.n_neighbors)
+        weights = csr_graph.data.reshape(X.shape[0], self.n_neighbors)
         embedding = init_transform(inds, weights, self.embedding_)
 
         if self.n_epochs == 0:

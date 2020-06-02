@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLa
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import MplWidget
+from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from collections import Mapping
@@ -47,6 +47,8 @@ class HyperclassConsole(QMainWindow):
         self.console = MplWidget( umgr, self, **kwargs )
         self.vtkFrame.addEventListener( self.console )
 
+        self.spectralPlot = SpectralPlotCanvas(umgr, self, **kwargs)
+
         self.addMenues( mainMenu, self.console.menu_actions )
 
         nBlocks = umgr.tile.nBlocks
@@ -64,16 +66,25 @@ class HyperclassConsole(QMainWindow):
         vlay = QVBoxLayout(widget)
 
         framesLayout = QHBoxLayout()
-        framesLayout.addWidget( self.console, 10 )
-        framesLayout.addWidget( self.vtkFrame, 7 )
         vlay.addLayout(framesLayout)
 
         buttonsLayout = QHBoxLayout()
+        vlay.addLayout(buttonsLayout)
+
+        consoleLayout = QVBoxLayout()
+        framesLayout.addLayout(consoleLayout, 10)
+        vizLayout = QVBoxLayout()
+        framesLayout.addLayout(vizLayout, 7)
+
+        consoleLayout.addWidget( self.console )
+
+        vizLayout.addWidget( self.vtkFrame, 15 )
+        vizLayout.addWidget( self.spectralPlot, 5 )
+
         for label, callback in self.console.button_actions.items():
             pybutton = QPushButton( label, self )
             pybutton.clicked.connect( callback )
             buttonsLayout.addWidget(pybutton)
-        vlay.addLayout(buttonsLayout)
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
@@ -96,19 +107,19 @@ class HyperclassConsole(QMainWindow):
         self.message_stack.append( message )
         self.statusBar().showMessage(message)
 
-    def refresh( self, message, task_type: str,  **kwargs ):
+    def refresh( self, message, task_context: str,  **kwargs ):
         self.message_stack.remove( message )
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
-        if task_type == "console":
+        if task_context == "console":
             self.refresh_points( **kwargs )
             self.refresh_image( **kwargs )
-        elif task_type == "newfig":
+        elif task_context == "newfig":
             self.newfig, ax = plt.subplots(1, 1)
             ax.imshow( self.console.getNewImage(), extent=self.console.extent(), alpha=1.0)
             plt.show( block = False )
         else:
-            print( f"Warning, unknown task type: {task_type}, doing nothing for refresh.")
+            print( f"Warning, unknown task type: {task_context}, doing nothing for refresh.")
 
     def refresh_points( self, **kwargs ):
         if self.vtkFrame is not None:
