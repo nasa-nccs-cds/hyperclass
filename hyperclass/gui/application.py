@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton, QMenu, QMenuBar
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
-from hyperclass.gui.points import VTKFrame
+from hyperclass.gui.points import VTKFrame, MixingFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
 class HyperclassConsole(QMainWindow):
@@ -48,6 +48,7 @@ class HyperclassConsole(QMainWindow):
         vlay = QVBoxLayout(widget)
 
         self.vtkFrame = VTKFrame( umgr )
+        self.mixingFrame = MixingFrame( umgr )
         self.labelingConsole = MplWidget(umgr, self, **kwargs)
         self.vtkFrame.addEventListener(self.labelingConsole)
         self.spectralPlot = SpectralPlotCanvas(widget, self.labelingConsole.spectral_plot)
@@ -75,8 +76,10 @@ class HyperclassConsole(QMainWindow):
         framesLayout.addLayout(vizLayout, 7)
 
         consoleLayout.addWidget(self.labelingConsole)
-
-        vizLayout.addWidget( self.vtkFrame, 15 )
+        vizTabs = QTabWidget()
+        vizTabs.addTab(  self.vtkFrame, "Embedding" )
+        vizTabs.addTab( self.mixingFrame, "Mixing")
+        vizLayout.addWidget( vizTabs, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )
 
         for label, callback in self.labelingConsole.button_actions.items():

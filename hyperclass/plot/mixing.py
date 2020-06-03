@@ -2,43 +2,13 @@ import sys, os, traceback
 import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, threading
+from sklearn.preprocessing import normalize
+import xarray as xa
 import vtk.util.numpy_support as npsup
 from collections import OrderedDict
 import vtk
 
-#
-# class PointPickInteractorStyle(vtk.vtkInteractorStyleTrackballCamera):
-#
-#     def __init__(self, parent=None):
-#         self.AddObserver("LeftButtonPressEvent", self.leftButtonPressEvent)
-#         self.AddObserver("RightButtonPressEvent", self.rightButtonPressEvent)
-#         self.AddObserver( "KeyPressEvent",self.keyPressEvent )
-#
-#     def OnRightButtonDown( self, *args ):
-#         print("ZZZ")
-#         super(self).OnRightButtonDown( *args )
-#
-#     def OnKeyPress(self):
-#         print("SSSSSS")
-#         super(self).OnKeyPress()
-#
-#     def keyPressEvent(self, obj, event):
-#         print("YYY")
-#
-#     def rightButtonPressEvent(self, obj, event):
-#         print("XXX")
-#         self.OnRightButtonDown()
-#         return
-#
-#     def leftButtonPressEvent(self, obj, event):
-#         clickPos = self.GetInteractor().GetEventPosition()
-#         picker = self.GetInteractor().GetPicker()
-#         picker.Pick(clickPos[0], clickPos[1], 0, self.GetDefaultRenderer())
-#         print( f"Picked point {picker.GetPointId()}")
-#         self.OnLeftButtonDown()
-#         return
-
-class PointCloud():
+class MixingSpace():
 
     def __init__( self, **kwargs ):
         self.renWin = None
@@ -55,8 +25,8 @@ class PointCloud():
     def process_event(self, event: Dict ):
         print( f" PointCloud.process_event: {event}")
 
-    def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
-        self.initPolyData(points)
+    def setPoints (self, points: xa.DataArray, labels: xa.DataArray, **kwargs ):
+        self.computMixingEmbedding( points.values, labels.values, **kwargs )
         if labels is not None: self.set_point_colors( labels )
         self.initMarkers( **kwargs )
 
@@ -66,7 +36,7 @@ class PointCloud():
     def set_colormap(self, label_colors: OrderedDict ):
         colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
         self.colormap = np.vstack( colors )
-        print(".")
+        self.labels = { lid: color for lid, (label, color) in enumerate(label_colors.items()) }
 
     def keyPressEvent( self, *args ):
         print("YYY")
@@ -101,18 +71,17 @@ class PointCloud():
         if self.renWin is not None:   self.renWin.Render()
         self.points_modified = False
 
+    def computMixingEmbedding (self, points: np.ndarray, label_data: np.ndarray,  **kwargs ):
+        class_vectors = [ points[ label_data == lid, : ].mean( axis = 0 )  for lid in self.labels if lid > 0 ]
+        subspace_vectors = [ (class_vectors[iv] - class_vectors[0]) for iv in range( 1,  len( class_vectors ) ) ]
+        unit_vectors = [ normalize( subspace_vectors[-1], axis=0 ) ]
+        for subspace_vector in subspace_vectors:
+            for unit_vector in unit_vectors:
+                vector_projection = subspace_vector.dot( unit_vector )
+                print( ".")
 
-    # def get_lut( self, class_colors: OrderedDict ) -> vtk.vtkLookupTable:
-    #     lut = vtk.vtkLookupTable()
-    #     colors = list(class_colors.values())
-    #     n = len(colors)
-    #     lut.SetTableRange( 0, n )
-    #     lut.SetNumberOfTableValues(n)
-    #     lut.Build()
-    #     for ic in range(n):
-    #         vc = [ math.floor(c*255.99) for c in colors[ic] ]
-    #         lut.SetTableValue( ic, vc[0], vc[1], vc[2], 1 )
-    #     return lut
+
+        self.initPolyData(  )
 
     def initPolyData( self, np_points_data: Optional[np.ndarray] = None, **kwargs ):
         vtk_points = vtk.vtkPoints()
@@ -186,31 +155,6 @@ class PointCloud():
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
 
-    # def create_LUT(self, **args):
-    #     lut = vtk.vtkLookupTable()
-    #     lut_type = args.get('type', "blue-red")
-    #     invert = args.get('invert', False)
-    #     number_of_colors = args.get('number_of_colors', 256)
-    #     alpha_range = 1.0, 1.0
-    #
-    #     if lut_type == "blue-red":
-    #         if invert:
-    #             hue_range = 0.0, 0.6667
-    #         else:
-    #             hue_range = 0.6667, 0.0
-    #         saturation_range = 1.0, 1.0
-    #         value_range = 1.0, 1.0
-    #
-    #     lut.SetHueRange(hue_range)
-    #     lut.SetSaturationRange(saturation_range)
-    #     lut.SetValueRange(value_range)
-    #     lut.SetAlphaRange(alpha_range)
-    #     lut.SetNumberOfTableValues(number_of_colors)
-    #     lut.SetRampToSQRT()
-    #     lut.Modified()
-    #     lut.ForceBuild()
-    #     return lut
-
     def createRenderWindow( self, **kwargs ):
         from hyperclass.gui.points import HCRenderWindowInteractor
         if self.renWin is None:
@@ -235,9 +179,6 @@ class PointCloud():
                 self.renderer.AddActor(self.actor)
             if self.marker_actor is not None:
                 self.renderer.AddActor(self.marker_actor)
-
-#            self.renderer.SetBackground(1.0, 1.0, 1.0)
-#            self.renderer.SetNearClippingPlaneTolerance( 0.0001 )
 
     def createActor(self, renderer: vtk.vtkRenderer = None ):
         if self.actor is None:

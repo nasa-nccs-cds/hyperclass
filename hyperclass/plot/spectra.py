@@ -32,6 +32,9 @@ class SpectralPlot:
 #        self.axes.yaxis.set_visible(False)
 #        self.figure.patch.set_visible(False)
         self.axes.axis('off')
+        self.axes.title.set_text( "Point Spectra")
+        self.axes.title.set_fontsize(14)
+        self.axes.title.set_color( (1.0, 1.0, 1.0) )
         self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
 
     def plot_spectrum(self, index: int, data: xa.DataArray, color: List[float] ):

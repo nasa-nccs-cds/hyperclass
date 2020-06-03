@@ -147,6 +147,7 @@ class LabelingConsole:
                                            spread=  self.spread_labels,
                                            undo=    self.undo_marker_selection,
                                            clear=   self.clearLabels,
+                                           mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
                                            )
@@ -220,6 +221,11 @@ class LabelingConsole:
     def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
         task = Task( executable, *args, **kwargs )
         taskRunner.start( task, messsage )
+
+    def computeMixingSpace(self, *args, **kwargs):
+        labels: xa.DataArray = self.getExtendedLabelPoints()
+        self.umgr.computeMixingSpace( self.block, labels, **kwargs )
+        self.plot_markers_volume()
 
     def build_model(self, *args, **kwargs):
         labels: xa.DataArray = self.getExtendedLabelPoints()
@@ -305,6 +311,7 @@ class LabelingConsole:
     def setup_plot(self, **kwargs):
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
         self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
+        self.figure.suptitle(f"Point Labeling Console",fontsize=14)
         for iC in range(4):
             self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
             self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())

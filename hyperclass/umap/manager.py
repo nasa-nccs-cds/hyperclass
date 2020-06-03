@@ -5,9 +5,8 @@ from hyperclass.umap.model import UMAP
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
-from pynndescent import NNDescent
+from hyperclass.plot.mixing import MixingSpace
 from hyperclass.data.aviris.manager import Tile, Block
-import os
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
@@ -20,19 +19,20 @@ class UMAPManager:
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self.point_cloud: PointCloud = PointCloud( **kwargs )
-        self.setClassColors( class_labels )
+        self.mixing_space: MixingSpace = MixingSpace( **kwargs )
+        self.setClassColors( [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + class_labels )
 
     def mid( self, block: Block, ndim: int = 3 ):
         return "-".join( [ str(i) for i in [ ndim, *block.block_coords ]] )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
-        assert class_labels[0][0].lower() == "unlabeled", "First class label must be 'unlabeled'"
         self.class_labels: List[str] = []
         self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
         for elem in class_labels:
             self.class_labels.append( elem[0] )
             self.class_colors[ elem[0] ] = elem[1]
         self.point_cloud.set_colormap( self.class_colors )
+        self.mixing_space.set_colormap( self.class_colors )
 
     def embedding( self, block: Block, ndim: int = 3 ) -> xa.DataArray:
         mapper: UMAP = self.getMapper( block, ndim )
@@ -60,12 +60,15 @@ class UMAPManager:
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
         self.point_cloud.set_point_colors( labels.values, **kwargs )
+        self.mixing_space.set_point_colors( labels.values, **kwargs )
 
     def clear_pointcloud(self):
         self.point_cloud.clear()
+        self.mixing_space.clear()
 
     def update_point_sizes(self, increase: bool  ):
         self.point_cloud.update_point_sizes( increase )
+        self.mixing_space.update_point_sizes( increase )
 
     def getBlock( self, **kwargs ) -> Optional[Block]:
         block: Optional[Block] = kwargs.get('block', None)
@@ -88,6 +91,16 @@ class UMAPManager:
         point_data: xa.DataArray = block.getPointData( **kwargs )
         embedding: np.ndarray = self.learned_mapping.transform( point_data )
         return self.wrap_embedding( block, embedding )
+
+    def computeMixingSpace(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
+        ndim = kwargs.get( "ndim", 3 )
+        t0 = time.time()
+        point_data: xa.DataArray = block.getPointData( **kwargs )
+        t1 = time.time()
+        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
+        self.mixing_space.setPoints( point_data, labels )
+        t2 = time.time()
+        print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
 
     def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
         ndim = kwargs.get( "ndim", 3 )
@@ -130,12 +143,15 @@ class UMAPManager:
         if mapper.embedding_ is not None:
             transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
+            self.mixing_space.plotMarkers( transformed_data.tolist(), colors, **kwargs )
 
     def reset_markers(self):
         self.point_cloud.initMarkers( )
+        self.mixing_space.initMarkers( )
 
     def update(self):
         self.point_cloud.update()
+        self.mixing_space.update()
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()

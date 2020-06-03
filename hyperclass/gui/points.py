@@ -132,6 +132,36 @@ class VTKFrame(QtWidgets.QFrame):
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
 
+class MixingFrame(QtWidgets.QFrame):
+
+    def __init__( self, umgr: UMAPManager  ):
+        QtWidgets.QFrame.__init__( self  )
+        self.umgr = umgr
+        self.vl = QtWidgets.QVBoxLayout()
+        self.vtkWidget = VTKWidget(self)
+        self.vl.addWidget(self.vtkWidget)
+        self.renderer = vtk.vtkRenderer()
+        self.vtkWidget.setRenderer( self.renderer )
+        self.setLayout(self.vl)
+        self.iren.addEventListener( self.umgr.point_cloud )
+
+    def addEventListener( self, listener ):
+        self.iren.addEventListener( listener )
+
+    @property
+    def iren(self):
+        return self.vtkWidget.iren
+
+    def Initialize(self):
+        self.iren.Initialize()
+        self.iren.Start()
+
+    def update(self, **kwargs ):
+        self.umgr.mixing_space.createActor(self.renderer)
+        self.umgr.mixing_space.update()
+        self.vtkWidget.Render()
+        QtWidgets.QFrame.update(self)
+
 
 
 
