@@ -21,7 +21,7 @@ class HyperclassConsole(QMainWindow):
         self.width = 1920
         self.height = 1080
         self.NFunctionButtons = 0
-        self.console = None
+        self.labelingConsole = None
         self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
@@ -43,13 +43,15 @@ class HyperclassConsole(QMainWindow):
         exitButton.triggered.connect(self.close)
         fileMenu.addAction(exitButton)
 
+        widget =  QWidget(self)
+        self.setCentralWidget(widget)
+        vlay = QVBoxLayout(widget)
+
         self.vtkFrame = VTKFrame( umgr )
-        self.console = MplWidget( umgr, self, **kwargs )
-        self.vtkFrame.addEventListener( self.console )
-
-        self.spectralPlot = SpectralPlotCanvas(umgr, self, **kwargs)
-
-        self.addMenues( mainMenu, self.console.menu_actions )
+        self.labelingConsole = MplWidget(umgr, self, **kwargs)
+        self.vtkFrame.addEventListener(self.labelingConsole)
+        self.spectralPlot = SpectralPlotCanvas(widget, self.labelingConsole.spectral_plot)
+        self.addMenues(mainMenu, self.labelingConsole.menu_actions)
 
         nBlocks = umgr.tile.nBlocks
         load_menu = blocksMenu.addMenu("load")
@@ -60,10 +62,6 @@ class HyperclassConsole(QMainWindow):
                 menuButton.setStatusTip(f"Load block at block coords {bname}")
                 menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
                 load_menu.addAction(menuButton)
-
-        widget =  QWidget(self)
-        self.setCentralWidget(widget)
-        vlay = QVBoxLayout(widget)
 
         framesLayout = QHBoxLayout()
         vlay.addLayout(framesLayout)
@@ -76,12 +74,12 @@ class HyperclassConsole(QMainWindow):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout(vizLayout, 7)
 
-        consoleLayout.addWidget( self.console )
+        consoleLayout.addWidget(self.labelingConsole)
 
         vizLayout.addWidget( self.vtkFrame, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )
 
-        for label, callback in self.console.button_actions.items():
+        for label, callback in self.labelingConsole.button_actions.items():
             pybutton = QPushButton( label, self )
             pybutton.clicked.connect( callback )
             buttonsLayout.addWidget(pybutton)
@@ -116,7 +114,7 @@ class HyperclassConsole(QMainWindow):
             self.refresh_image( **kwargs )
         elif task_context == "newfig":
             self.newfig, ax = plt.subplots(1, 1)
-            ax.imshow( self.console.getNewImage(), extent=self.console.extent(), alpha=1.0)
+            ax.imshow(self.labelingConsole.getNewImage(), extent=self.labelingConsole.extent(), alpha=1.0)
             plt.show( block = False )
         else:
             print( f"Warning, unknown task type: {task_context}, doing nothing for refresh.")
@@ -126,11 +124,13 @@ class HyperclassConsole(QMainWindow):
             self.vtkFrame.update( **kwargs )
 
     def refresh_image( self, **kwargs ):
-        if self.console is not None:
-            self.console.mpl_update()
+        try: self.labelingConsole.mpl_update()
+        except AttributeError: pass
+        try: self.spectralPlot.mpl_update()
+        except AttributeError: pass
 
     def setBlock(self, block_coords: Tuple[int]):
-        self.console.setBlock(block_coords)
+        self.labelingConsole.setBlock(block_coords)
 
     def show(self):
         QMainWindow.show(self)

@@ -6,7 +6,7 @@ from hyperclass.gui.application import HyperclassConsole
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 import os, math, sys
 
-block_shape = (250, 250)
+block_shape = (100, 100)
 image_name = "ang20170720t004130_corr_v2p9"
 n_neighbors = 8
 n_epochs = 400

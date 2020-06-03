@@ -18,6 +18,10 @@ class MplWidget(QWidget):
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
 
+    @property
+    def spectral_plot(self):
+        return self.canvas.console.spectral_plot
+
     def setBlock(self, block_coords: Tuple[int]   ):
         self.canvas.setBlock( block_coords )
 
@@ -60,7 +64,7 @@ class MplCanvas(FigureCanvas):
         self.figure = Figure(figsize=(width, height), dpi=dpi)
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
         FigureCanvas.updateGeometry(self)
         self.console = LabelingConsole( umgr, figure=self.figure, **kwargs )
 
@@ -96,13 +100,15 @@ class MplCanvas(FigureCanvas):
 
 class SpectralPlotCanvas(FigureCanvas):
 
-    def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100, **kwargs ):
-        self.figure = Figure(figsize=(width, height), dpi=dpi)
+    def __init__(self, parent, plot: SpectralPlot, width=5, height=4, dpi=100, **kwargs ):
+        self.figure = Figure( figsize=(width, height), dpi=dpi, constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
+        plot.init( self.figure )
+        self.plot = plot
         FigureCanvas.updateGeometry(self)
-        self.plot = SpectralPlot( umgr, figure=self.figure, **kwargs )
 
     def process_event( self, event: Dict ):
         self.plot.process_event(event)

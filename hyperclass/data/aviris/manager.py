@@ -130,6 +130,7 @@ class Block:
         tr = self.transform.params.flatten()
         self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
+        self._point_data = None
 
     def flow_init(self):
         if self._flow is None:
@@ -188,12 +189,12 @@ class Block:
         return ( y0, y0+self.shape[0] ), ( x0, x0+self.shape[1] )
 
     def getPointData( self, **kwargs ) -> xa.DataArray:
-        subsample = kwargs.get( 'subsample', None )
-        result: xa.DataArray =  self.tile.dm.raster2points( self.data )
-        rv =  result if subsample is None else result[::subsample]
-        if self._samples_axis is None:
-            self._samples_axis = rv.coords['samples']
-        return rv
+        if self._point_data is None:
+            subsample = kwargs.get( 'subsample', None )
+            result: xa.DataArray =  self.tile.dm.raster2points( self.data )
+            self._point_data =  result if subsample is None else result[::subsample]
+            self._samples_axis = self._point_data.coords['samples']
+        return self._point_data
 
     @property
     def samples_axis(self) -> xa.DataArray:

@@ -3,6 +3,7 @@ import matplotlib.patches
 from PyQt5.QtCore import Qt
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from hyperclass.data.google import GoogleMaps
+from hyperclass.plot.spectra import SpectralPlot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
@@ -129,6 +130,7 @@ class LabelingConsole:
         self.read_markers()
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
         self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
+        self.spectral_plot = SpectralPlot()
 
         self.nFrames = self.data.shape[0]
         self.band_axis = kwargs.pop('band', 0)
@@ -362,18 +364,27 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    if (self.selectedClass > 0) and (self.key_mode == None):
+                    if self.key_mode == None:
                         marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
                         self.add_marker( marker )
                         self.dataLims = event.inaxes.dataLim
 
     def add_marker(self, marker: Dict, **kwargs ):
         is_unlabeled = (marker['c'] == 0)
-        if is_unlabeled: self.clear_unlabeled()
+        if is_unlabeled:
+            self.clear_unlabeled()
         self.marker_list.append( marker )
-        self.plot_markers_image( **kwargs )
         if is_unlabeled:    taskRunner.start( Task( self.plot_markers_volume, reset=True, labeled=False ), f"Plot markers" )
         else:               taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
+        self.plot_markers_image( **kwargs )
+        self.plot_spectrum( marker )
+
+    def plot_spectrum(self, marker ):
+        [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
+        color = self.get_color(c)
+        pindex = self.block.coords2pindex( y, x )
+        pdata = self.block.getPointData( )
+        self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
 
     def undo_marker_selection(self, **kwargs ):
         labeled = kwargs.pop( 'labeled', False )
