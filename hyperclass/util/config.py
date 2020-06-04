@@ -80,18 +80,21 @@ class Configuration:
             for line in cfile.readlines( ):
                 line = line.strip()
                 if line:
-                    if line.startswith("*"):
-                        current_section = Section( line[1:] )
-                        self._sections[ current_section.name ] = current_section
-                    elif "=" in line:
-                        key, value = line.split("=")
-                        names = key.split(":")
-                        id = names[0].strip()
-                        name = names[1].strip()
-                        current_section.addItem( id, name, value.strip() )
-                        self._pindex[ name ] = current_section
-                    else:
-                        print( f"WARNING: Unrecognozed line in config file: {line}")
+                    try:
+                        if line.startswith("*"):
+                            current_section = Section( line[1:] )
+                            self._sections[ current_section.name ] = current_section
+                        elif "=" in line:
+                            key, value = line.split("=")
+                            names = key.split(":")
+                            id = names[0].strip()
+                            name = names[1].strip()
+                            current_section.addItem( id, name, value.strip() )
+                            self._pindex[ name ] = current_section
+                        else:
+                            print( f"WARNING: Unrecognozed line in config file: {line}")
+                    except Exception as err:
+                        print(f"ERROR [{err}] reading line of config file: {line}")
         self.config_dir = CONFIG_DIR
         self.src_dir = pathlib.Path(LOCAL_DIR).parent
 

@@ -13,9 +13,9 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 
 #### Install Hyperclass
 ```
-(geoproc)>> git clone git@github.com:nasa-nccs-cds/hyperclass.git
-(geoproc)>> cd hyperclass
-(geoproc)>> python setup.py install
+(hyperclass)>> git clone git@github.com:nasa-nccs-cds/hyperclass.git
+(hyperclass)>> cd hyperclass
+(hyperclass)>> python setup.py install
 ```
 
 #### Google Maps Access

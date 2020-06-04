@@ -10,7 +10,7 @@ with open( "requirements/hyperclass.txt" ) as f:
       if dep.strip() != '' and not dep.startswith('-e'):
           install_requires.add( dep )
 
-setup(name='geoproc',
+setup(name='hyperclass',
       version='0.0.1',
       description='Methods for hyperspectral image classification',
       author='Thomas Maxwell',
