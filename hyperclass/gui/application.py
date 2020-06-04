@@ -70,7 +70,7 @@ class HyperclassConsole(QMainWindow):
         consoleLayout.addWidget(self.labelingConsole)
         vizTabs = QTabWidget()
         vizTabs.addTab(  self.vtkFrame, "Embedding" )
-        vizTabs.addTab( self.mixingFrame, "Mixing")
+#        vizTabs.addTab( self.mixingFrame, "Mixing")
         vizTabs.addTab( self.satelliteCanvas, "Satellite")
         vizLayout.addWidget( vizTabs, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )

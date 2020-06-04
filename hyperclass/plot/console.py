@@ -152,7 +152,7 @@ class LabelingConsole:
                                            spread=  self.spread_labels,
                                            undo=    self.undo_marker_selection,
                                            clear=   self.clearLabels,
-                                           mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
+#                                            mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
                                            )
