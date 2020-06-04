@@ -74,14 +74,15 @@ class MixingSpace():
     def computMixingEmbedding (self, points: np.ndarray, label_data: np.ndarray,  **kwargs ):
         class_vectors = [ points[ label_data == lid, : ].mean( axis = 0 )  for lid in self.labels if lid > 0 ]
         subspace_vectors = [ (class_vectors[iv] - class_vectors[0]) for iv in range( 1,  len( class_vectors ) ) ]
-        unit_vectors = [ normalize( subspace_vectors[-1], axis=0 ) ]
+        unit_vectors = [  ]
         for subspace_vector in subspace_vectors:
             for unit_vector in unit_vectors:
-                vector_projection = subspace_vector.dot( unit_vector )
-                print( ".")
-
-
-        self.initPolyData(  )
+                vector_projection = subspace_vector.dot( unit_vector.flatten() )
+                subspace_vector = subspace_vector - vector_projection * unit_vector
+            unit_vectors.append( normalize(subspace_vector.reshape(1, -1)).flatten() )
+        projection_matrix = np.vstack( unit_vectors ).transpose()
+        projected_data = points.dot( projection_matrix )
+        self.initPolyData(  projected_data )
 
     def initPolyData( self, np_points_data: Optional[np.ndarray] = None, **kwargs ):
         vtk_points = vtk.vtkPoints()

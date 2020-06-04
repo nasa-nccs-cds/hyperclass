@@ -101,6 +101,10 @@ class PageSlider(matplotlib.widgets.Slider):
 
 class LabelingConsole:
 
+    RIGHT_BUTTON = 3
+    MIDDLE_BUTTON = 2
+    LEFT_BUTTON = 1
+
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.currentFrame = 0
@@ -131,6 +135,7 @@ class LabelingConsole:
         block_index = umgr.tile.dm.config.getShape( 'block_index' )
         self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
         self.spectral_plot = SpectralPlot()
+        self.navigation_listeners = []
 
         self.nFrames = self.data.shape[0]
         self.band_axis = kwargs.pop('band', 0)
@@ -198,7 +203,7 @@ class LabelingConsole:
         marker = self.block.pindex2coords(point_index)
         self.add_marker( dict( c=0, **marker), labeled=False )
 
-    def setBlock( self, block_coords: Tuple[int], **kwargs ):
+    def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
         self.google = GoogleMaps( self.block )
         self.umgr.clear_pointcloud()
@@ -206,6 +211,7 @@ class LabelingConsole:
         self.plot_markers_image()
         self.clearLabels()
         self.update_plots()
+        return self.block
 
     def getNewImage(self):
         return self.new_image
@@ -348,6 +354,8 @@ class LabelingConsole:
              (x0, x1) = ax.get_xlim()
              (y0, y1) = ax.get_ylim()
              print(f"ZOOM Event: Updated bounds: ({x0},{x1}), ({y0},{y1})")
+         for listener in self.navigation_listeners:
+             listener.set_axis_limits( ax.get_xlim(), ax.get_ylim() )
 
     def update_plots(self):
         if self.image is not None:
@@ -361,17 +369,22 @@ class LabelingConsole:
             self.labels_image.set_alpha(0.0)
         Task.mainWindow().refresh_image()
 
+    def addNavigationListener( self, listener ):
+        self.navigation_listeners.append( listener )
+
     def onMouseRelease(self, event):
         pass
         # if event.inaxes ==  self.plot_axes:
-        #     for action in self.toolbar._actions.values():
-        #         action.setChecked( False )
+        #     if self.toolbarMode:
+        #         for listener in self.navigation_listeners:
+        #             listener.set_axis_limits( self.plot_axes.get_xlim(), self.plot_axes.get_ylim() )
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode:
                 if event.inaxes ==  self.plot_axes:
-                    if self.key_mode == None:
+                    leftButton: bool = int(event.button) == self.LEFT_BUTTON
+                    if leftButton and (self.key_mode == None):
                         marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
                         self.add_marker( marker )
                         self.dataLims = event.inaxes.dataLim
@@ -510,9 +523,11 @@ class LabelingConsole:
         self.tile.dm.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
     def mpl_pick_marker( self, event: PickEvent ):
-        if ( event.name == "pick_event" ) and ( event.artist == self.marker_plot ) and ( self.key_mode == Qt.Key_Shift ):
+        rightButton: bool = int(event.mouseevent.button) == self.RIGHT_BUTTON
+        if ( event.name == "pick_event" ) and ( event.artist == self.marker_plot ) and rightButton: #  and ( self.key_mode == Qt.Key_Shift ):
             self.delete_marker( event.mouseevent.ydata, event.mouseevent.xdata )
             self.update_marker_plots()
+
 
     def delete_marker(self, y, x ):
         pindex = self.block.coords2pindex( y, x )
@@ -520,12 +535,14 @@ class LabelingConsole:
             current_pindices = []
             new_marker_list = []
             for marker in self.marker_list:
-                pindex1 = self.block.coords2pindex( marker['y'], marker['x'] )
+                pindex1 = self.block.coords2pindex(marker['y'], marker['x'])
                 if (pindex1 != pindex) and ( pindex1 not in current_pindices ):
                     new_marker_list.append( marker )
                     current_pindices.append( pindex1 )
+                else:
+                    print(f"Marker[{pindex1}] deleted at [{y} {x}]" )
             self.marker_list = new_marker_list
-        print(f"Marker deleted: [{y} {x}], #markers = {len(self.marker_list)}")
+        print(f"#Markers remaining = {len(self.marker_list)}")
 
     def add_plots(self, **kwargs ):
         self.image = self.create_image(**kwargs)

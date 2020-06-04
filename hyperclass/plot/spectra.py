@@ -25,12 +25,7 @@ class SpectralPlot:
     def init( self, figure: Figure ):
         self.figure = figure
         self.axes = self.figure.add_subplot(111)
-#        self.axes.set_facecolor( self.parms.get( 'bc', (0.0, 0.0, 0.0)) )
         self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
-#        self.figure.set_facecolor( (0.0, 0.0, 0.0) )
-#        self.axes.xaxis.set_visible(False)
-#        self.axes.yaxis.set_visible(False)
-#        self.figure.patch.set_visible(False)
         self.axes.axis('off')
         self.axes.title.set_text( "Point Spectra")
         self.axes.title.set_fontsize(14)

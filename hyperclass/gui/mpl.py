@@ -4,7 +4,10 @@ from hyperclass.plot.spectra import SpectralPlot
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
 from hyperclass.data.aviris.manager import DataManager, Block, Tile
 from hyperclass.umap.manager import UMAPManager
+from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional
+from hyperclass.data.google import GoogleMaps
+from hyperclass.gui.tasks import taskRunner, Task
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -13,7 +16,7 @@ class MplWidget(QWidget):
     def __init__(self, umgr: UMAPManager, *args, **kwargs):
         QWidget.__init__(self, *args, **kwargs)
         self.setLayout(QVBoxLayout())
-        self.canvas = MplCanvas(self, umgr, width=10, height=8, **kwargs )
+        self.canvas = MplCanvas(self, umgr, **kwargs )
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
@@ -23,7 +26,10 @@ class MplWidget(QWidget):
         return self.canvas.console.spectral_plot
 
     def setBlock(self, block_coords: Tuple[int]   ):
-        self.canvas.setBlock( block_coords )
+        return self.canvas.setBlock( block_coords )
+
+    def addNavigationListener(self, listener):
+        self.canvas.console.addNavigationListener( listener )
 
     def getNewImage(self):
         return self.canvas.getNewImage()
@@ -60,11 +66,11 @@ class MplWidget(QWidget):
 
 class MplCanvas(FigureCanvas):
 
-    def __init__(self, parent, umgr: UMAPManager, width=5, height=4, dpi=100, **kwargs ):
-        self.figure = Figure(figsize=(width, height), dpi=dpi)
+    def __init__(self, parent, umgr: UMAPManager, **kwargs ):
+        self.figure = Figure()
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding )
         FigureCanvas.updateGeometry(self)
         self.console = LabelingConsole( umgr, figure=self.figure, **kwargs )
 
@@ -72,7 +78,7 @@ class MplCanvas(FigureCanvas):
         self.console.process_event(event)
 
     def setBlock(self, block_coords: Tuple[int]   ):
-        self.console.setBlock( block_coords )
+        return self.console.setBlock( block_coords )
 
     @property
     def button_actions(self) -> Dict[str,Callable]:
@@ -100,11 +106,11 @@ class MplCanvas(FigureCanvas):
 
 class SpectralPlotCanvas(FigureCanvas):
 
-    def __init__(self, parent, plot: SpectralPlot, width=5, height=4, dpi=100, **kwargs ):
-        self.figure = Figure( figsize=(width, height), dpi=dpi, constrained_layout=True )
+    def __init__(self, parent, plot: SpectralPlot, **kwargs ):
+        self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding )
         FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
         plot.init( self.figure )
         self.plot = plot
@@ -128,5 +134,45 @@ class SpectralPlotCanvas(FigureCanvas):
         self.plot.update_canvas()
         self.update()
         self.repaint()
+
+
+class SatellitePlotCanvas(FigureCanvas):
+
+    def __init__(self, parent, toolbar: NavigationToolbar, block: Block = None, **kwargs ):
+        self.figure = Figure( constrained_layout=True )
+        FigureCanvas.__init__(self, self.figure )
+#        self.setParent(parent)
+        self.toolbar = toolbar
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
+        FigureCanvas.updateGeometry(self)
+        self.axes: Axes = self.figure.add_subplot(111)
+        self.axes.get_xaxis().set_visible(False)
+        self.axes.get_yaxis().set_visible(False)
+        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self.google_maps_zoom_level = 17
+        self.google = None
+        if block is not None: self.setBlock( block )
+
+    def setBlock(self, block: Block, type ='satellite'):
+        self.google = GoogleMaps(block)
+        extent = block.extent()
+        self.image = self.google.get_tiled_google_map(type, self.google_maps_zoom_level)
+        self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
+        self.axes.set_xlim(extent[0],extent[1])
+        self.axes.set_ylim(extent[2],extent[3])
+        self.figure.canvas.draw_idle()
+
+    def set_axis_limits( self, xlims, ylims ):
+        self.axes.set_xlim(*xlims )
+        self.axes.set_ylim(*ylims)
+        print( f"Setting satellite image bounds: {xlims} {ylims}")
+        self.figure.canvas.draw_idle()
+        Task.mainWindow().refresh_image()
+
+    def mpl_update(self):
+        self.figure.canvas.draw_idle()
+#        self.repaint()
+
 
 

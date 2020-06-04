@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas
+from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from collections import Mapping
@@ -47,23 +47,6 @@ class HyperclassConsole(QMainWindow):
         self.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)
 
-        self.vtkFrame = VTKFrame( umgr )
-        self.mixingFrame = MixingFrame( umgr )
-        self.labelingConsole = MplWidget(umgr, self, **kwargs)
-        self.vtkFrame.addEventListener(self.labelingConsole)
-        self.spectralPlot = SpectralPlotCanvas(widget, self.labelingConsole.spectral_plot)
-        self.addMenues(mainMenu, self.labelingConsole.menu_actions)
-
-        nBlocks = umgr.tile.nBlocks
-        load_menu = blocksMenu.addMenu("load")
-        for ib0 in range( nBlocks[0] ):
-            for ib1 in range( nBlocks[1] ):
-                bname = f"[{ib0},{ib1}]"
-                menuButton = QAction( bname, self)
-                menuButton.setStatusTip(f"Load block at block coords {bname}")
-                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
-                load_menu.addAction(menuButton)
-
         framesLayout = QHBoxLayout()
         vlay.addLayout(framesLayout)
 
@@ -75,12 +58,32 @@ class HyperclassConsole(QMainWindow):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout(vizLayout, 7)
 
+        self.vtkFrame = VTKFrame( umgr )
+        self.labelingConsole = MplWidget(umgr, self, **kwargs)
+        self.vtkFrame.addEventListener(self.labelingConsole)
+        self.spectralPlot = SpectralPlotCanvas( widget, self.labelingConsole.spectral_plot )
+        self.satelliteCanvas = SatellitePlotCanvas( widget, self.labelingConsole.toolbar, self.labelingConsole.getBlock() )
+        self.labelingConsole.addNavigationListener( self.satelliteCanvas )
+        self.addMenues(mainMenu, self.labelingConsole.menu_actions)
+        self.mixingFrame = MixingFrame( umgr )
+
         consoleLayout.addWidget(self.labelingConsole)
         vizTabs = QTabWidget()
         vizTabs.addTab(  self.vtkFrame, "Embedding" )
         vizTabs.addTab( self.mixingFrame, "Mixing")
+        vizTabs.addTab( self.satelliteCanvas, "Satellite")
         vizLayout.addWidget( vizTabs, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )
+
+        nBlocks = umgr.tile.nBlocks
+        load_menu = blocksMenu.addMenu("load")
+        for ib0 in range( nBlocks[0] ):
+            for ib1 in range( nBlocks[1] ):
+                bname = f"[{ib0},{ib1}]"
+                menuButton = QAction( bname, self)
+                menuButton.setStatusTip(f"Load block at block coords {bname}")
+                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
+                load_menu.addAction(menuButton)
 
         for label, callback in self.labelingConsole.button_actions.items():
             pybutton = QPushButton( label, self )
@@ -125,6 +128,8 @@ class HyperclassConsole(QMainWindow):
     def refresh_points( self, **kwargs ):
         if self.vtkFrame is not None:
             self.vtkFrame.update( **kwargs )
+        if self.mixingFrame is not None:
+            self.mixingFrame.update(**kwargs)
 
     def refresh_image( self, **kwargs ):
         try: self.labelingConsole.mpl_update()
@@ -133,7 +138,8 @@ class HyperclassConsole(QMainWindow):
         except AttributeError: pass
 
     def setBlock(self, block_coords: Tuple[int]):
-        self.labelingConsole.setBlock(block_coords)
+        block = self.labelingConsole.setBlock(block_coords)
+        self.satelliteCanvas.setBlock(block)
 
     def show(self):
         QMainWindow.show(self)
