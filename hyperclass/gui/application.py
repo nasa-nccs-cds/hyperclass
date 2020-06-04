@@ -25,6 +25,7 @@ class HyperclassConsole(QMainWindow):
         self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
+        self.umgr = umgr
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -36,6 +37,12 @@ class HyperclassConsole(QMainWindow):
         fileMenu = mainMenu.addMenu('File')
         helpMenu = mainMenu.addMenu('Help')
         blocksMenu = mainMenu.addMenu('Blocks')
+
+        openButton = QAction( 'Open', self )
+        openButton.setShortcut('Ctrl+O')
+        openButton.setStatusTip('Open file')
+        openButton.triggered.connect(self.selectFile)
+        fileMenu.addAction(openButton)
 
         exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
         exitButton.setShortcut('Ctrl+Q')
@@ -103,6 +110,14 @@ class HyperclassConsole(QMainWindow):
         if menuItem[2] is not None: menuButton.setStatusTip(menuItem[2])
         menuButton.triggered.connect(menuItem[3])
         parent_menu.addAction(menuButton)
+
+    def selectFile(self, *args, **kwargs):
+        data_dir = self.umgr.tile.dm.config['data_dir']
+        fileName = QFileDialog.getOpenFileName( self, "Open File", data_dir )
+        self.openFile( fileName )
+
+    def openFile(self, fileName: str ):
+        print( f"Opening file: {fileName}")
 
     def tabShape(self) -> 'QTabWidget.TabShape':
         return super().tabShape()
