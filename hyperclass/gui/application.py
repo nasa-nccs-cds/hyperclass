@@ -3,6 +3,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize, QCoreApplication, QSettings
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
+from .config import PreferencesDialog
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from collections import Mapping
@@ -126,7 +127,8 @@ class HyperclassConsole(QMainWindow):
         self.settings = QSettings()
 
     def setPreferences(self):
-        pass
+        preferences =  PreferencesDialog()
+        preferences.show()
 
     def selectFile(self, *args, **kwargs):
         data_dir = self.umgr.tile.dm.config.get('data/dir')
