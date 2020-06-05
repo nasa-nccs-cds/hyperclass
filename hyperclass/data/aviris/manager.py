@@ -5,6 +5,7 @@ import xarray as xa
 import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
+from PyQt5.QtCore import QSize, QCoreApplication, QSettings
 import matplotlib.pyplot as plt
 from typing import TextIO
 from pyproj import Proj, transform
@@ -23,30 +24,42 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
 
 class MarkerManager:
 
-    def __init__(self, file_path: str,  **kwargs ):
-        self.file_path = file_path
+    def __init__(self, file_name: str,  **kwargs ):
+        self.config = QSettings()
+        self.file_name = file_name
         self.names = None
         self.colors = None
         self.markers = None
+
+    @property
+    def file_path(self):
+        data_dir = self.config.value( 'data/dir', "" )
+        return os.path.join( data_dir, self.file_name )
 
     @property
     def hasData(self):
         return self.markers is not None
 
     def writeMarkers(self, names, colors, markers ):
-        with open( self.file_path, 'wb' ) as f:
-            print( f"Saving {len(markers)} labeled points to file {self.file_path}")
-            pickle.dump( [ names, colors, markers ], f )
+        try:
+            with open( self.file_path, 'wb' ) as f:
+                print( f"Saving {len(markers)} labeled points to file {self.file_path}")
+                pickle.dump( [ names, colors, markers ], f )
+        except Exception as err:
+            print( f" Can't save markers: {err}")
 
     def readMarkers(self):
-        if os.path.isfile(self.file_path):
-            print(f"Reading Label data from file {self.file_path}")
-            with open(self.file_path, 'rb') as f:
-                label_data = pickle.load( f )
-                if label_data:
-                    self.names = label_data[0]
-                    self.colors = label_data[1]
-                    self.markers = label_data[2]
+        try:
+            if os.path.isfile(self.file_path):
+                print(f"Reading Label data from file {self.file_path}")
+                with open(self.file_path, 'rb') as f:
+                    label_data = pickle.load( f )
+                    if label_data:
+                        self.names = label_data[0]
+                        self.colors = label_data[1]
+                        self.markers = label_data[2]
+        except Exception as err:
+            print( f" Can't read markers: {err}" )
 
 class Tile:
 
@@ -55,7 +68,7 @@ class Tile:
         self.dm: DataManager = data_manager
         self._data: xa.DataArray = None
         self._transform: ProjectiveTransform = None
-        self.subsampling: int = self.iparm('sub_sampling')
+        self.subsampling: int =  kwargs.get('subsample',1)
 
     @property
     def data(self) -> xa.DataArray:
@@ -64,7 +77,7 @@ class Tile:
         return self._data
 
     def iparm(self, key: str ):
-        return int( self.dm.config[key] )
+        return int( self.dm.config.value(key) )
 
     @property
     def name(self) -> str:
@@ -134,7 +147,7 @@ class Block:
 
     def flow_init(self):
         if self._flow is None:
-            n_neighbors = self.config.pop( 'n_neighbors', self.iparm('n_neighbors') )
+            n_neighbors = self.config.pop( 'n_neighbors', self.iparm('umap/nneighbors') )
             print( f"Computing NN graph using {n_neighbors} neighbors")
             self._flow = ActivationFlow( n_neighbors=n_neighbors, **self.config )
             self._flow.setNodeData( self.getPointData() )
@@ -158,7 +171,7 @@ class Block:
         return point_index_array.unstack(fill_value=-1)
 
     def iparm(self, key: str ):
-        return int( self.tile.dm.config[key] )
+        return int( self.tile.dm.config.value(key) )
 
     @property
     def xlim(self): return self._xlim
@@ -259,14 +272,26 @@ class DataManager:
     valid_bands = [ [3,193], [210,287], [313,421] ]
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
-        self.config = Configuration( **kwargs )
-        self.block_shape = kwargs.pop('block_shape', self.config.getShape('block_shape'))
+        self.config= QSettings()
         self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
-        self.tile_shape = self.config.getShape( 'tile_shape' )
-        self.tile_index = self.config.getShape('tile_index')
         [self.iy, self.ix] = self.tile_index
-        self.markers = MarkerManager(os.path.join(self.config['data_dir'], self.markerFileName() + ".pkl"))
+        self.markers = MarkerManager( self.markerFileName() + ".pkl" )
         self.tile = None
+
+    @property
+    def tile_shape(self):
+        block_size = self.config.value( 'block/size', 250 )
+        tile_size =  math.isqrt( self.config.value( 'tile/nblocks', 16 ) ) * block_size
+        return  [ tile_size, tile_size ]
+
+    @property
+    def block_shape(self):
+        block_size = self.config.value( 'block/size', 250 )
+        return  [ block_size, block_size ]
+
+    @property
+    def tile_index(self):
+        return  self.config.value( 'tile/indices', [0,0] )
 
     @classmethod
     def extent(cls, image_data: xa.DataArray ) -> List[float]: # left, right, bottom, top
@@ -301,7 +326,7 @@ class DataManager:
         return self.rescale(tile_data, **kwargs)
 
     def _computeNorm(self, tile_raster: xa.DataArray, refresh=False ) -> xa.DataArray:
-        norm_file = os.path.join( self.config['data_dir'], self.normFileName )
+        norm_file = os.path.join( self.config.value('data/dir'), self.normFileName )
         if not refresh and os.path.isfile( norm_file ):
             print( f"Loading norm from global norm file {norm_file}")
             return xa.DataArray.from_dict( pickle.load( open( norm_file, 'rb' ) ) )
@@ -342,14 +367,14 @@ class DataManager:
     def writeGeotiff(self, raster_data: xa.DataArray, filename: str = None ) -> str:
         if filename is None: filename = raster_data.name
         if not filename.endswith(".tif"): filename = filename + ".tif"
-        output_file = os.path.join(self.config['data_dir'], filename )
+        output_file = os.path.join(self.config.value('data/dir'), filename )
         print(f"Writing raster file {output_file}")
         raster_data.rio.to_raster(output_file)
         return output_file
 
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
         if not filename.endswith(".tif"): filename = filename + ".tif"
-        input_file = os.path.join( self.config['data_dir'], filename )
+        input_file = os.path.join( self.config.value('data/dir'), filename )
         try:
             input_bands: xa.DataArray =  rio.open_rasterio(input_file)
             print(f"Reading raster file {input_file}")
@@ -365,10 +390,16 @@ class DataManager:
         return raster.where(raster != nodata_value, float('nan'))
 
     def tileFileName(self) -> str:
-        return f"{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
+        return f"{self.image_name}.{self._fmt(self.tile_shape)}_{self._fmt(self.tile_index)}"
+
+    def _cfg(self, settings_key: str ) -> str:
+        return self._fmt( self.config.value( settings_key ) )
+
+    def _fmt(self, value) -> str:
+        return str(value).strip("([ ])").replace(",", "-")
 
     def markerFileName(self) -> str:
-        return f"tdata_{self.image_name}.{self.config.getCfg('tile_shape')}_{self.config.getCfg('tile_index')}"
+        return f"tdata_{self.image_name}.{self._cfg('tile_shape')}_{self.self._cfg('tile_index')}"
 
     @property
     def normFileName( self ) -> str:

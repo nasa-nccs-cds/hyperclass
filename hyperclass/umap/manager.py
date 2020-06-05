@@ -49,14 +49,15 @@ class UMAPManager:
         mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
         if ( mapper is None ):
-            defaults = self.tile.dm.config.section("umap").toDict()
-            parms = dict( **defaults ); parms.update( **self.conf, n_components=ndim )
+            n_neighbors = self.tile.dm.config.value("umap/nneighbors")
+            n_epochs = self.tile.dm.config.value("umap/nepochs")
+            parms = dict( n_neighbors=n_neighbors, n_epochs=n_epochs ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         return mapper
 
     def iparm(self, key: str ):
-        return int( self.tile.dm.config[key] )
+        return int( self.tile.dm.config.value(key) )
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
         self.point_cloud.set_point_colors( labels.values, **kwargs )

@@ -132,7 +132,7 @@ class LabelingConsole:
         self.control_axes = {}
 
         self.read_markers()
-        block_index = umgr.tile.dm.config.getShape( 'block_index' )
+        block_index = umgr.tile.dm.config.value( 'block/indices', [0,0] )
         self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
         self.spectral_plot = SpectralPlot()
         self.navigation_listeners = []
@@ -240,7 +240,7 @@ class LabelingConsole:
 
     def learn_classification( self, *args, **kwargs  ):
         t0 = time.time()
-        ndim = kwargs.get('ndim',self.umgr.iparm("svc_ndim"))
+        ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
         labels: xa.DataArray = self.getExtendedLabelPoints()
         embedding: xa.DataArray = self.umgr.learn( self.block, labels, ndim, **kwargs )
         t1 = time.time()
@@ -250,7 +250,7 @@ class LabelingConsole:
             print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 
     def get_svc( self, **kwargs ):
-        type = kwargs.get( 'svc_type', self.tile.dm.config["svc_type"] )
+        type = kwargs.get( 'svc_type', 'SVCL' )
         if self.svc == None:
             self.svc = SVC.instance( type )
         return self.svc

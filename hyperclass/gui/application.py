@@ -129,7 +129,7 @@ class HyperclassConsole(QMainWindow):
         pass
 
     def selectFile(self, *args, **kwargs):
-        data_dir = self.umgr.tile.dm.config['data_dir']
+        data_dir = self.umgr.tile.dm.config.get('data/dir')
         fileName = QFileDialog.getOpenFileName( self, "Open File", data_dir )
         self.openFile( fileName )
 

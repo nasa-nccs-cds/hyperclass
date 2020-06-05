@@ -23,7 +23,7 @@ class GoogleMaps:
 
     @property
     def api_key(self):
-        return self.block.tile.dm.config["api_key"]
+        return self.block.tile.dm.config.value("google/api_key","")
 
     def extent(self, espg: int ):
         return self.block.extent( espg )
