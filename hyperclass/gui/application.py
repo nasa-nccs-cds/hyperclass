@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, QCoreApplication, QSettings
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
 from matplotlib.figure import Figure
@@ -10,6 +10,10 @@ from functools import partial
 from hyperclass.data.aviris.manager import DataManager, Tile, Block
 from hyperclass.gui.points import VTKFrame, MixingFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
+
+QCoreApplication.setOrganizationName("ilab")
+QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
+QCoreApplication.setApplicationName("hyperclass")
 
 class HyperclassConsole(QMainWindow):
     def __init__( self, umgr: UMAPManager, **kwargs ):
@@ -26,6 +30,7 @@ class HyperclassConsole(QMainWindow):
         self.message_stack = []
         self.newfig : Figure = None
         self.umgr = umgr
+        self.initSettings()
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -43,6 +48,12 @@ class HyperclassConsole(QMainWindow):
         openButton.setStatusTip('Open file')
         openButton.triggered.connect(self.selectFile)
         fileMenu.addAction(openButton)
+
+        prefButton = QAction( 'Preferences', self)
+        prefButton.setShortcut('Ctrl+P')
+        prefButton.setStatusTip('Set application configuration parameters')
+        prefButton.triggered.connect( self.setPreferences )
+        fileMenu.addAction(prefButton)
 
         exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
         exitButton.setShortcut('Ctrl+Q')
@@ -111,6 +122,12 @@ class HyperclassConsole(QMainWindow):
         menuButton.triggered.connect(menuItem[3])
         parent_menu.addAction(menuButton)
 
+    def initSettings(self):
+        self.settings = QSettings()
+
+    def setPreferences(self):
+        pass
+
     def selectFile(self, *args, **kwargs):
         data_dir = self.umgr.tile.dm.config['data_dir']
         fileName = QFileDialog.getOpenFileName( self, "Open File", data_dir )
@@ -119,7 +136,7 @@ class HyperclassConsole(QMainWindow):
     def openFile(self, fileName: str ):
         print( f"Opening file: {fileName}")
 
-    def tabShape(self) -> 'QTabWidget.TabShape':
+    def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()
 
     def showMessage( self, message: str ):
