@@ -42,7 +42,8 @@ class HyperclassConsole(QMainWindow):
         mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('File')
         helpMenu = mainMenu.addMenu('Help')
-        blocksMenu = mainMenu.addMenu('Blocks')
+        blocksMenu: QMenu = mainMenu.addMenu('Blocks')
+        self.load_menu = blocksMenu.addMenu("load")
 
         openButton = QAction( 'Open', self )
         openButton.setShortcut('Ctrl+O')
@@ -94,16 +95,6 @@ class HyperclassConsole(QMainWindow):
         vizLayout.addWidget( vizTabs, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )
 
-        nBlocks = umgr.tile.nBlocks
-        load_menu = blocksMenu.addMenu("load")
-        for ib0 in range( nBlocks[0] ):
-            for ib1 in range( nBlocks[1] ):
-                bname = f"[{ib0},{ib1}]"
-                menuButton = QAction( bname, self)
-                menuButton.setStatusTip(f"Load block at block coords {bname}")
-                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
-                load_menu.addAction(menuButton)
-
         for label, callback in self.labelingConsole.button_actions.items():
             pybutton = QPushButton( label, self )
             pybutton.clicked.connect( callback )
@@ -115,6 +106,19 @@ class HyperclassConsole(QMainWindow):
             for menuItem in menuItems:
                 if isinstance(menuItem, Mapping):   self.addMenues( menu, menuItem )
                 else:                               self.addMenuAction( menu, menuItem )
+
+    def populate_block_load_menu(self):
+        nBlocks = self.umgr.tile.nBlocks
+        for action in self.load_menu.actions():
+            self.load_menu.removeAction( action)
+
+        for ib0 in range( nBlocks[0] ):
+            for ib1 in range( nBlocks[1] ):
+                bname = f"[{ib0},{ib1}]"
+                menuButton = QAction( bname, self)
+                menuButton.setStatusTip(f"Load block at block coords {bname}")
+                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
+                self.load_menu.addAction(menuButton)
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self)
@@ -173,6 +177,7 @@ class HyperclassConsole(QMainWindow):
 
     def setBlock(self, block_coords: Tuple[int]):
         block = self.labelingConsole.setBlock(block_coords)
+        self.populate_block_load_menu()
         self.satelliteCanvas.setBlock(block)
 
     def show(self):

@@ -104,13 +104,3 @@ class PreferencesDialog(QDialog):
     def createGoogleGroupBox(self):
         apiKeySelector = self.createPasswordField( "API KEY", "google/api_key" )
         return self.createGroupBox("google", [apiKeySelector])
-
-if __name__ == '__main__':
-
-
-    import sys
-
-    app = QApplication(sys.argv)
-    preferences = PreferencesDialog()
-    preferences.show()
-    sys.exit(app.exec_())

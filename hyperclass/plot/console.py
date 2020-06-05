@@ -108,6 +108,7 @@ class LabelingConsole:
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.currentFrame = 0
+        self.slider: Optional[PageSlider] = None
         self.image: Optional[AxesImage] = None
         self.plot_axes: Optional[Axes] = None
         self.marker_list: List[Dict] = []
@@ -121,6 +122,7 @@ class LabelingConsole:
         self.google: GoogleMaps = None
         self.google_maps_zoom_level = 17
         self.new_image = None
+        self.nFrames = None
 
         self.figure: Figure = kwargs.pop( 'figure', None )
         self.google_figure: Figure = None
@@ -136,17 +138,7 @@ class LabelingConsole:
         self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
         self.spectral_plot = SpectralPlot()
         self.navigation_listeners = []
-
-        self.nFrames = self.data.shape[0]
-        self.band_axis = kwargs.pop('band', 0)
-        self.z_axis_name = self.data.dims[ self.band_axis]
-        self.x_axis = kwargs.pop( 'x', 2 )
-        self.x_axis_name = self.data.dims[ self.x_axis ]
-        self.y_axis = kwargs.pop( 'y', 1 )
-        self.y_axis_name = self.data.dims[ self.y_axis ]
-
         self.setup_plot(**kwargs)
-
 
         self.button_actions =  OrderedDict(model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
                                            spread=  self.spread_labels,
@@ -166,8 +158,6 @@ class LabelingConsole:
                                                     [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ],
                                                     OrderedDict( GoogleMaps=google_actions )  ]  )
 
-        self.add_plots( **kwargs )
-        self.add_slider( **kwargs )
         self.add_selection_controls( **kwargs )
         atexit.register(self.exit)
         self._update(0)
@@ -205,12 +195,25 @@ class LabelingConsole:
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
-        self.google = GoogleMaps( self.block )
-        self.umgr.clear_pointcloud()
-        self.update_plot_axis_bounds()
-        self.plot_markers_image()
-        self.clearLabels()
-        self.update_plots()
+        if self.block is not None:
+            self.nFrames = self.data.shape[0]
+            self.band_axis = kwargs.pop('band', 0)
+            self.z_axis_name = self.data.dims[self.band_axis]
+            self.x_axis = kwargs.pop('x', 2)
+            self.x_axis_name = self.data.dims[self.x_axis]
+            self.y_axis = kwargs.pop('y', 1)
+            self.y_axis_name = self.data.dims[self.y_axis]
+
+            self.add_plots(**kwargs)
+            self.add_slider(**kwargs)
+
+            self.google = GoogleMaps( self.block )
+            self.umgr.clear_pointcloud()
+            self.update_plot_axis_bounds()
+            self.plot_markers_image()
+            self.clearLabels()
+            self.update_plots()
+
         return self.block
 
     def getNewImage(self):
@@ -292,7 +295,7 @@ class LabelingConsole:
 
     @property
     def data(self):
-        return self.block.data
+        return None if self.block is None else self.block.data
 
     @property
     def class_labels(self):
@@ -545,16 +548,18 @@ class LabelingConsole:
         print(f"#Markers remaining = {len(self.marker_list)}")
 
     def add_plots(self, **kwargs ):
-        self.image = self.create_image(**kwargs)
-        self.marker_plot = self.plot_axes.scatter( [], [], s=50, zorder=2, alpha=1, picker=True )
-        self.marker_plot.set_edgecolor([0, 0, 0])
-        self.marker_plot.set_linewidth(2)
-        self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
-        self.plot_markers_image()
+        if self.image is None:
+            self.image = self.create_image(**kwargs)
+            self.marker_plot = self.plot_axes.scatter( [], [], s=50, zorder=2, alpha=1, picker=True )
+            self.marker_plot.set_edgecolor([0, 0, 0])
+            self.marker_plot.set_linewidth(2)
+            self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
+            self.plot_markers_image()
 
     def add_slider(self,  **kwargs ):
-        self.slider = PageSlider( self.slider_axes, self.nFrames )
-        self.slider_cid = self.slider.on_changed(self._update)
+        if self.slider is None:
+            self.slider = PageSlider( self.slider_axes, self.nFrames )
+            self.slider_cid = self.slider.on_changed(self._update)
 
     def add_selection_controls( self, controls_window=0 ):
         cax = self.control_axes[controls_window]
@@ -584,9 +589,10 @@ class LabelingConsole:
         return self.class_selector.value_selected
 
     def _update( self, val ):
-        tval = self.slider.val
-        self.currentFrame = int( tval )
-        self.update_plots()
+        if self.slider is not None:
+            tval = self.slider.val
+            self.currentFrame = int( tval )
+            self.update_plots()
 
     def show(self):
         plt.show()

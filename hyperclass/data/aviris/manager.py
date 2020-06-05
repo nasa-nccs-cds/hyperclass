@@ -84,7 +84,8 @@ class Tile:
         return self.dm.tileFileName()
 
     @property
-    def transform(self) -> ProjectiveTransform:
+    def transform(self) -> Optional[ProjectiveTransform]:
+        if self.data is None: return None
         if self._transform is None:
             self._transform = ProjectiveTransform( np.array(list(self.data.transform) + [0, 0, 1]).reshape(3, 3) )
         return self._transform
@@ -104,8 +105,9 @@ class Tile:
     def nBlocks(self) -> List[ List[int] ]:
         return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in range(2) ]
 
-    def getBlock(self, iy: int, ix: int, **kwargs ) -> "Block":
+    def getBlock(self, iy: int, ix: int, **kwargs ) -> Optional["Block"]:
         init_graph = kwargs.get('init_graph',False)
+        if self.data is None: return None
         block = Block( self, iy, ix, **kwargs )
         if init_graph: block.flow_init()
         return block
@@ -137,10 +139,10 @@ class Block:
         self.data = self._getData()
         self.transform = tile.get_block_transform( iy, ix )
         self.index_array: xa.DataArray = self.get_index_array()
-        self.data.attrs['transform'] = self.transform
         self._flow = None
         self._samples_axis: Optional[xa.DataArray] = None
         tr = self.transform.params.flatten()
+        self.data.attrs['transform'] = self.transform
         self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
         self._point_data = None
@@ -157,7 +159,8 @@ class Block:
         self.flow_init()
         return self._flow
 
-    def _getData( self ) -> xa.DataArray:
+    def _getData( self ) -> Optional[xa.DataArray]:
+        if self.tile.data is None: return None
         ybounds, xbounds = self.getBounds()
         block_raster = self.tile.data[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         block_raster.attrs['block_coords'] = self.block_coords
@@ -281,7 +284,7 @@ class DataManager:
     @property
     def tile_shape(self):
         block_size = self.config.value( 'block/size', 250 )
-        tile_size =  math.isqrt( self.config.value( 'tile/nblocks', 16 ) ) * block_size
+        tile_size =  round( math.sqrt( self.config.value( 'tile/nblocks', 16 ) ) ) * block_size
         return  [ tile_size, tile_size ]
 
     @property
@@ -315,9 +318,10 @@ class DataManager:
         result.name = kwargs.get( "name", "")
         return result
 
-    def getTileData(self, **kwargs ):
+    def getTileData(self, **kwargs ) -> Optional[xa.DataArray]:
         tile_data: Optional[xa.DataArray] = self._readTileFile()
         if tile_data is None: tile_data = self._getTileDataFromImage()
+        if tile_data is None: return None
         tile_data = self.mask_nodata( tile_data )
         if self.valid_bands:
             dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in self.valid_bands]
@@ -336,8 +340,9 @@ class DataManager:
             pickle.dump( norm.to_dict(), open( norm_file, 'wb' ) )
             return norm
 
-    def _getTileDataFromImage(self) -> xa.DataArray:
+    def _getTileDataFromImage(self) -> Optional[xa.DataArray]:
         full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
+        if full_input_bands is None: return None
         ybounds, xbounds = self.getTileBounds()
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         tile_filename = self.tileFileName()
@@ -374,14 +379,14 @@ class DataManager:
 
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
         if not filename.endswith(".tif"): filename = filename + ".tif"
-        input_file = os.path.join( self.config.value('data/dir'), filename )
         try:
+            input_file = os.path.join(self.config.value('data/dir'), filename)
             input_bands: xa.DataArray =  rio.open_rasterio(input_file)
             print(f"Reading raster file {input_file}")
             if iband >= 0:  return input_bands[iband]
             else:           return input_bands
         except Exception as err:
-            print( f"WARNING: can't read input file {input_file}: {err}")
+            print( f"WARNING: can't read input file {filename}: {err}")
             return None
 
     @classmethod
@@ -399,7 +404,7 @@ class DataManager:
         return str(value).strip("([ ])").replace(",", "-")
 
     def markerFileName(self) -> str:
-        return f"tdata_{self.image_name}.{self._cfg('tile_shape')}_{self.self._cfg('tile_index')}"
+        return f"tdata_{self.image_name}.{self._cfg('tile_shape')}_{self._cfg('tile_index')}"
 
     @property
     def normFileName( self ) -> str:
@@ -438,7 +443,7 @@ class DataManager:
         result.attrs = raster.attrs
         return result
 
-    def rescale(self, raster: xa.DataArray, refresh=False):
+    def rescale(self, raster: xa.DataArray, refresh=False) -> xa.DataArray:
         norm = self._computeNorm( raster, refresh )
         result =  raster / norm
         result.attrs = raster.attrs
