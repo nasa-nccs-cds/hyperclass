@@ -13,13 +13,17 @@ class PreferencesDialog(QDialog):
         self.settings = QSettings()
         dataGroupBox = self.createDataGroupBox()
         tileGroupBox = self.createTileGroupBox()
+        umapGroupBox = self.createUMAPGroupBox()
+        svmGroupBox = self.createSVMGroupBox()
+        googleGroupBox = self.createGoogleGroupBox()
 
         mainLayout = QGridLayout()
         mainLayout.addWidget(dataGroupBox, 0, 0, 1, 2)
         mainLayout.addWidget(tileGroupBox, 1, 0, 1, 1)
+        mainLayout.addWidget(umapGroupBox, 1, 1, 1, 1)
+        mainLayout.addWidget( svmGroupBox, 2, 0, 1, 1)
+        mainLayout.addWidget(googleGroupBox, 2, 1, 1, 1)
         self.setLayout(mainLayout)
-
-        #        lineEdit.setEchoMode(QLineEdit.Password)
 
     def createFileSystemSelectionWidget(self, label, type: int, settings_key: str, directory_key: str =""  ):
         directory = self.settings.value( directory_key )
@@ -41,15 +45,18 @@ class PreferencesDialog(QDialog):
         fileSelection.addWidget( selectButton )
         return fileSelection
 
-    def createDataGroupBox(self):
-        dataGroupBox = QGroupBox("data")
+    def createGroupBox(self, label: str, widget_layouts: List[QLayout] ) -> QGroupBox :
+        groupBox = QGroupBox(label)
+        box_layout = QVBoxLayout()
+        for widget_layout in widget_layouts:
+            box_layout.addLayout( widget_layout )
+        groupBox.setLayout( box_layout )
+        return groupBox
+
+    def createDataGroupBox(self) -> QGroupBox:
         dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir",        "data/dir" )
         fileSelection = self.createFileSystemSelectionWidget( "Initial Data File", self.FILE,      "data/init/file",  "data/dir" )
-        layout = QVBoxLayout()
-        layout.addLayout(dirSelection)
-        layout.addLayout(fileSelection)
-        dataGroupBox.setLayout(layout)
-        return dataGroupBox
+        return self.createGroupBox( "data", [ dirSelection, fileSelection ] )
 
     def createSizeSelector(self, label_text: str, values: List[int], settings_key: str ) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
@@ -65,16 +72,38 @@ class PreferencesDialog(QDialog):
         comboBox.currentIndexChanged.connect( selectionchange )
         return sizeSelectorLayout
 
+    def createPasswordField(self, label_text: str, settings_key: str ) -> QLayout:
+        layout = QHBoxLayout()
+        init_value = self.settings.value( settings_key )
+        pwField = QLineEdit( init_value )
+        pwField.setEchoMode( QLineEdit.Password )
+        label = QLabel( label_text )
+        label.setBuddy( pwField )
+        layout.addWidget( label )
+        layout.addWidget( pwField )
+        def selectionchange( value ):
+            print( f"{settings_key}: {value}")
+            self.settings.setValue( settings_key, value )
+        pwField.textEdited.connect( selectionchange )
+        return layout
+
     def createTileGroupBox(self):
-        tilesGroupBox = QGroupBox("tiles")
-        layout = QVBoxLayout()
         blockSizeSelector = self.createSizeSelector( "Block Side Length: ", range(100,600,100), "block/size" )
         blocksPerTileSelector = self.createSizeSelector( "Blocks per tile: ", [ x*x for x in range(1,7) ], "tile/nblocks" )
-        layout.addLayout( blockSizeSelector )
-        layout.addLayout( blocksPerTileSelector )
-        tilesGroupBox.setLayout(layout)
-        return tilesGroupBox
+        return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
+    def createUMAPGroupBox(self):
+        nNeighborsSelector = self.createSizeSelector( "#Neighbors: ", range(4,20), "umap/nneighbors" )
+        nEpochsSelector = self.createSizeSelector( "#Epochs: ", range(50,500,50), "umap/nepochs" )
+        return self.createGroupBox("umap", [nNeighborsSelector, nEpochsSelector])
+
+    def createSVMGroupBox(self):
+        nDimSelector = self.createSizeSelector( "#Dimensions: ", range(4,20), "svm/ndim" )
+        return self.createGroupBox("svm", [nDimSelector])
+
+    def createGoogleGroupBox(self):
+        apiKeySelector = self.createPasswordField( "API KEY", "google/api_key" )
+        return self.createGroupBox("google", [apiKeySelector])
 
 if __name__ == '__main__':
 
