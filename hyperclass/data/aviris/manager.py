@@ -2,6 +2,7 @@ from hyperclass.util.config import Configuration
 from skimage.transform import ProjectiveTransform
 import numpy as np
 import xarray as xa
+import pathlib
 import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
@@ -286,8 +287,20 @@ class DataManager:
         self.tile = None
 
     @classmethod
+    def root_dir(cls) -> str:
+        parent_dirs = pathlib.Path(__file__).parents
+        return parent_dirs[ 3 ]
+
+    @classmethod
+    def settings_dir(cls) -> str:
+        return os.path.join( cls.root_dir(), 'config' )
+
+    @classmethod
     def getDefaultSettings(cls) -> QSettings:
-        settings = QSettings( QSettings.SystemScope, 'hyperclass' )
+        system_settings_dir = cls.settings_dir()
+        QSettings.setPath( QSettings.IniFormat, QSettings.SystemScope, system_settings_dir )
+        settings = QSettings( QSettings.IniFormat, QSettings.SystemScope, 'nccs.nasa.gov', 'hyperclass' )
+        print( f"Saving system settings to {settings.fileName()}, writable = {settings.isWritable()}")
         for key, value in cls.default_settings.items():
             current = settings.value( key )
             if not current: settings.setValue( key, value )

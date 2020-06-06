@@ -6,6 +6,6 @@ import sys
 
 app = QApplication(sys.argv)
 settings: QSettings = DataManager.getDefaultSettings()
-preferences = PreferencesDialog(None,settings)
+preferences = PreferencesDialog( None, settings )
 preferences.show()
 sys.exit(app.exec_())

@@ -20,5 +20,16 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 
 #### Google Maps Access
   To access google maps you must obtain an API key: <https://cloud.google.com/docs/authentication/api-keys>
+  
+#### Configuration
+  Set default parameters for all users:
+```    
+(hyperclass)>> python hyperclass/exe/configure.py
+```
 
+#### Startup the hyperclass console
+
+```    
+(hyperclass)>> python hyperclass/exe/console.py
+```
 

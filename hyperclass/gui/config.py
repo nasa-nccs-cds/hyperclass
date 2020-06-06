@@ -30,7 +30,8 @@ class PreferencesDialog(QDialog):
         self.setLayout(mainLayout)
 
     def save(self):
-        self.settings.sync()
+        del self.settings
+        self.close()
 
     def createFileSystemSelectionWidget(self, label, type: int, settings_key: str, directory_key: str =""  ):
         directory = self.settings.value( directory_key )
