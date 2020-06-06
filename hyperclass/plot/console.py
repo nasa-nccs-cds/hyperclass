@@ -24,7 +24,7 @@ import pandas as pd
 import xarray as xa
 import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
-import time, math, atexit, csv
+import time, math, atexit, os
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -365,7 +365,8 @@ class LabelingConsole:
             frame_data: xa.DataArray = self.data[ self.currentFrame ]
             self.image.set_data( frame_data.values  )
             self.image.set_extent( self.block.extent() )
-            self.plot_axes.title.set_text(f"{self.data.name}: Band {self.currentFrame+1}" )
+            plot_name = os.path.basename(self.data.name)
+            self.plot_axes.title.set_text(f"{plot_name}: Band {self.currentFrame+1}" )
             self.plot_axes.title.set_fontsize( 8 )
         if self.labels_image is not None:
             self.labels_image.set_extent( self.block.extent() )
