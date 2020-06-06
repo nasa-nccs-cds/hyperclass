@@ -23,7 +23,14 @@ class PreferencesDialog(QDialog):
         mainLayout.addWidget(umapGroupBox, 1, 1, 1, 1)
         mainLayout.addWidget( svmGroupBox, 2, 0, 1, 1)
         mainLayout.addWidget(googleGroupBox, 2, 1, 1, 1)
+
+        buttonBox = QDialogButtonBox(QDialogButtonBox.Save)
+        buttonBox.accepted.connect( self.save )
+        mainLayout.addWidget( buttonBox, 3, 0, 1, 2 )
         self.setLayout(mainLayout)
+
+    def save(self):
+        self.settings.sync()
 
     def createFileSystemSelectionWidget(self, label, type: int, settings_key: str, directory_key: str =""  ):
         directory = self.settings.value( directory_key )
@@ -38,8 +45,11 @@ class PreferencesDialog(QDialog):
             elif type == self.DIRECTORY: selection = QFileDialog.getExistingDirectory( self, "Select Directory", directory )
             else: raise Exception( f" Unknown dialog type: {type}")
             lineEdit.setText( selection )
-            self.settings.setValue( settings_key, selection )
         selectButton.clicked.connect(select)
+        def selectionchange( value ):
+            print( f"{settings_key}: {value}")
+            self.settings.setValue( settings_key, value )
+        lineEdit.textChanged.connect( selectionchange )
         fileSelection.addWidget( label )
         fileSelection.addWidget( lineEdit )
         fileSelection.addWidget( selectButton )
@@ -85,7 +95,7 @@ class PreferencesDialog(QDialog):
         def selectionchange( value ):
             print( f"{settings_key}: {value}")
             self.settings.setValue( settings_key, value )
-        pwField.textEdited.connect( selectionchange )
+        pwField.textChanged.connect( selectionchange )
         return layout
 
     def createTileGroupBox(self):

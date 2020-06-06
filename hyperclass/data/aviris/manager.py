@@ -274,7 +274,7 @@ class DataManager:
 
     valid_bands = [ [3,193], [210,287], [313,421] ]
 
-    default_settings = { 'block/size': 250, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
+    default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
                          'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
 
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
@@ -287,8 +287,8 @@ class DataManager:
 
     @classmethod
     def getDefaultSettings(cls) -> QSettings:
-        settings = QSettings( QSettings.SystemScope )
-        for key, value in cls.default_settings:
+        settings = QSettings( QSettings.SystemScope, 'hyperclass' )
+        for key, value in cls.default_settings.items():
             current = settings.value( key )
             if not current: settings.setValue( key, value )
         return settings
