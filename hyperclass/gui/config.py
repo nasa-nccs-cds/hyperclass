@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize, QCoreApplication, QSettings
+from hyperclass.data.aviris.manager import dataManager
+from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
 
 class PreferencesDialog(QDialog):
@@ -8,9 +8,9 @@ class PreferencesDialog(QDialog):
     FILE = 0
     DIRECTORY = 1
 
-    def __init__( self, parent=None, settings = None ):
+    def __init__( self, parent=None, settings: QSettings = None ):
         super(PreferencesDialog, self).__init__(parent)
-        self.settings = QSettings() if settings is None else settings
+        self.settings: QSettings = dataManager.config if settings is None else settings
         dataGroupBox = self.createDataGroupBox()
         tileGroupBox = self.createTileGroupBox()
         umapGroupBox = self.createUMAPGroupBox()

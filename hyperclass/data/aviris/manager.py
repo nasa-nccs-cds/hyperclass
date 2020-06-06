@@ -1,19 +1,17 @@
-from hyperclass.util.config import Configuration
-from skimage.transform import ProjectiveTransform
 import numpy as np
 import xarray as xa
 import pathlib
 import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-from PyQt5.QtCore import QSize, QCoreApplication, QSettings
+from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
-from typing import TextIO
-from pyproj import Proj, transform
-import csv
 import os, math, pickle
 import rioxarray as rio
-from hyperclass.graph.flow import ActivationFlow
+
+QCoreApplication.setOrganizationName("ilab")
+QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
+QCoreApplication.setApplicationName("hyperclass")
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -25,12 +23,12 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
 
 class MarkerManager:
 
-    def __init__(self, file_name: str,  **kwargs ):
-        self.config = QSettings()
+    def __init__(self, file_name: str, config: QSettings, **kwargs ):
         self.file_name = file_name
         self.names = None
         self.colors = None
         self.markers = None
+        self.config = config
 
     @property
     def file_path(self):
@@ -62,229 +60,23 @@ class MarkerManager:
         except Exception as err:
             print( f" Can't read markers: {err}" )
 
-class Tile:
-
-    def __init__(self, data_manager: "DataManager", **kwargs ):
-        self.config = kwargs
-        self.dm: DataManager = data_manager
-        self._data: xa.DataArray = None
-        self._transform: ProjectiveTransform = None
-        self.subsampling: int =  kwargs.get('subsample',1)
-
-    @property
-    def data(self) -> xa.DataArray:
-        if self._data is None:
-            self._data: xa.DataArray = self.dm.getTileData(  **self.config )
-        return self._data
-
-    def iparm(self, key: str ):
-        return int( self.dm.config.value(key) )
-
-    @property
-    def name(self) -> str:
-        return self.dm.tileFileName()
-
-    @property
-    def transform(self) -> Optional[ProjectiveTransform]:
-        if self.data is None: return None
-        if self._transform is None:
-            self._transform = ProjectiveTransform( np.array(list(self.data.transform) + [0, 0, 1]).reshape(3, 3) )
-        return self._transform
-
-    def get_block_transform( self, iy, ix ) -> ProjectiveTransform:
-        tr0 = self.data.transform
-        iy0, ix0 = iy*self.dm.block_shape[0], ix*self.dm.block_shape[1]
-        y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
-        tr1 = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0, 0, 0, 1  ]
-        return  ProjectiveTransform( np.array(tr1).reshape(3, 3) )
-
-    @property
-    def filename(self) -> str:
-        return self.data.attrs['filename']
-
-    @property
-    def nBlocks(self) -> List[ List[int] ]:
-        return [ self.data.shape[i+1]//self.dm.block_shape[i] for i in range(2) ]
-
-    def getBlock(self, iy: int, ix: int, **kwargs ) -> Optional["Block"]:
-        init_graph = kwargs.get('init_graph',False)
-        if self.data is None: return None
-        block = Block( self, iy, ix, **kwargs )
-        if init_graph: block.flow_init()
-        return block
-
-    def getBandPointData( self, iband: int, **kwargs  ) -> xa.DataArray:
-        band_data: xa.DataArray = self.data[iband]
-        point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return point_data[::self.subsampling]
-
-    def getPointData( self, **kwargs ) -> xa.DataArray:
-        subsample = kwargs.get( 'subsample', None )
-        if subsample is None: subsample = self.subsampling
-        point_data = self.dm.raster2points( self.data )
-        return point_data[::subsample]
-
-    def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
-        coords = self.transform.inverse(np.array([[cx, cy], ]))
-        return (math.floor(coords[0, 1]), math.floor(coords[0, 0]))
-
-    def index2coords(self, iy, ix ) -> Tuple[float,float]:
-        return self.transform(np.array([[ix+0.5, iy+0.5], ]))
-
-class Block:
-
-    def __init__(self, tile: Tile, iy: int, ix: int, **kwargs ):
-        self.tile: Tile = tile
-        self.config = kwargs
-        self.block_coords = (iy,ix)
-        self.data = self._getData()
-        self.transform = tile.get_block_transform( iy, ix )
-        self.index_array: xa.DataArray = self.get_index_array()
-        self._flow = None
-        self._samples_axis: Optional[xa.DataArray] = None
-        tr = self.transform.params.flatten()
-        self.data.attrs['transform'] = self.transform
-        self._xlim = [ tr[2], tr[2] + tr[0] * (self.data.shape[2]) ]
-        self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
-        self._point_data = None
-
-    def flow_init(self):
-        if self._flow is None:
-            n_neighbors = self.config.pop( 'n_neighbors', self.iparm('umap/nneighbors') )
-            print( f"Computing NN graph using {n_neighbors} neighbors")
-            self._flow = ActivationFlow( n_neighbors=n_neighbors, **self.config )
-            self._flow.setNodeData( self.getPointData() )
-
-    @property
-    def flow(self):
-        self.flow_init()
-        return self._flow
-
-    def _getData( self ) -> Optional[xa.DataArray]:
-        if self.tile.data is None: return None
-        ybounds, xbounds = self.getBounds()
-        block_raster = self.tile.data[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
-        block_raster.attrs['block_coords'] = self.block_coords
-        block_raster.name = f"{self.tile.name}_b-{self.block_coords[0]}-{self.block_coords[1]}"
-        return block_raster
-
-    def get_index_array(self) -> xa.DataArray:
-        point_data: xa.DataArray = self.tile.dm.raster2points(self.data)
-        indices = range( point_data.shape[0] )
-        point_index_array = xa.DataArray( indices, dims=["samples"], coords=dict(samples=point_data.coords['samples']) )
-        return point_index_array.unstack(fill_value=-1)
-
-    def iparm(self, key: str ):
-        return int( self.tile.dm.config.value(key) )
-
-    @property
-    def xlim(self): return self._xlim
-
-    @property
-    def ylim(self): return self._ylim
-
-    def extent(self, epsg: int = None ) -> List[float]:   # left, right, bottom, top
-        if epsg is None:
-            return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
-        else:
-            inProj = Proj( self.data.spatial_ref.crs_wkt )
-            outProj = Proj(epsg)
-            y, x = transform( inProj, outProj, self.xlim, self.ylim )
-            return x + y
-
-    def inBounds(self, yc: float, xc: float ) -> bool:
-        if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False
-        if (xc < self._xlim[0]) or (xc > self._xlim[1]): return False
-        return True
-
-    @property
-    def shape(self) -> Tuple[int,int]:
-        return self.tile.dm.block_shape
-
-    def getBounds(self ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
-        y0, x0 = self.block_coords[0]*self.shape[0], self.block_coords[1]*self.shape[1]
-        return ( y0, y0+self.shape[0] ), ( x0, x0+self.shape[1] )
-
-    def getPointData( self, **kwargs ) -> xa.DataArray:
-        if self._point_data is None:
-            subsample = kwargs.get( 'subsample', None )
-            result: xa.DataArray =  self.tile.dm.raster2points( self.data )
-            self._point_data =  result if subsample is None else result[::subsample]
-            self._samples_axis = self._point_data.coords['samples']
-        return self._point_data
-
-    @property
-    def samples_axis(self) -> xa.DataArray:
-        if self._samples_axis is None: self.getPointData()
-        return  self._samples_axis
-
-    def getSelectedPointData( self, cy: List[float], cx: List[float] ) -> np.ndarray:
-        yIndices, xIndices = self.multi_coords2indices(cy, cx)
-        return  self.data.values[ :, yIndices, xIndices ].transpose()
-
-    def getSelectedPointIndices( self, cy: List[float], cx: List[float] ) -> np.ndarray:
-        yIndices, xIndices = self.multi_coords2indices(cy, cx)
-        return  yIndices * self.shape[1] + xIndices
-
-    def getSelectedPoint( self, cy: float, cx: float ) -> np.ndarray:
-        index = self.coords2indices(cy, cx)
-        return self.data[ :, index['iy'], index['ix'] ].values.reshape(1, -1)
-
-    def plot(self,  **kwargs ) -> xa.DataArray:
-        color_band = kwargs.pop( 'color_band', None )
-        band_range = kwargs.pop( 'band_range', None )
-        if color_band is not None:
-            plot_data = self.data[color_band]
-        elif band_range is not None:
-            plot_data = self.data.isel( band=slice( band_range[0], band_range[1] ) ).mean(dim="band", skipna=True)
-        else:
-            plot_data =  self.tile.dm.getRGB(self.data)
-        self.tile.dm.plotRaster( plot_data, **kwargs )
-        return plot_data
-
-    def coords2indices(self, cy, cx) -> Dict:
-        coords = self.transform.inverse(np.array([[cx, cy], ]))
-        return dict( iy =math.floor(coords[0, 1]), ix = math.floor(coords[0, 0]) )
-
-    def multi_coords2indices(self, cy: List[float], cx: List[float]) -> Tuple[np.ndarray, np.ndarray]:
-        coords = np.array( list( zip( cx, cy ) ) )
-        trans_coords = np.floor(self.transform.inverse(coords))
-        indices = trans_coords.transpose().astype( np.int16 )
-        return indices[1], indices[0]
-
-    def indices2coords(self, iy, ix) -> Dict:
-        (iy,ix) = self.transform(np.array([[ix+0.5, iy+0.5], ]))
-        return dict( iy = iy, ix = ix )
-
-    def pindex2coords(self, point_index: int) -> Dict:
-        selected_sample: List = self.samples_axis.values[point_index]
-        return dict( y = selected_sample[0], x = selected_sample[1] )
-
-    def indices2pindex( self, iy, ix ) -> int:
-        return self.index_array.values[ iy, ix ]
-
-    def coords2pindex( self, cy, cx ) -> int:
-        index = self.coords2indices( cy, cx )
-        return self.index_array.values[ index['iy'], index['ix'] ]
-
-    def multi_coords2pindex(self, ycoords: List[float], xcoords: List[float] ) -> np.ndarray:
-        ( yi, xi ) = self.multi_coords2indices( ycoords, xcoords )
-        return self.index_array.values[ yi, xi ]
-
 class DataManager:
 
     valid_bands = [ [3,193], [210,287], [313,421] ]
-
+    settings_initialized = False
     default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
                          'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
 
-    def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
-        self.getDefaultSettings()
-        self.config= QSettings()
-        self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
-        [self.iy, self.ix] = self.tile_index
-        self.markers = MarkerManager( self.markerFileName() + ".pkl" )
-        self.tile = None
+    def __init__( self ):   # Tile shape (y,x) matches image shape (row,col)
+        self._initDefaultSettings()
+        self.config = self.getSettings( QSettings.UserScope )
+        print(f"Saving user settings to {self.config.fileName()}, writable = {self.config.isWritable()}")
+        self.image_name = None
+        self.setImageName( self.config.value("data/init/file") )
+        self.markers = MarkerManager( self.markerFileName() + ".pkl", self.config )
+
+    def setImageName( self, image_name: str ):
+        if image_name: self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
 
     @classmethod
     def root_dir(cls) -> str:
@@ -296,30 +88,44 @@ class DataManager:
         return os.path.join( cls.root_dir(), 'config' )
 
     @classmethod
-    def getDefaultSettings(cls) -> QSettings:
-        system_settings_dir = cls.settings_dir()
-        QSettings.setPath( QSettings.IniFormat, QSettings.SystemScope, system_settings_dir )
-        settings = QSettings( QSettings.IniFormat, QSettings.SystemScope, 'nccs.nasa.gov', 'hyperclass' )
-        print( f"Saving system settings to {settings.fileName()}, writable = {settings.isWritable()}")
-        for key, value in cls.default_settings.items():
-            current = settings.value( key )
-            if not current: settings.setValue( key, value )
-        return settings
+    def getSettings( cls, scope: QSettings.Scope ):
+        cls._initDefaultSettings()
+        return QSettings(QSettings.IniFormat, scope, QCoreApplication.organizationDomain(), QCoreApplication.applicationName())
+
+    @classmethod
+    def _initDefaultSettings(cls):
+        if not cls.settings_initialized:
+            cls.settings_initialized = True
+            system_settings_dir = cls.settings_dir()
+            QSettings.setPath( QSettings.IniFormat, QSettings.SystemScope, system_settings_dir )
+            settings = cls.getSettings( QSettings.SystemScope )
+            print( f"Saving system settings to {settings.fileName()}, writable = {settings.isWritable()}")
+            for key, value in cls.default_settings.items():
+                current = settings.value( key )
+                if not current: settings.setValue( key, value )
 
     @property
     def tile_shape(self):
-        block_size = self.config.value( 'block/size', 250 )
-        tile_size =  round( math.sqrt( self.config.value( 'tile/nblocks', 16 ) ) ) * block_size
+        block_size = self.config.value( 'block/size', 250, type=int )
+        tile_size =  round( math.sqrt( self.config.value( 'tile/nblocks', 16, type=int ) ) ) * block_size
         return  [ tile_size, tile_size ]
 
     @property
     def block_shape(self):
-        block_size = self.config.value( 'block/size', 250 )
+        block_size = self.config.value( 'block/size', 250, type=int )
         return  [ block_size, block_size ]
 
     @property
     def tile_index(self):
-        return  self.config.value( 'tile/indices', [0,0] )
+        return  self.config.value( 'tile/indices', [0,0], type=int )
+
+    @property
+    def iy(self):
+        return self.tile_index[0]
+
+    @property
+    def ix(self):
+        return self.tile_index[1]
 
     @classmethod
     def extent(cls, image_data: xa.DataArray ) -> List[float]: # left, right, bottom, top
@@ -330,11 +136,6 @@ class DataManager:
     def getTileBounds(self) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
         y0, x0 = self.iy*self.tile_shape[0], self.ix*self.tile_shape[1]
         return ( y0, y0+self.tile_shape[0] ), ( x0, x0+self.tile_shape[1] )
-
-    def getTile(self) -> Tile:
-        if self.tile is None:
-            self.tile = Tile( self )
-        return self.tile
 
     def getXArray(self, fill_value: float, shape: Tuple[int], dims: Tuple[str], **kwargs ) -> xa.DataArray:
         coords = kwargs.get( "coords", { dim: np.arange(shape[id]) for id, dim in enumerate(dims) } )
@@ -542,3 +343,7 @@ class DataManager:
                 cbar.set_ticklabels( [ cval[1] for cval in colors ] )
         if showplot: plt.show()
         return img
+
+dataManager = DataManager()
+
+

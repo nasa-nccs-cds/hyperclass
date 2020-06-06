@@ -2,9 +2,9 @@ import xarray as xa
 import umap, time, pickle
 import umap.plot
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.manager import DataManager, Block, Tile
+from hyperclass.data.aviris.manager import DataManager
+from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
-import plotly.graph_objs as go
 import os, math
 
 # Fit UMAP-transform 4 blocks of data and view the embedding

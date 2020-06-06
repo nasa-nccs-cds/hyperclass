@@ -4,7 +4,8 @@ from io import BytesIO
 from math import log, exp, tan, atan, ceil
 from PIL import Image
 import sys
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.aviris.manager import DataManager
 import matplotlib.pyplot as plt
 
 from hyperclass.data.google import GoogleMaps

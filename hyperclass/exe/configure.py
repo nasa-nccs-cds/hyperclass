@@ -5,7 +5,7 @@ from hyperclass.data.aviris.manager import DataManager
 import sys
 
 app = QApplication(sys.argv)
-settings: QSettings = DataManager.getDefaultSettings()
+settings: QSettings = DataManager.getSettings( QSettings.SystemScope )
 preferences = PreferencesDialog( None, settings )
 preferences.show()
 sys.exit(app.exec_())

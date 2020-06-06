@@ -10,11 +10,12 @@ from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from collections import OrderedDict
+from hyperclass.data.aviris.manager import dataManager
 from hyperclass.umap.manager import UMAPManager
 from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure
@@ -108,6 +109,7 @@ class LabelingConsole:
     def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         self._debug = False
         self.currentFrame = 0
+        self.block: Block = None
         self.slider: Optional[PageSlider] = None
         self.image: Optional[AxesImage] = None
         self.plot_axes: Optional[Axes] = None
@@ -132,10 +134,9 @@ class LabelingConsole:
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
+        self.tile = Tile()
 
         self.read_markers()
-        block_index = umgr.tile.dm.config.value( 'block/indices', [0,0] )
-        self.setBlock( kwargs.pop( 'block', block_index ), **kwargs )
         self.spectral_plot = SpectralPlot()
         self.navigation_listeners = []
         self.setup_plot(**kwargs)
@@ -165,10 +166,6 @@ class LabelingConsole:
     @property
     def toolbar(self):
         return self.figure.canvas.toolbar
-
-    @property
-    def tile(self):
-        return self.umgr.tile
 
     @property
     def transform(self):
@@ -218,6 +215,9 @@ class LabelingConsole:
 
     def getNewImage(self):
         return self.new_image
+
+    def getTile(self):
+        return self.tile
 
     def download_google_map(self, type: str, *args, **kwargs):
         self.new_image = self.google.get_tiled_google_map( type, self.google_maps_zoom_level )
@@ -286,12 +286,12 @@ class LabelingConsole:
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabelsFromMarkers()
-        labeledPointData = self.tile.dm.raster2points( self.labels )
+        labeledPointData = dataManager.raster2points( self.labels )
         return labeledPointData
 
     def getExtendedLabelPoints( self ) -> xa.DataArray:
         if self.label_map is None: return self.getLabeledPointData( True )
-        return self.tile.dm.raster2points( self.label_map )
+        return dataManager.raster2points( self.label_map )
 
     @property
     def data(self):
@@ -343,7 +343,7 @@ class LabelingConsole:
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
         colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  self.tile.dm.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, colorstretch=1.0, **kwargs )
+        image: AxesImage =  dataManager.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, colorstretch=1.0, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -428,12 +428,12 @@ class LabelingConsole:
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int16)
-        extent = self.tile.dm.extent( self.label_map )
+        extent = dataManager.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
         class_alpha = kwargs.get( 'alpha', 0.7 )
         if self.labels_image is None:
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
-            self.labels_image = self.tile.dm.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
+            self.labels_image = dataManager.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_plot.values  )
             self.labels_image.set_alpha(class_alpha  )
@@ -514,16 +514,16 @@ class LabelingConsole:
         self.figure.canvas.draw_idle()
 
     def read_markers(self):
-        self.tile.dm.markers.readMarkers()
-        if self.tile.dm.markers.hasData:
-            self.marker_list = self.tile.dm.markers.markers
-            self.umgr.class_labels = self.tile.dm.markers.names
-            self.umgr.class_colors = self.tile.dm.markers.colors
-            print(f"Reading {len(self.marker_list)} point labels from file { self.tile.dm.markers.file_path}")
+        dataManager.markers.readMarkers()
+        if dataManager.markers.hasData:
+            self.marker_list = dataManager.markers.markers
+            self.umgr.class_labels = dataManager.markers.names
+            self.umgr.class_colors = dataManager.markers.colors
+            print(f"Reading {len(self.marker_list)} point labels from file { dataManager.markers.file_path}")
 
     def write_markers(self):
-        print(f"Writing {len(self.marker_list)} point labels ot file {self.tile.dm.markers.file_path}")
-        self.tile.dm.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
+        print(f"Writing {len(self.marker_list)} point labels ot file {dataManager.markers.file_path}")
+        dataManager.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
     def mpl_pick_marker( self, event: PickEvent ):
         rightButton: bool = int(event.mouseevent.button) == self.RIGHT_BUTTON
@@ -546,6 +546,9 @@ class LabelingConsole:
                     print(f"Marker[{pindex1}] deleted at [{y} {x}]" )
             self.marker_list = new_marker_list
         print(f"#Markers remaining = {len(self.marker_list)}")
+
+    def initPlots(self, **kwargs):
+        self.add_plots( **kwargs )
 
     def add_plots(self, **kwargs ):
         if self.image is None:

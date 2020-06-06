@@ -5,21 +5,18 @@ from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
 from .config import PreferencesDialog
 from matplotlib.figure import Figure
+from hyperclass.data.aviris.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.gui.points import VTKFrame, MixingFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
-QCoreApplication.setOrganizationName("ilab")
-QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
-QCoreApplication.setApplicationName("hyperclass")
-
 class HyperclassConsole(QMainWindow):
-    def __init__( self, umgr: UMAPManager, **kwargs ):
+    def __init__( self, classes: List[ Tuple[str,List[float]]], **kwargs ):
         QMainWindow.__init__(self)
-
+        self.umgr = UMAPManager(classes)
         self.title = 'hyperclass'
         self.left = 10
         self.top = 10
@@ -30,7 +27,6 @@ class HyperclassConsole(QMainWindow):
         self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
-        self.umgr = umgr
         self.initSettings()
 
         self.setWindowTitle(self.title)
@@ -78,14 +74,14 @@ class HyperclassConsole(QMainWindow):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout(vizLayout, 7)
 
-        self.vtkFrame = VTKFrame( umgr )
-        self.labelingConsole = MplWidget(umgr, self, **kwargs)
+        self.vtkFrame = VTKFrame( self.umgr )
+        self.labelingConsole = MplWidget( self.umgr, self, **kwargs)
         self.vtkFrame.addEventListener(self.labelingConsole)
         self.spectralPlot = SpectralPlotCanvas( widget, self.labelingConsole.spectral_plot )
         self.satelliteCanvas = SatellitePlotCanvas( widget, self.labelingConsole.toolbar, self.labelingConsole.getBlock() )
         self.labelingConsole.addNavigationListener( self.satelliteCanvas )
         self.addMenues(mainMenu, self.labelingConsole.menu_actions)
-        self.mixingFrame = MixingFrame( umgr )
+        self.mixingFrame = MixingFrame( self.umgr )
 
         consoleLayout.addWidget(self.labelingConsole)
         vizTabs = QTabWidget()
@@ -108,7 +104,8 @@ class HyperclassConsole(QMainWindow):
                 else:                               self.addMenuAction( menu, menuItem )
 
     def populate_block_load_menu(self):
-        nBlocks = self.umgr.tile.nBlocks
+        tile = self.labelingConsole.getTile()
+        nBlocks = tile.nBlocks
         for action in self.load_menu.actions():
             self.load_menu.removeAction( action)
 
@@ -128,19 +125,22 @@ class HyperclassConsole(QMainWindow):
         parent_menu.addAction(menuButton)
 
     def initSettings(self):
-        self.settings = QSettings()
+        self.settings = dataManager.config
 
     def setPreferences(self):
         preferences =  PreferencesDialog()
         preferences.show()
 
     def selectFile(self, *args, **kwargs):
-        data_dir = self.umgr.tile.dm.config.get('data/dir')
-        fileName = QFileDialog.getOpenFileName( self, "Open File", data_dir )
-        self.openFile( fileName )
+        data_dir = dataManager.config.value('data/dir')
+        selection = QFileDialog.getOpenFileName( self, "Open File", data_dir )
+        self.openFile( selection[0] )
 
     def openFile(self, fileName: str ):
         print( f"Opening file: {fileName}")
+        dataManager.setImageName( fileName )
+        block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
+        self.setBlock( block_indices )
 
     def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()

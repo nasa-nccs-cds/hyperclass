@@ -6,14 +6,14 @@ from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
 from hyperclass.plot.mixing import MixingSpace
-from hyperclass.data.aviris.manager import Tile, Block
+from hyperclass.data.aviris.manager import dataManager
+from hyperclass.data.aviris.tile import Tile, Block
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager:
 
-    def __init__(self, tile: Tile, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
-        self.tile = tile
+    def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
@@ -49,15 +49,15 @@ class UMAPManager:
         mid = self.mid( block, ndim )
         mapper = self._mapper.get( mid )
         if ( mapper is None ):
-            n_neighbors = self.tile.dm.config.value("umap/nneighbors")
-            n_epochs = self.tile.dm.config.value("umap/nepochs")
+            n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
+            n_epochs = dataManager.config.value("umap/nepochs", type=int)
             parms = dict( n_neighbors=n_neighbors, n_epochs=n_epochs ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         return mapper
 
     def iparm(self, key: str ):
-        return int( self.tile.dm.config.value(key) )
+        return int( dataManager.config.value(key) )
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
         self.point_cloud.set_point_colors( labels.values, **kwargs )
@@ -70,14 +70,6 @@ class UMAPManager:
     def update_point_sizes(self, increase: bool  ):
         self.point_cloud.update_point_sizes( increase )
         self.mixing_space.update_point_sizes( increase )
-
-    def getBlock( self, **kwargs ) -> Optional[Block]:
-        block: Optional[Block] = kwargs.get('block', None)
-        if block is None:
-            block_index = kwargs.get('block_index', None)
-            if block_index is not None:
-                block = self.tile.getBlock( *block_index )
-        return block
 
     def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> xa.DataArray:
         self.learned_mapping = self.getMapper( block, ndim )
@@ -162,7 +154,7 @@ class UMAPManager:
         transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()
         print(f"Completed transform in {(t1 - t0)} sec for {point_data.shape[0]} samples")
-        block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=self.tile.data.name, attrs=self.tile.data.attrs,
+        block_model = xa.DataArray( transformed_data, dims=['samples', 'model'], name=block.tile.data.name, attrs=block.tile.data.attrs,
                                     coords=dict( samples=point_data.coords['samples'], model=np.arange(0,transformed_data.shape[1]) ) )
 
         transposed_raster = block.data.stack(samples=block.data.dims[-2:]).transpose()

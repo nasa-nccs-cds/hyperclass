@@ -2,7 +2,7 @@ import sys
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from hyperclass.data.aviris.manager import DataManager, Tile, Block
+from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.plot.point_cloud import PointCloud
 from collections import OrderedDict

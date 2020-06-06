@@ -2,7 +2,8 @@ import sys
 from hyperclass.plot.console import LabelingConsole
 from hyperclass.plot.spectra import SpectralPlot
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
-from hyperclass.data.aviris.manager import DataManager, Block, Tile
+from hyperclass.data.aviris.manager import DataManager
+from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional
@@ -21,6 +22,9 @@ class MplWidget(QWidget):
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
 
+    def initPlots( self ):
+        self.canvas.console.initPlots()
+
     @property
     def spectral_plot(self):
         return self.canvas.console.spectral_plot
@@ -33,6 +37,9 @@ class MplWidget(QWidget):
 
     def getNewImage(self):
         return self.canvas.getNewImage()
+
+    def getTile(self):
+        return self.canvas.console.getTile()
 
     def getBlock(self) -> Block:
         return self.canvas.getBlock()
