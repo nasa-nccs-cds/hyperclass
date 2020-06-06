@@ -54,9 +54,10 @@ class PreferencesDialog(QDialog):
         return groupBox
 
     def createDataGroupBox(self) -> QGroupBox:
-        dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir",        "data/dir" )
+        dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" )
+        cacheSelection = self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir")
         fileSelection = self.createFileSystemSelectionWidget( "Initial Data File", self.FILE,      "data/init/file",  "data/dir" )
-        return self.createGroupBox( "data", [ dirSelection, fileSelection ] )
+        return self.createGroupBox( "data", [ dirSelection, cacheSelection, fileSelection ] )
 
     def createSizeSelector(self, label_text: str, values: List[int], settings_key: str ) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()

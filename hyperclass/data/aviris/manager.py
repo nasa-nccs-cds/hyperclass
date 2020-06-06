@@ -33,7 +33,7 @@ class MarkerManager:
 
     @property
     def file_path(self):
-        data_dir = self.config.value( 'data/dir', "" )
+        data_dir = self.config.value( 'data/cache', "" )
         return os.path.join( data_dir, self.file_name )
 
     @property
@@ -274,12 +274,24 @@ class DataManager:
 
     valid_bands = [ [3,193], [210,287], [313,421] ]
 
+    default_settings = { 'block/size': 250, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
+                         'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
+
     def __init__(self, image_name: str,  **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
+        self.getDefaultSettings()
         self.config= QSettings()
         self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
         [self.iy, self.ix] = self.tile_index
         self.markers = MarkerManager( self.markerFileName() + ".pkl" )
         self.tile = None
+
+    @classmethod
+    def getDefaultSettings(cls) -> QSettings:
+        settings = QSettings( QSettings.SystemScope )
+        for key, value in cls.default_settings:
+            current = settings.value( key )
+            if not current: settings.setValue( key, value )
+        return settings
 
     @property
     def tile_shape(self):
@@ -330,7 +342,7 @@ class DataManager:
         return self.rescale(tile_data, **kwargs)
 
     def _computeNorm(self, tile_raster: xa.DataArray, refresh=False ) -> xa.DataArray:
-        norm_file = os.path.join( self.config.value('data/dir'), self.normFileName )
+        norm_file = os.path.join( self.config.value('data/cache'), self.normFileName )
         if not refresh and os.path.isfile( norm_file ):
             print( f"Loading norm from global norm file {norm_file}")
             return xa.DataArray.from_dict( pickle.load( open( norm_file, 'rb' ) ) )
@@ -372,7 +384,7 @@ class DataManager:
     def writeGeotiff(self, raster_data: xa.DataArray, filename: str = None ) -> str:
         if filename is None: filename = raster_data.name
         if not filename.endswith(".tif"): filename = filename + ".tif"
-        output_file = os.path.join(self.config.value('data/dir'), filename )
+        output_file = os.path.join(self.config.value('data/cache'), filename )
         print(f"Writing raster file {output_file}")
         raster_data.rio.to_raster(output_file)
         return output_file
