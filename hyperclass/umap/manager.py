@@ -8,6 +8,7 @@ from hyperclass.plot.point_cloud import PointCloud
 from hyperclass.plot.mixing import MixingSpace
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.gui.tasks import taskRunner, Task
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
@@ -78,8 +79,8 @@ class UMAPManager:
         return self.wrap_embedding( block, self.learned_mapping.embedding_ )
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
-        if self.learned_mapping is None:
-            print( "Error, must learn a classication before it can be applied")
+        if (self.learned_mapping is None) or (self.learned_mapping.embedding_ is None):
+            Task.taskNotAvailable( "Workflow violation", "Must learn a classication before it can be applied" )
             return None
         point_data: xa.DataArray = block.getPointData( **kwargs )
         embedding: np.ndarray = self.learned_mapping.transform( point_data )

@@ -168,14 +168,11 @@ class SatellitePlotCanvas(FigureCanvas):
         self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
         self.axes.set_xlim(extent[0],extent[1])
         self.axes.set_ylim(extent[2],extent[3])
-        self.figure.canvas.draw_idle()
 
     def set_axis_limits( self, xlims, ylims ):
         self.axes.set_xlim(*xlims )
         self.axes.set_ylim(*ylims)
         print( f"Setting satellite image bounds: {xlims} {ylims}")
-        self.figure.canvas.draw_idle()
-        Task.mainWindow().refresh_image()
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()

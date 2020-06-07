@@ -67,7 +67,8 @@ class DataManager:
     default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
                          'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
 
-    def __init__( self ):   # Tile shape (y,x) matches image shape (row,col)
+    def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
+        self.cacheTileData = kwargs.get( 'cache_tile', True )
         self._initDefaultSettings()
         self.config = self.getSettings( QSettings.UserScope )
         print(f"Saving user settings to {self.config.fileName()}, writable = {self.config.isWritable()}")
@@ -145,7 +146,7 @@ class DataManager:
         return result
 
     def getTileData(self, **kwargs ) -> Optional[xa.DataArray]:
-        tile_data: Optional[xa.DataArray] = self._readTileFile()
+        tile_data: Optional[xa.DataArray] = self._readTileFile() if self.cacheTileData else None
         if tile_data is None: tile_data = self._getTileDataFromImage()
         if tile_data is None: return None
         tile_data = self.mask_nodata( tile_data )
@@ -174,7 +175,8 @@ class DataManager:
         tile_filename = self.tileFileName()
         tile_raster.attrs['tile_coords'] = self.tile_index
         tile_raster.attrs['filename'] = tile_filename
-        self.writeGeotiff( tile_raster, tile_filename )
+        if self.cacheTileData:
+            self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
 
     def _readTileFile( self, iband = -1 ) -> Optional[xa.DataArray]:
@@ -227,10 +229,10 @@ class DataManager:
         return self._fmt( self.config.value( settings_key ) )
 
     def _fmt(self, value) -> str:
-        return str(value).strip("([ ])").replace(",", "-")
+        return str(value).strip("([])").replace(",", "-").replace(" ", "")
 
     def markerFileName(self) -> str:
-        return f"tdata_{self.image_name}.{self._cfg('tile_shape')}_{self._cfg('tile_index')}"
+        return f"tdata_{self.image_name}.{self._cfg('block/size')}.{self._cfg('tile/nblocks')}_{self._cfg('tile/indices')}"
 
     @property
     def normFileName( self ) -> str:

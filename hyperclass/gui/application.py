@@ -5,6 +5,7 @@ from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
 from .config import PreferencesDialog
 from matplotlib.figure import Figure
+from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.aviris.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
@@ -114,8 +115,11 @@ class HyperclassConsole(QMainWindow):
                 bname = f"[{ib0},{ib1}]"
                 menuButton = QAction( bname, self)
                 menuButton.setStatusTip(f"Load block at block coords {bname}")
-                menuButton.triggered.connect( partial( self.setBlock, [ib0, ib1] ) )
+                menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ), f"Load Block")
                 self.load_menu.addAction(menuButton)
+
+    def runSetBlock( self, coords, **kwargs ):
+        taskRunner.start( Task(self.setBlock, coords,  **kwargs ) )
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self)
@@ -138,14 +142,13 @@ class HyperclassConsole(QMainWindow):
         dialog.setViewMode(QFileDialog.Detail)
         if (dialog.exec()):
             fileNames = dialog.selectedFiles()
-            dialog.close()
-            self.openFile( fileNames[0] )
+            taskRunner.start(Task(self.openFile, fileNames[0], **kwargs), f"Load Data File")
 
-    def openFile(self, fileName: str ):
+    def openFile(self, fileName: str, **kwargs ):
         print( f"Opening file: {fileName}")
         dataManager.setImageName( fileName )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
-        self.setBlock( block_indices )
+        self.setBlock( block_indices, **kwargs )
 
     def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()
@@ -160,7 +163,7 @@ class HyperclassConsole(QMainWindow):
         self.showMessage( new_message )
         if task_context == "console":
             self.refresh_points( **kwargs )
-            self.refresh_image( **kwargs )
+            self.refresh_images( **kwargs )
         elif task_context == "newfig":
             self.newfig, ax = plt.subplots(1, 1)
             ax.imshow(self.labelingConsole.getNewImage(), extent=self.labelingConsole.extent(), alpha=1.0)
@@ -174,13 +177,15 @@ class HyperclassConsole(QMainWindow):
         if self.mixingFrame is not None:
             self.mixingFrame.update(**kwargs)
 
-    def refresh_image( self, **kwargs ):
+    def refresh_images( self, **kwargs ):
         try: self.labelingConsole.mpl_update()
         except AttributeError: pass
         try: self.spectralPlot.mpl_update()
         except AttributeError: pass
+        try: self.satelliteCanvas.mpl_update()
+        except AttributeError: pass
 
-    def setBlock(self, block_coords: Tuple[int]):
+    def setBlock(self, block_coords: Tuple[int], **kwargs ):
         block = self.labelingConsole.setBlock(block_coords)
         self.populate_block_load_menu()
         self.satelliteCanvas.setBlock(block)

@@ -3,11 +3,13 @@ import numpy as np
 import numpy.ma as ma
 import xarray as xa
 from typing import List, Union, Tuple, Optional
+from PyQt5.QtWidgets import QMessageBox
+from hyperclass.gui.tasks import taskRunner, Task
 import os, time
 
 class ActivationFlow:
 
-    def __init__(self,  **kwargs ):
+    def __init__(self, nodes_data: xa.DataArray,  **kwargs ):
         self.nodes: xa.DataArray = None
         self.nnd: NNDescent = None
         self.I: np.ndarray = None
@@ -15,6 +17,8 @@ class ActivationFlow:
         self.P: ma.MaskedArray = None
         self.C: ma.MaskedArray = None
         self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
+        self.init_task = Task( self.setNodeData, nodes_data, **kwargs )
+        taskRunner.start( self.init_task, f"Compute NN graph" )
 
     def setGraph( self, I: np.ndarray, D: np.ndarray ):
         self.I = I
@@ -34,17 +38,23 @@ class ActivationFlow:
         else:
             print( "No data available for this block")
 
-    def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> xa.DataArray:
+    def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
+        if self.D is None:
+            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished")
+            return None
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
         sample_mask = sample_labels == -1
         if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
+        label_count = self.C.count()
+        if label_count == 0:
+            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied" )
+            return None
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
         else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( self.P.dtype ).max
-        label_count = self.C.count()
         print(f"Beginning graph flow iterations, #C = {label_count}")
         if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
         t0 = time.time()

@@ -4,6 +4,7 @@ import xarray as xa
 from typing import List, Union, Tuple, Optional, Dict
 from pyproj import Proj, transform
 from .manager import dataManager
+from hyperclass.gui.tasks import taskRunner, Task
 import os, math, pickle
 from hyperclass.graph.flow import ActivationFlow
 
@@ -79,6 +80,7 @@ class Block:
 
     def __init__(self, tile: Tile, iy: int, ix: int, **kwargs ):
         self.tile: Tile = tile
+        self.init_task = None
         self.config = kwargs
         self.block_coords = (iy,ix)
         self.data = self._getData()
@@ -92,12 +94,11 @@ class Block:
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
         self._point_data = None
 
-    def flow_init(self):
+    def flow_init( self, **kwargs ):
         if self._flow is None:
             n_neighbors = self.config.pop( 'n_neighbors', self.iparm('umap/nneighbors') )
             print( f"Computing NN graph using {n_neighbors} neighbors")
-            self._flow = ActivationFlow( n_neighbors=n_neighbors, **self.config )
-            self._flow.setNodeData( self.getPointData() )
+            self._flow = ActivationFlow( self.getPointData(), n_neighbors=n_neighbors,  **self.config )
 
     @property
     def flow(self):

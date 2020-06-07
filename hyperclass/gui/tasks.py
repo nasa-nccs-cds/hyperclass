@@ -1,6 +1,5 @@
-from PyQt5.QtCore import QEventLoop, QTimer
 from typing import List, Union, Dict, Callable, Tuple, Optional
-from PyQt5.QtGui import *
+from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from functools import partial
@@ -61,6 +60,23 @@ class Task(QRunnable):
                 return widget
         return None
 
+    @classmethod
+    def showErrorMessage(cls, msg: str ):
+        error_dialog = QtWidgets.QErrorMessage()
+        error_dialog.showMessage( msg )
+
+    @classmethod
+    def showMessage(cls, title: str, caption: str, message: str, icon  ):  # QMessageBox.Critical QMessageBox.Information QMessageBox.Warning
+        msg_dialog = QtWidgets.QMessageBox()
+        msg_dialog.setIcon( icon )
+        msg_dialog.setText( caption )
+        msg_dialog.setInformativeText(message)
+        msg_dialog.setWindowTitle(title)
+        msg_dialog.exec_()
+
+    @classmethod
+    def taskNotAvailable(cls, caption: str, msg: str ):
+        cls.showMessage("Task Not Available", caption, msg,  QMessageBox.Warning )
 
 class TaskRunner(QObject):
 

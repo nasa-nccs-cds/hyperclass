@@ -8,7 +8,7 @@ from mpl_toolkits.axes_grid1 import Divider, Size
 import xarray as xa
 import numpy as np
 
-def isWhite( color ):
+def isUnlabeled(color):
     for ix in range(3):
         if color[ix] < 1.0: return False
     return True
@@ -37,17 +37,23 @@ class SpectralPlot:
         if len(color) == 4: color[3] = 1.0
         if self.current_line is not None:
             self.current_line.set_linewidth(1)
-            self.clear_white_line()
+            self.clear_unlabeled()
         self.current_line, = self.axes.plot( x, data.values, linewidth=3, color=color )
         self.lines[ index ] = self.current_line
 
-    def clear_white_line(self):
-        if isWhite(self.current_line.get_color()):
-            index, line = self.lines.popitem()
-            line.remove()
+    def clear_current_line(self):
+        index, line = self.lines.popitem()
+        line.remove()
+        self.current_line = None
+
+    def clear_unlabeled(self):
+        if self.current_line is not None:
+            if isUnlabeled( self.current_line.get_color() ):
+                self.clear_current_line()
+
 
     def clear_spectrum(self):
-        self.clear_white_line()
+        self.clear_unlabeled()
 
     def remove_spectrum(self, index: int ):
         line: Line2D = self.lines[ index ]

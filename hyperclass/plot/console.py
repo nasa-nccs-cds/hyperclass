@@ -156,8 +156,8 @@ class LabelingConsole:
                                                     [ "Increase Band Alpha",   'Alt+>',  None, partial( self.update_image_alpha, "bands", True ) ],
                                                     [ "Decrease Band Alpha",   'Alt+<',  None, partial( self.update_image_alpha, "bands", False ) ],
                                                     [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
-                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ],
-                                                    OrderedDict( GoogleMaps=google_actions )  ]  )
+                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
+ #                                                   OrderedDict( GoogleMaps=google_actions )  ]  )
 
         self.add_selection_controls( **kwargs )
         atexit.register(self.exit)
@@ -191,6 +191,7 @@ class LabelingConsole:
         self.add_marker( dict( c=0, **marker), labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
+        print( f"setBlock: {block_coords}")
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
         if self.block is not None:
             self.nFrames = self.data.shape[0]
@@ -250,7 +251,8 @@ class LabelingConsole:
         print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
         if embedding is not None:
             score = self.get_svc(**kwargs).fit( embedding.values, labels.values )
-            print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+            if score is not None:
+                print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 
     def get_svc( self, **kwargs ):
         type = kwargs.get( 'svc_type', 'SVCL' )
@@ -371,7 +373,6 @@ class LabelingConsole:
         if self.labels_image is not None:
             self.labels_image.set_extent( self.block.extent() )
             self.labels_image.set_alpha(0.0)
-        Task.mainWindow().refresh_image()
 
     def addNavigationListener( self, listener ):
         self.navigation_listeners.append( listener )
@@ -420,14 +421,15 @@ class LabelingConsole:
             self.update_marker_plots( labeled=labeled, **kwargs )
 
     def update_marker_plots( self, **kwargs ):
-        self.plot_markers_image( **kwargs )
+        taskRunner.start( Task(self.plot_markers_image, **kwargs ), f"Plot markers" )
         taskRunner.start( Task(self.plot_markers_volume, reset=True, **kwargs ), f"Plot markers")
 
     def spread_labels(self, event):
         print( "Submitting training set" )
         labels: xa.DataArray = self.getLabeledPointData()
-        sample_labels: xa.DataArray = self.block.flow.spread( labels, self.flow_iterations  )
-        self.plot_label_map( sample_labels )
+        sample_labels: Optional[xa.DataArray] = self.block.flow.spread( labels, self.flow_iterations  )
+        if sample_labels is not None:
+            self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )
@@ -443,10 +445,7 @@ class LabelingConsole:
             self.labels_image.set_alpha(class_alpha  )
 
         self.labels_image.set_extent( extent )
-        if in_background:
-            self.color_pointcloud(sample_labels)
-        else:
-            taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
+        taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -501,7 +500,6 @@ class LabelingConsole:
             ycoords, xcoords, colors = self.get_markers( **kwargs )
             self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
             self.marker_plot.set_facecolor(colors)
-            self.update_canvas()
 
     def plot_markers_volume(self, **kwargs):
         ycoords, xcoords, colors = self.get_markers( **kwargs )
