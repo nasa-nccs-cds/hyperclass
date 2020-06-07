@@ -15,14 +15,16 @@ class PreferencesDialog(QDialog):
         tileGroupBox = self.createTileGroupBox()
         umapGroupBox = self.createUMAPGroupBox()
         svmGroupBox = self.createSVMGroupBox()
-        googleGroupBox = self.createGoogleGroupBox()
 
         mainLayout = QGridLayout()
-        mainLayout.addWidget(dataGroupBox, 0, 0, 1, 2)
-        mainLayout.addWidget(tileGroupBox, 1, 0, 1, 1)
-        mainLayout.addWidget(umapGroupBox, 1, 1, 1, 1)
-        mainLayout.addWidget( svmGroupBox, 2, 0, 1, 1)
-        mainLayout.addWidget(googleGroupBox, 2, 1, 1, 1)
+        mainLayout.addWidget( dataGroupBox, 0, 0, 1, 2 )
+        mainLayout.addWidget( tileGroupBox, 1, 0, 1, 1 )
+        mainLayout.addWidget( umapGroupBox, 1, 1, 1, 1 )
+        mainLayout.addWidget(  svmGroupBox, 2, 0, 1, 1 )
+
+        if scope == QSettings.SystemScope:
+            googleGroupBox = self.createGoogleGroupBox()
+            mainLayout.addWidget(googleGroupBox, 2, 1, 1, 1)
 
         buttonBox = QDialogButtonBox(QDialogButtonBox.Save)
         buttonBox.accepted.connect( self.save )
