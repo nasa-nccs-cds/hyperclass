@@ -407,8 +407,11 @@ class LabelingConsole:
         [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
         color = self.get_color(c)
         pindex = self.block.coords2pindex( y, x )
-        pdata = self.block.getPointData( )
-        self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
+        if pindex < 0:
+            self.spectral_plot.clear_spectrum()
+        else:
+            pdata = self.block.getPointData( )
+            self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
 
     def undo_marker_selection(self, **kwargs ):
         labeled = kwargs.pop( 'labeled', False )

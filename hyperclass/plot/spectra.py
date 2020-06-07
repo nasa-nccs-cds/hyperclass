@@ -37,11 +37,17 @@ class SpectralPlot:
         if len(color) == 4: color[3] = 1.0
         if self.current_line is not None:
             self.current_line.set_linewidth(1)
-            if isWhite( self.current_line.get_color() ):
-                index, line = self.lines.popitem()
-                line.remove()
+            self.clear_white_line()
         self.current_line, = self.axes.plot( x, data.values, linewidth=3, color=color )
         self.lines[ index ] = self.current_line
+
+    def clear_white_line(self):
+        if isWhite(self.current_line.get_color()):
+            index, line = self.lines.popitem()
+            line.remove()
+
+    def clear_spectrum(self):
+        self.clear_white_line()
 
     def remove_spectrum(self, index: int ):
         line: Line2D = self.lines[ index ]

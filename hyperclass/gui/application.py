@@ -133,8 +133,13 @@ class HyperclassConsole(QMainWindow):
 
     def selectFile(self, *args, **kwargs):
         data_dir = dataManager.config.value('data/dir')
-        selection = QFileDialog.getOpenFileName( self, "Open File", data_dir )
-        self.openFile( selection[0] )
+        dialog = QFileDialog( self, "Select File", data_dir )
+        dialog.setFileMode(QFileDialog.AnyFile)
+        dialog.setViewMode(QFileDialog.Detail)
+        if (dialog.exec()):
+            fileNames = dialog.selectedFiles()
+            dialog.close()
+            self.openFile( fileNames[0] )
 
     def openFile(self, fileName: str ):
         print( f"Opening file: {fileName}")

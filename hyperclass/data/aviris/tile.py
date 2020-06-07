@@ -113,10 +113,12 @@ class Block:
         return block_raster
 
     def get_index_array(self) -> xa.DataArray:
-        point_data: xa.DataArray = dataManager.raster2points(self.data)
-        indices = range( point_data.shape[0] )
-        point_index_array = xa.DataArray( indices, dims=["samples"], coords=dict(samples=point_data.coords['samples']) )
-        return point_index_array.unstack(fill_value=-1)
+        stacked_data: xa.DataArray = self.data.stack( samples=self.data.dims[-2:] )
+        filtered_samples = stacked_data[1].dropna( dim="samples" )
+        indices = np.arange(filtered_samples.shape[0])
+        point_indices = xa.DataArray( indices, dims=['samples'], coords=dict(samples=filtered_samples.samples) )
+        result = point_indices.reindex( samples=stacked_data.samples, fill_value= -1 )
+        return result.unstack()
 
     def iparm(self, key: str ):
         return int( dataManager.config.value(key) )
