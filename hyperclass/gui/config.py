@@ -8,9 +8,9 @@ class PreferencesDialog(QDialog):
     FILE = 0
     DIRECTORY = 1
 
-    def __init__( self, parent=None, settings: QSettings = None ):
+    def __init__( self, parent=None, scope: QSettings.Scope = QSettings.UserScope ):
         super(PreferencesDialog, self).__init__(parent)
-        self.settings: QSettings = dataManager.config if settings is None else settings
+        self.settings: QSettings = dataManager.getSettings( scope )
         dataGroupBox = self.createDataGroupBox()
         tileGroupBox = self.createTileGroupBox()
         umapGroupBox = self.createUMAPGroupBox()
