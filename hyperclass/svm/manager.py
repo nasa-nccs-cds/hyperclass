@@ -41,7 +41,7 @@ class SVCL(SVC):
 
     def fit( self, X: np.ndarray, y: np.ndarray, **kwargs ) -> Optional[np.ndarray]:
         t0 = time.time()
-        if not ( y > 0 ).count():
+        if np.count_nonzero( y > 0 ) == 0:
             Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification", **kwargs )
             return None
         print(f"Running SVC fit, X shape: {X.shape}), y shape: {y.shape})")
