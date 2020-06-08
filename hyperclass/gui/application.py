@@ -115,11 +115,11 @@ class HyperclassConsole(QMainWindow):
                 bname = f"[{ib0},{ib1}]"
                 menuButton = QAction( bname, self)
                 menuButton.setStatusTip(f"Load block at block coords {bname}")
-                menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ), f"Load Block")
+                menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
                 self.load_menu.addAction(menuButton)
 
     def runSetBlock( self, coords, **kwargs ):
-        taskRunner.start( Task(self.setBlock, coords,  **kwargs ) )
+        taskRunner.start( Task(self.setBlock, coords,  **kwargs ), "Loading block" )
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self)

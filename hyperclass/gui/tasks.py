@@ -111,7 +111,8 @@ class TaskRunner(QObject):
         Task.showMessage( *message )
 
     def error(self, error: Tuple ):
-        Task.showErrorMessage( error[1] )
+        Task.showErrorMessage( str(error[1]) )
+        print( str( error[2] ) )
 
     def kill_all_tasks(self):
         self.threadpool.clear()
