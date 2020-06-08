@@ -40,7 +40,7 @@ class ActivationFlow:
 
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
         if self.D is None:
-            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished")
+            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
             return None
         debug = kwargs.get( 'debug', False )
         reset = kwargs.get( "reset", False)
@@ -49,7 +49,7 @@ class ActivationFlow:
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
         label_count = self.C.count()
         if label_count == 0:
-            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied" )
+            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
             return None
         if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
         else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )

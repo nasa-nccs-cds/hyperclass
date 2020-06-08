@@ -80,7 +80,7 @@ class UMAPManager:
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
         if (self.learned_mapping is None) or (self.learned_mapping.embedding_ is None):
-            Task.taskNotAvailable( "Workflow violation", "Must learn a classication before it can be applied" )
+            Task.taskNotAvailable( "Workflow violation", "Must learn a classication before it can be applied", **kwargs )
             return None
         point_data: xa.DataArray = block.getPointData( **kwargs )
         embedding: np.ndarray = self.learned_mapping.transform( point_data )

@@ -238,21 +238,27 @@ class LabelingConsole:
         self.plot_markers_volume()
 
     def build_model(self, *args, **kwargs):
-        labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.embed( self.block, labels, **kwargs )
-        self.plot_markers_volume()
+        if self.block is None:
+            Task.taskNotAvailable( "Workflow violation", "Must load a block first", **kwargs )
+        else:
+            labels: xa.DataArray = self.getExtendedLabelPoints()
+            self.umgr.embed( self.block, labels, **kwargs )
+            self.plot_markers_volume()
 
     def learn_classification( self, *args, **kwargs  ):
         t0 = time.time()
-        ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
-        labels: xa.DataArray = self.getExtendedLabelPoints()
-        embedding: xa.DataArray = self.umgr.learn( self.block, labels, ndim, **kwargs )
-        t1 = time.time()
-        print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
-        if embedding is not None:
-            score = self.get_svc(**kwargs).fit( embedding.values, labels.values )
-            if score is not None:
-                print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+        if self.block is None:
+            Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
+        else:
+            ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
+            labels: xa.DataArray = self.getExtendedLabelPoints()
+            embedding: xa.DataArray = self.umgr.learn( self.block, labels, ndim, **kwargs )
+            t1 = time.time()
+            print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
+            if embedding is not None:
+                score = self.get_svc(**kwargs).fit( embedding.values, labels.values, **kwargs )
+                if score is not None:
+                    print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 
     def get_svc( self, **kwargs ):
         type = kwargs.get( 'svc_type', 'SVCL' )
@@ -261,9 +267,9 @@ class LabelingConsole:
         return self.svc
 
     def apply_classification( self, *args, **kwargs ):
-        embedding: Optional[xa.DataArray] = self.umgr.apply( self.block )
+        embedding: Optional[xa.DataArray] = self.umgr.apply( self.block, **kwargs )
         if embedding is not None:
-            prediction: np.ndarray = self.get_svc(**kwargs).predict( embedding.values )
+            prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
             self.plot_label_map( sample_labels, background=True )
 
@@ -424,12 +430,15 @@ class LabelingConsole:
         taskRunner.start( Task(self.plot_markers_image, **kwargs ), f"Plot markers" )
         taskRunner.start( Task(self.plot_markers_volume, reset=True, **kwargs ), f"Plot markers")
 
-    def spread_labels(self, event):
-        print( "Submitting training set" )
-        labels: xa.DataArray = self.getLabeledPointData()
-        sample_labels: Optional[xa.DataArray] = self.block.flow.spread( labels, self.flow_iterations  )
-        if sample_labels is not None:
-            self.plot_label_map( sample_labels )
+    def spread_labels(self, *args, **kwargs):
+        if self.block is None:
+            Task.taskNotAvailable( "Workflow violation", "Must load a block and label some points first", **kwargs )
+        else:
+            print( "Submitting training set" )
+            labels: xa.DataArray = self.getLabeledPointData()
+            sample_labels: Optional[xa.DataArray] = self.block.flow.spread( labels, self.flow_iterations, **kwargs )
+            if sample_labels is not None:
+                self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         in_background = kwargs.get( 'background', False )

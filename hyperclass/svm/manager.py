@@ -39,10 +39,10 @@ class SVCL(SVC):
         tol = kwargs.pop( 'tol', 1e-5 )
         self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
 
-    def fit( self, X: np.ndarray, y: np.ndarray ) -> Optional[np.ndarray]:
+    def fit( self, X: np.ndarray, y: np.ndarray, **kwargs ) -> Optional[np.ndarray]:
         t0 = time.time()
         if not ( y > 0 ).count():
-            Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification" )
+            Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification", **kwargs )
             return None
         print(f"Running SVC fit, X shape: {X.shape}), y shape: {y.shape})")
         self.svc.fit( X, y )

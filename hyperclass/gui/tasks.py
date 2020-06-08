@@ -8,6 +8,7 @@ import traceback, sys
 class TaskSignals(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(tuple)
+    message = pyqtSignal(tuple)
     result = pyqtSignal(object)
     progress = pyqtSignal(int)
 
@@ -34,6 +35,9 @@ class Task(QRunnable):
 
         # Add the callback to our kwargs
         self.kwargs['progress_callback'] = self.signals.progress
+        self.kwargs['error_callback'] = self.signals.error
+        self.kwargs['finished_callback'] = self.signals.finished
+        self.kwargs['message_callback'] = self.signals.message
 
     def id(self):
         return f"{id(self.fn):0X}{id(self.args):0X}{id(self.kwargs):0X}"
@@ -75,8 +79,10 @@ class Task(QRunnable):
         msg_dialog.exec_()
 
     @classmethod
-    def taskNotAvailable(cls, caption: str, msg: str ):
-        cls.showMessage("Task Not Available", caption, msg,  QMessageBox.Warning )
+    def taskNotAvailable(cls, caption: str, msg: str, **kwargs ):
+        message_callback = kwargs.get( 'message_callback', None )
+        if message_callback is not None:  message_callback.emit( ( "Task Not Available", caption, msg,  QMessageBox.Warning ) )
+        else:                             cls.showMessage("Task Not Available", caption, msg,  QMessageBox.Warning )
 
 class TaskRunner(QObject):
 
@@ -95,10 +101,17 @@ class TaskRunner(QObject):
             hyperclass.showMessage( message )
             task.signals.finished.connect( partial( hyperclass.refresh, message, task.context, **kwargs ) )
             task.signals.finished.connect( partial( self.complete, message ) )
+            task.signals.message.connect( kwargs.get( "message_callback", self.message ) )
+            task.signals.error.connect(kwargs.get("error_callback", self.error))
             self.threadpool.start(task)
         else:
             print( f"Task already running: {message}")
 
+    def message(self, message: Tuple ):
+        Task.showMessage( *message )
+
+    def error(self, error: Tuple ):
+        Task.showErrorMessage( error[1] )
 
     def kill_all_tasks(self):
         self.threadpool.clear()
