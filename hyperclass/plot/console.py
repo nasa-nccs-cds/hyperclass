@@ -191,9 +191,13 @@ class LabelingConsole:
         self.add_marker( dict( c=0, **marker), labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
+        refresh_tile = kwargs.pop("refresh_tile",False)
+        if refresh_tile:
+            self.tile = Tile()
         print( f"setBlock: {block_coords}")
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
         if self.block is not None:
+            dataManager.config.setValue( 'block/indices', block_coords )
             self.nFrames = self.data.shape[0]
             self.band_axis = kwargs.pop('band', 0)
             self.z_axis_name = self.data.dims[self.band_axis]
@@ -533,7 +537,7 @@ class LabelingConsole:
             print(f"Reading {len(self.marker_list)} point labels from file { dataManager.markers.file_path}")
 
     def write_markers(self):
-        print(f"Writing {len(self.marker_list)} point labels ot file {dataManager.markers.file_path}")
+        print(f"Writing {len(self.marker_list)} point labels to file {dataManager.markers.file_path}")
         dataManager.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
     def mpl_pick_marker( self, event: PickEvent ):

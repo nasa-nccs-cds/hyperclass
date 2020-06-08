@@ -9,6 +9,7 @@ from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from hyperclass.data.google import GoogleMaps
 from hyperclass.gui.tasks import taskRunner, Task
+from PyQt5.QtCore import QThread
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -29,8 +30,8 @@ class MplWidget(QWidget):
     def spectral_plot(self):
         return self.canvas.console.spectral_plot
 
-    def setBlock(self, block_coords: Tuple[int]   ):
-        return self.canvas.setBlock( block_coords )
+    def setBlock(self, block_coords: Tuple[int], **kwargs    ):
+        return self.canvas.setBlock( block_coords, **kwargs  )
 
     def addNavigationListener(self, listener):
         self.canvas.console.addNavigationListener( listener )
@@ -84,8 +85,8 @@ class MplCanvas(FigureCanvas):
     def process_event( self, event: Dict ):
         self.console.process_event(event)
 
-    def setBlock(self, block_coords: Tuple[int]   ):
-        return self.console.setBlock( block_coords )
+    def setBlock(self, block_coords: Tuple[int], **kwargs   ):
+        return self.console.setBlock( block_coords, **kwargs  )
 
     @property
     def button_actions(self) -> Dict[str,Callable]:
@@ -148,6 +149,7 @@ class SatellitePlotCanvas(FigureCanvas):
     def __init__(self, parent, toolbar: NavigationToolbar, block: Block = None, **kwargs ):
         self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
+        self.gui_tid = int( QThread.currentThreadId() )
 #        self.setParent(parent)
         self.toolbar = toolbar
         FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
@@ -161,6 +163,10 @@ class SatellitePlotCanvas(FigureCanvas):
         self.google = None
         if block is not None: self.setBlock( block )
 
+    def onGuiThread(self):
+        cid = int( QThread.currentThreadId() )
+        return ( cid == self.gui_tid )
+
     def setBlock(self, block: Block, type ='satellite'):
         self.google = GoogleMaps(block)
         extent = block.extent()
@@ -173,6 +179,7 @@ class SatellitePlotCanvas(FigureCanvas):
         self.axes.set_xlim(*xlims )
         self.axes.set_ylim(*ylims)
         print( f"Setting satellite image bounds: {xlims} {ylims}")
+        self.figure.canvas.draw_idle()
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()

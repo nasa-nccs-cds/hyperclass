@@ -39,8 +39,9 @@ class HyperclassConsole(QMainWindow):
         mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('File')
         helpMenu = mainMenu.addMenu('Help')
-        blocksMenu: QMenu = mainMenu.addMenu('Blocks')
-        self.load_menu = blocksMenu.addMenu("load")
+        tilesMenu: QMenu = mainMenu.addMenu('Tiles')
+        self.load_tile = tilesMenu.addMenu("load tile")
+        self.load_block = tilesMenu.addMenu("load block")
 
         openButton = QAction( 'Open', self )
         openButton.setShortcut('Ctrl+O')
@@ -104,11 +105,15 @@ class HyperclassConsole(QMainWindow):
                 if isinstance(menuItem, Mapping):   self.addMenues( menu, menuItem )
                 else:                               self.addMenuAction( menu, menuItem )
 
+    def populate_load_menues(self):
+        self.populate_block_load_menu()
+        self.populate_tile_load_menu()
+
     def populate_block_load_menu(self):
         tile = self.labelingConsole.getTile()
         nBlocks = tile.nBlocks
-        for action in self.load_menu.actions():
-            self.load_menu.removeAction( action)
+        for action in self.load_block.actions():
+            self.load_block.removeAction( action)
 
         for ib0 in range( nBlocks[0] ):
             for ib1 in range( nBlocks[1] ):
@@ -116,10 +121,26 @@ class HyperclassConsole(QMainWindow):
                 menuButton = QAction( bname, self)
                 menuButton.setStatusTip(f"Load block at block coords {bname}")
                 menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
-                self.load_menu.addAction(menuButton)
+                self.load_block.addAction(menuButton)
+
+    def populate_tile_load_menu(self):
+        nTiles = dataManager.config.value( 'tile/dims', [0,0], type=int )
+        for action in self.load_tile.actions():
+            self.load_tile.removeAction( action)
+
+        for it0 in range( nTiles[0] ):
+            for it1 in range( nTiles[1] ):
+                tname = f"[{it0},{it1}]"
+                menuButton = QAction( tname, self)
+                menuButton.setStatusTip(f"Load tile at index {tname}")
+                menuButton.triggered.connect( partial( self.runSetTile, [it0, it1] ) )
+                self.load_tile.addAction(menuButton)
 
     def runSetBlock( self, coords, **kwargs ):
         taskRunner.start( Task(self.setBlock, coords,  **kwargs ), "Loading block" )
+
+    def runSetTile( self, coords, **kwargs ):
+        taskRunner.start( Task(self.setTile, coords,  **kwargs ), "Loading tile" )
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self)
@@ -143,12 +164,14 @@ class HyperclassConsole(QMainWindow):
         if (dialog.exec()):
             fileNames = dialog.selectedFiles()
             taskRunner.start(Task(self.openFile, fileNames[0], **kwargs), f"Load Data File")
+        dialog.close()
 
     def openFile(self, fileName: str, **kwargs ):
         print( f"Opening file: {fileName}")
         dataManager.setImageName( fileName )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
-        self.setBlock( block_indices, **kwargs )
+        self.setBlock( block_indices, refresh_tile=True, **kwargs )
+        self.populate_load_menues()
 
     def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()
@@ -185,8 +208,15 @@ class HyperclassConsole(QMainWindow):
         try: self.satelliteCanvas.mpl_update()
         except AttributeError: pass
 
+    def setTile(self, tile_coords: Tuple[int], **kwargs ):
+        current_tile_coords = dataManager.config.value( "tile/indices", None )
+        if current_tile_coords is None or current_tile_coords != tile_coords:
+            dataManager.config.setValue( "tile/indices", tile_coords )
+            filename = dataManager.config.value("data/init/file", None)
+            if filename is not None: taskRunner.start(Task(self.openFile, filename, **kwargs), f"Load New Tile")
+
     def setBlock(self, block_coords: Tuple[int], **kwargs ):
-        block = self.labelingConsole.setBlock(block_coords)
+        block = self.labelingConsole.setBlock( block_coords, **kwargs )
         self.populate_block_load_menu()
         self.satelliteCanvas.setBlock(block)
 

@@ -102,8 +102,13 @@ class PreferencesDialog(QDialog):
         return layout
 
     def createTileGroupBox(self):
-        blockSizeSelector = self.createSizeSelector( "Block Side Length: ", range(100,600,100), "block/size" )
+        blockSizeSelector = self.createSizeSelector( "Block Side Length: ", range(100,600,50), "block/size" )
         blocksPerTileSelector = self.createSizeSelector( "Blocks per tile: ", [ x*x for x in range(1,7) ], "tile/nblocks" )
+        return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
+
+    def createInitGroupBox(self):
+        blockSizeSelector = self.createSizeSelector( "Tile Indices: ", range(100,600,50), "block/indices" )
+        blocksPerTileSelector = self.createSizeSelector( "Block Indices: ", [ x*x for x in range(1,7) ], "tile/indices" )
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
     def createUMAPGroupBox(self):

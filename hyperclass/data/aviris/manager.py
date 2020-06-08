@@ -6,6 +6,7 @@ from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
+from hyperclass.gui.tasks import taskRunner, Task, Callbacks
 import os, math, pickle
 import rioxarray as rio
 
@@ -32,8 +33,11 @@ class MarkerManager:
 
     @property
     def file_path(self):
-        data_dir = self.config.value( 'data/cache', "" )
-        return os.path.join( data_dir, self.file_name )
+        if self.file_name.startswith( "/" ):
+            return self.file_name
+        else:
+            data_dir = self.config.value( 'data/cache', "" )
+            return os.path.join( data_dir, self.file_name )
 
     @property
     def hasData(self):
@@ -77,7 +81,9 @@ class DataManager:
         self.markers = MarkerManager( self.markerFileName() + ".pkl", self.config )
 
     def setImageName( self, image_name: str ):
-        if image_name: self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
+        if image_name:
+            self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
+            self.config.setValue('data/init/file', self.image_name)
 
     @classmethod
     def root_dir(cls) -> str:
@@ -145,6 +151,12 @@ class DataManager:
         result.name = kwargs.get( "name", "")
         return result
 
+    def setTilesPerImage(self, image: xa.DataArray ):
+        tshape = self.tile_shape
+        ishape = image.shape[1:]
+        ndims = [ int( ishape[0]/tshape[0] ), int( ishape[1]/tshape[1] ) ]
+        self.config.setValue( 'tile/dims', ndims )
+
     def getTileData(self, **kwargs ) -> Optional[xa.DataArray]:
         tile_data: Optional[xa.DataArray] = self._readTileFile() if self.cacheTileData else None
         if tile_data is None: tile_data = self._getTileDataFromImage()
@@ -170,6 +182,7 @@ class DataManager:
     def _getTileDataFromImage(self) -> Optional[xa.DataArray]:
         full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
         if full_input_bands is None: return None
+        self.setTilesPerImage( full_input_bands )
         ybounds, xbounds = self.getTileBounds()
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         tile_filename = self.tileFileName()
@@ -232,7 +245,7 @@ class DataManager:
         return str(value).strip("([])").replace(",", "-").replace(" ", "")
 
     def markerFileName(self) -> str:
-        return f"tdata_{self.image_name}.{self._cfg('block/size')}.{self._cfg('tile/nblocks')}_{self._cfg('tile/indices')}"
+        return f"{self.image_name}.tdata.{self._cfg('block/size')}.{self._cfg('tile/nblocks')}_{self._cfg('tile/indices')}"
 
     @property
     def normFileName( self ) -> str:
@@ -291,6 +304,7 @@ class DataManager:
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
         from matplotlib.colorbar import Colorbar
+        callbacks = Callbacks( kwargs )
         ax = kwargs.pop( 'ax', None )
         showplot = ( ax is None )
         if showplot: fig, ax = plt.subplots(1,1)

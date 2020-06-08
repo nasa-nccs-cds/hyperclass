@@ -12,6 +12,14 @@ class TaskSignals(QObject):
     result = pyqtSignal(object)
     progress = pyqtSignal(int)
 
+class Callbacks:
+
+    def __init__(self, args: Dict ):
+        self.progress_callback = args.pop('progress_callback', None)
+        self.error_callback = args.pop('error_callback', None)
+        self.finished_callback = args.pop('finished_callback', None)
+        self.message_callback = args.pop('message_callback', None)
+
 class Task(QRunnable):
     '''
     Worker thread
