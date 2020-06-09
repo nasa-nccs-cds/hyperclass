@@ -1,6 +1,6 @@
 import matplotlib.widgets
 import matplotlib.patches
-from PyQt5.QtCore import Qt
+from hyperclass.gui.tasks import taskRunner, Task, Callbacks
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from hyperclass.data.google import GoogleMaps
 from hyperclass.plot.spectra import SpectralPlot
@@ -177,6 +177,9 @@ class LabelingConsole:
             if event['type'] == 'vtkpoint':
                 point_index = event['pid']
                 self.mark_point( point_index )
+            elif event['type'] == 'image':
+                marker = dict( c=self.selectedClass, **event )
+                self.add_marker( marker )
         elif event['event'] == 'key':
             if   event['type'] == "press":   self.key_mode = event['key']
             elif event['type'] == "release": self.key_mode = None
@@ -273,6 +276,7 @@ class LabelingConsole:
     def apply_classification( self, *args, **kwargs ):
         embedding: Optional[xa.DataArray] = self.umgr.apply( self.block, **kwargs )
         if embedding is not None:
+            callbacks = Callbacks( kwargs )
             prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
             self.plot_label_map( sample_labels, background=True )

@@ -1,6 +1,7 @@
 import sys
 from hyperclass.plot.console import LabelingConsole
 from hyperclass.plot.spectra import SpectralPlot
+from matplotlib.image import AxesImage
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
 from hyperclass.data.aviris.manager import DataManager
 from hyperclass.data.aviris.tile import Tile, Block
@@ -146,11 +147,17 @@ class SpectralPlotCanvas(FigureCanvas):
 
 class SatellitePlotCanvas(FigureCanvas):
 
+    RIGHT_BUTTON = 3
+    MIDDLE_BUTTON = 2
+    LEFT_BUTTON = 1
+
     def __init__(self, parent, toolbar: NavigationToolbar, block: Block = None, **kwargs ):
         self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
-        self.gui_tid = int( QThread.currentThreadId() )
-#        self.setParent(parent)
+        self.plot = None
+        self.image = None
+        self.mouse_listeners = []
+        #        self.setParent(parent)
         self.toolbar = toolbar
         FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
         FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
@@ -163,23 +170,30 @@ class SatellitePlotCanvas(FigureCanvas):
         self.google = None
         if block is not None: self.setBlock( block )
 
-    def onGuiThread(self):
-        cid = int( QThread.currentThreadId() )
-        return ( cid == self.gui_tid )
+    def addEventListener( self, listener ):
+        self.mouse_listeners.append( listener )
 
     def setBlock(self, block: Block, type ='satellite'):
         self.google = GoogleMaps(block)
         extent = block.extent()
         self.image = self.google.get_tiled_google_map(type, self.google_maps_zoom_level)
-        self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
+        self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
         self.axes.set_xlim(extent[0],extent[1])
         self.axes.set_ylim(extent[2],extent[3])
+        self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
 
     def set_axis_limits( self, xlims, ylims ):
         self.axes.set_xlim(*xlims )
         self.axes.set_ylim(*ylims)
         print( f"Setting satellite image bounds: {xlims} {ylims}")
         self.figure.canvas.draw_idle()
+
+    def onMouseClick(self, event):
+        if event.xdata != None and event.ydata != None:
+            if event.inaxes ==  self.axes:
+                for listener in self.mouse_listeners:
+                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button) )
+                    listener.process_event(event)
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()

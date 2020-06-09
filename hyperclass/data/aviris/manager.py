@@ -168,7 +168,7 @@ class DataManager:
             print( f"Selecting valid bands, resulting Tile shape = {tile_data.shape}")
         return self.rescale(tile_data, **kwargs)
 
-    def _computeNorm(self, tile_raster: xa.DataArray, refresh=False ) -> xa.DataArray:
+    def _computeSpatialNorm(self, tile_raster: xa.DataArray, refresh=False) -> xa.DataArray:
         norm_file = os.path.join( self.config.value('data/cache'), self.normFileName )
         if not refresh and os.path.isfile( norm_file ):
             print( f"Loading norm from global norm file {norm_file}")
@@ -284,8 +284,13 @@ class DataManager:
         result.attrs = raster.attrs
         return result
 
-    def rescale(self, raster: xa.DataArray, refresh=False) -> xa.DataArray:
-        norm = self._computeNorm( raster, refresh )
+    def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
+        norm_type = kwargs.get('norm', 'spatial')
+        refresh = kwargs.get('refresh', False )
+        if norm_type == "spatial":
+            norm: xa.DataArray = self._computeSpatialNorm(raster, refresh)
+        else:
+            norm: xa.DataArray = raster.mean(dim=['band'], skipna=True )
         result =  raster / norm
         result.attrs = raster.attrs
         return result
