@@ -13,6 +13,7 @@ from collections import OrderedDict
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.umap.manager import UMAPManager
 from functools import partial
+from pyproj import Proj, transform
 import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
 from hyperclass.data.aviris.tile import Tile, Block
@@ -178,11 +179,16 @@ class LabelingConsole:
                 point_index = event['pid']
                 self.mark_point( point_index )
             elif event['type'] == 'image':
-                marker = dict( c=self.selectedClass, **event )
-                self.add_marker( marker )
+                self.add_marker( self.get_image_selection_marker( event ) )
         elif event['event'] == 'key':
             if   event['type'] == "press":   self.key_mode = event['key']
             elif event['type'] == "release": self.key_mode = None
+
+    def get_image_selection_marker( self, event ) -> Dict:
+        lat, lon = event['lat'], event['lon']
+        proj = Proj( self.data.spatial_ref.crs_wkt )
+        x, y = proj( lon, lat )
+        return dict( c=self.selectedClass, x=x, y=y )
 
     def point_coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.block.getPointData().coords['samples']
@@ -502,11 +508,11 @@ class LabelingConsole:
 
     def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
-        labeled = kwargs.get( 'labeled', True )
+#        labeled = kwargs.get( 'labeled', True )
         if self.marker_list:
             for marker in self.marker_list:
                 [y, x, c] = [ marker[k] for k in ['y', 'x', 'c'] ]
-                if self.block.inBounds(y,x) and not ( labeled and (c==0) ):
+                if self.block.inBounds(y,x):   #  and not ( labeled and (c==0) ):
                     ycoords.append(y)
                     xcoords.append(x)
                     colors.append( self.get_color(c) )

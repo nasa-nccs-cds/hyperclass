@@ -1,5 +1,6 @@
 from matplotlib.image import AxesImage
 from .aviris.tile import Tile, Block
+from typing import List, Union, Dict, Callable, Tuple, Optional
 from .aviris.manager import dataManager
 from urllib import request
 from io import BytesIO
@@ -26,8 +27,8 @@ class GoogleMaps:
     def api_key(self):
         return dataManager.config.value("google/api_key","")
 
-    def extent(self, espg: int ):
-        return self.block.extent( espg )
+    def extent(self, epsg: int ):
+        return self.block.extent( epsg )
 
     def get_google_map( self, type: str, zoom=14  ):
         extent = self.block.extent( 4326 )   # left, right, bottom, top
@@ -59,8 +60,7 @@ class GoogleMaps:
         lat = 2 * atan(exp(my)) - cls.tau / 4
         return lat, lon
 
-    def get_tiled_google_map( self, type: str, zoom=17 ) -> Image.Image:
-        extent = self.block.extent(4326)
+    def get_tiled_google_map( self, type: str, extent: List[float], zoom=17 ) -> Image.Image:
         NW_lat_long = ( extent[3] * self.DEGREE, extent[0] * self.DEGREE )
         SE_lat_long = ( extent[2] * self.DEGREE, extent[1] * self.DEGREE )
 

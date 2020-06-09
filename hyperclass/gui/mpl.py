@@ -175,12 +175,12 @@ class SatellitePlotCanvas(FigureCanvas):
 
     def setBlock(self, block: Block, type ='satellite'):
         self.google = GoogleMaps(block)
-        extent = block.extent()
-        self.image = self.google.get_tiled_google_map(type, self.google_maps_zoom_level)
+        extent = block.extent(4326)
+        self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
         self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
         self.axes.set_xlim(extent[0],extent[1])
         self.axes.set_ylim(extent[2],extent[3])
-        self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+        self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick )
 
     def set_axis_limits( self, xlims, ylims ):
         self.axes.set_xlim(*xlims )
@@ -192,7 +192,7 @@ class SatellitePlotCanvas(FigureCanvas):
         if event.xdata != None and event.ydata != None:
             if event.inaxes ==  self.axes:
                 for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button) )
+                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button) )
                     listener.process_event(event)
 
     def mpl_update(self):
