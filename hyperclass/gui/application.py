@@ -99,6 +99,13 @@ class HyperclassConsole(QMainWindow):
             pybutton.clicked.connect( callback )
             buttonsLayout.addWidget(pybutton)
 
+    def loadCurrentBlock(self, **kwargs):
+        filename = dataManager.config.value("data/init/file", None)
+        if filename is not None:
+            buttonReply = QMessageBox.question(self, 'Hyperclass Initialization', "Load current block?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
+            if buttonReply == QMessageBox.Yes:
+                taskRunner.start(Task(self.openFile, filename, **kwargs), f"Load Data File")
+
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
             menu = parent_menu.addMenu(menuName)
@@ -224,3 +231,6 @@ class HyperclassConsole(QMainWindow):
     def show(self):
         QMainWindow.show(self)
         self.vtkFrame.Initialize()
+        self.loadCurrentBlock()
+
+
