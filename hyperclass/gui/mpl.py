@@ -156,6 +156,7 @@ class SatellitePlotCanvas(FigureCanvas):
         FigureCanvas.__init__(self, self.figure )
         self.plot = None
         self.image = None
+        self.block = None
         self.mouse_listeners = []
         #        self.setParent(parent)
         self.toolbar = toolbar
@@ -174,6 +175,7 @@ class SatellitePlotCanvas(FigureCanvas):
         self.mouse_listeners.append( listener )
 
     def setBlock(self, block: Block, type ='satellite'):
+        self.block = block
         self.google = GoogleMaps(block)
         extent = block.extent(4326)
         self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
@@ -183,10 +185,12 @@ class SatellitePlotCanvas(FigureCanvas):
         self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick )
 
     def set_axis_limits( self, xlims, ylims ):
-        self.axes.set_xlim(*xlims )
-        self.axes.set_ylim(*ylims)
-        print( f"Setting satellite image bounds: {xlims} {ylims}")
-        self.figure.canvas.draw_idle()
+        if self.image is not None:
+            xlims, ylims = self.block.project_extent( xlims, ylims, 4326 )
+            self.axes.set_xlim(*xlims )
+            self.axes.set_ylim(*ylims)
+            print( f"Setting satellite image bounds: {xlims} {ylims}")
+            self.figure.canvas.draw_idle()
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:

@@ -131,13 +131,15 @@ class Block:
     def ylim(self): return self._ylim
 
     def extent(self, epsg: int = None ) -> List[float]:   # left, right, bottom, top
-        if epsg is None:
-            return [ self.xlim[0], self.xlim[1], self.ylim[0], self.ylim[1] ]
-        else:
-            inProj = Proj( self.data.spatial_ref.crs_wkt )
-            outProj = Proj(epsg)
-            y, x = transform( inProj, outProj, self.xlim, self.ylim )
-            return x + y
+        if epsg is None:    x, y =  self.xlim, self.ylim
+        else:               x, y =  self.project_extent( self.xlim, self.ylim, 4326 )
+        return x + y
+
+    def project_extent(self, xlim, ylim, epsg ):
+        inProj = Proj(self.data.spatial_ref.crs_wkt)
+        outProj = Proj(epsg)
+        ylim1, xlim1 = transform(inProj, outProj, xlim, ylim)   # Requires result order reversal- error in transform?
+        return xlim1, ylim1
 
     def inBounds(self, yc: float, xc: float ) -> bool:
         if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False
