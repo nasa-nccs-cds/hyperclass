@@ -55,7 +55,7 @@ mapper.ScalarVisibilityOn()
 
 actor = vtk.vtkActor()
 actor.SetMapper(mapper)
-actor.GetProperty().SetPointSize(20)
+actor.GetProperty().SetPointSize(10)
 
 renderer = vtk.vtkRenderer()
 renderWindow = vtk.vtkRenderWindow()
