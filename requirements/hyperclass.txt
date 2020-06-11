@@ -4,15 +4,8 @@ matplotlib
 pynndescent
 numpy
 utm
-shapely
-regionmask
 rasterio
-bottleneck
-scikit-image
-umap-learn
-scipy
-scikit-learn
-rioxarray
+
 
 
 
