@@ -101,6 +101,7 @@ class UMAPManager:
         t0 = time.time()
         mapper = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
+
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values

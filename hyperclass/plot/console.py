@@ -8,6 +8,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
+from matplotlib.colors import Normalize
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from collections import OrderedDict
 from hyperclass.data.aviris.manager import dataManager
@@ -365,7 +366,7 @@ class LabelingConsole:
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
         colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  dataManager.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, colorstretch=1.0, **kwargs )
+        image: AxesImage =  dataManager.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -386,6 +387,8 @@ class LabelingConsole:
         if self.image is not None:
             frame_data: xa.DataArray = self.data[ self.currentFrame ]
             self.image.set_data( frame_data.values  )
+            drange = dataManager.get_color_bounds( frame_data )
+            self.image.set_norm( Normalize( **drange ) )
             self.image.set_extent( self.block.extent() )
             plot_name = os.path.basename(self.data.name)
             self.plot_axes.title.set_text(f"{plot_name}: Band {self.currentFrame+1}" )

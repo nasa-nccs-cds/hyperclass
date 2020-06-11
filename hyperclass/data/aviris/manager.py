@@ -285,14 +285,15 @@ class DataManager:
         return result
 
     def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
-        norm_type = kwargs.get('norm', 'spatial')
+        norm_type = kwargs.get('norm', 'none')
         refresh = kwargs.get('refresh', False )
-        if norm_type == "spatial":
-            norm: xa.DataArray = self._computeSpatialNorm(raster, refresh)
+        if norm_type == "none":
+            result = raster
         else:
-            norm: xa.DataArray = raster.mean(dim=['band'], skipna=True )
-        result =  raster / norm
-        result.attrs = raster.attrs
+            if norm_type == "spatial":     norm: xa.DataArray = self._computeSpatialNorm( raster, refresh)
+            elif norm_type == "spectral":  norm: xa.DataArray = raster.mean( dim=['band'], skipna=True )
+            result =  raster / norm
+            result.attrs = raster.attrs
         return result
 
     @classmethod
@@ -307,6 +308,13 @@ class DataManager:
         return point_data
 
     @classmethod
+    def get_color_bounds( cls, raster: xa.DataArray ):
+        colorstretch = 1.25
+        ave = raster.mean(skipna=True).values
+        std = raster.std(skipna=True).values
+        return dict( vmin= ave - std*colorstretch, vmax= ave + std*colorstretch  )
+
+    @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
         from matplotlib.colorbar import Colorbar
         callbacks = Callbacks( kwargs )
@@ -317,7 +325,6 @@ class DataManager:
         title = kwargs.pop( 'title', raster.name )
         rescale = kwargs.pop( 'rescale', None )
         colorbar = kwargs.pop( 'colorbar', True )
-        colorstretch = kwargs.pop( 'colorstretch', 1.5 )
         x = raster.coords[ raster.dims[1] ].values
         y = raster.coords[ raster.dims[0] ].values
         try:
@@ -347,10 +354,7 @@ class DataManager:
             defaults['vmin'] = vrange[0]
             defaults['vmax'] = vrange[1]
         if (colors is  None) and ("vmax" not in defaults):
-            ave = raster.mean(skipna=True).values
-            std = raster.std(skipna=True).values
-            defaults['vmin'] = ave - std*colorstretch
-            defaults['vmax'] = ave + std*colorstretch
+            defaults.update( cls.get_color_bounds( raster ) )
         defaults.update(kwargs)
         if defaults['origin'] == 'upper':   defaults['extent'] = [left, right, bottom, top]
         else:                               defaults['extent'] = [left, right, top, bottom]

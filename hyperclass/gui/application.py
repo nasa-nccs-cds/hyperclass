@@ -28,6 +28,7 @@ class HyperclassConsole(QMainWindow):
         self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
+        self.fileChanged = False
         self.initSettings()
 
         self.setWindowTitle(self.title)
@@ -126,7 +127,7 @@ class HyperclassConsole(QMainWindow):
         for ib0 in range( nBlocks[0] ):
             for ib1 in range( nBlocks[1] ):
                 bname = f"[{ib0},{ib1}]"
-                menuButton = QAction( bname, self)
+                menuButton = QAction( bname, self.load_block )
                 menuButton.setStatusTip(f"Load block at block coords {bname}")
                 menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
                 self.load_block.addAction(menuButton)
@@ -179,7 +180,7 @@ class HyperclassConsole(QMainWindow):
         dataManager.setImageName( fileName )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
         self.setBlock( block_indices, refresh_tile=True, **kwargs )
-        self.populate_load_menues()
+        self.fileChanged = True
 
     def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()
@@ -215,6 +216,9 @@ class HyperclassConsole(QMainWindow):
         except AttributeError: pass
         try: self.satelliteCanvas.mpl_update()
         except AttributeError: pass
+        if self.fileChanged:
+            self.populate_load_menues()
+            self.fileChanged = False
 
     def setTile(self, tile_coords: Tuple[int], **kwargs ):
         current_tile_coords = dataManager.config.value( "tile/indices", None )
@@ -225,7 +229,6 @@ class HyperclassConsole(QMainWindow):
 
     def setBlock(self, block_coords: Tuple[int], **kwargs ):
         block = self.labelingConsole.setBlock( block_coords, **kwargs )
-        self.populate_block_load_menu()
         self.satelliteCanvas.setBlock(block)
 
     def show(self):
