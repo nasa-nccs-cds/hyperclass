@@ -28,7 +28,7 @@ class HyperclassConsole(QMainWindow):
         self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
-        self.fileChanged = False
+        self.fileChanged = True
         self.initSettings()
 
         self.setWindowTitle(self.title)
@@ -178,6 +178,10 @@ class HyperclassConsole(QMainWindow):
     def openFile(self, fileName: str, **kwargs ):
         print( f"Opening file: {fileName}")
         dataManager.setImageName( fileName )
+        current_filename = dataManager.config.value("data/init/file", None)
+        if current_filename !=  fileName:
+            dataManager.config.setValue('block/indices', [0, 0] )
+            dataManager.config.setValue('tile/indices',  [0, 0] )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
         self.setBlock( block_indices, refresh_tile=True, **kwargs )
         self.fileChanged = True

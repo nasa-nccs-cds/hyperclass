@@ -180,12 +180,15 @@ class SatellitePlotCanvas(FigureCanvas):
     def setBlock(self, block: Block, type ='satellite'):
         self.block = block
         self.google = GoogleMaps(block)
-        extent = block.extent(4326)
-        self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
-        self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
-        self.axes.set_xlim(extent[0],extent[1])
-        self.axes.set_ylim(extent[2],extent[3])
-        self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick )
+        try:
+            extent = block.extent(4326)
+            self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
+            self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
+            self.axes.set_xlim(extent[0],extent[1])
+            self.axes.set_ylim(extent[2],extent[3])
+            self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick )
+        except AttributeError:
+            print( "Cant get spatial bounds for satellite image")
 
     def set_axis_limits( self, xlims, ylims ):
         if self.image is not None:

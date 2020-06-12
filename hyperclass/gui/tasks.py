@@ -82,6 +82,7 @@ class Task(QRunnable):
         msg_dialog = QtWidgets.QMessageBox()
         msg_dialog.setIcon( icon )
         msg_dialog.setText( caption )
+        msg_dialog.setMinimumSize(400,100)
         msg_dialog.setInformativeText(message)
         msg_dialog.setWindowTitle(title)
         msg_dialog.exec_()

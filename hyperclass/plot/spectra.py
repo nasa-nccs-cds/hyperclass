@@ -44,6 +44,8 @@ class SpectralPlot:
     def clear(self):
         self.lines = OrderedDict()
         self.current_line = None
+        self.axes.clear()
+        self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
 
     def clear_current_line(self):
         index, line = self.lines.popitem()

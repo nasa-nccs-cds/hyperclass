@@ -22,6 +22,10 @@ def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds.append( color_values[-1] + 0.5 )
     return color_bounds
 
+def get_rounded_dims( master_shape: List[int], subset_shape: List[int] ) -> List[int]:
+    dims = [ int(round(ms/ss)) for (ms,ss) in zip(master_shape,subset_shape) ]
+    return [ max(d, 1) for d in dims ]
+
 class MarkerManager:
 
     def __init__(self, file_name: str, config: QSettings, **kwargs ):
@@ -111,7 +115,7 @@ class DataManager:
                 if not current: settings.setValue( key, value )
 
     @property
-    def tile_shape(self):
+    def tile_shape(self) -> List[int]:
         block_size = self.config.value( 'block/size', 250, type=int )
         tile_size =  round( math.sqrt( self.config.value( 'tile/nblocks', 16, type=int ) ) ) * block_size
         return  [ tile_size, tile_size ]
@@ -151,10 +155,16 @@ class DataManager:
         return result
 
     def setTilesPerImage(self, image: xa.DataArray ):
+        block_size = self.config.value('block/size', 250, type=int)
         tshape = self.tile_shape
         ishape = image.shape[1:]
-        ndims = [ int( ishape[0]/tshape[0] ), int( ishape[1]/tshape[1] ) ]
-        self.config.setValue( 'tile/dims', ndims )
+        tile_dims = get_rounded_dims( ishape, tshape )
+        tile_shape = get_rounded_dims( ishape, tile_dims )
+        block_dims = get_rounded_dims( tile_shape, [ block_size ]*2  )
+        block_size = min( get_rounded_dims( tile_shape, block_dims ) )
+        self.config.value('block/size', block_size, type=int)
+        bdim = min( block_dims )
+        self.config.setValue( 'tile/nblocks', bdim*bdim )
 
     def getTileData(self, **kwargs ) -> Optional[xa.DataArray]:
         tile_data: Optional[xa.DataArray] = self._readTileFile() if self.cacheTileData else None
@@ -188,8 +198,7 @@ class DataManager:
         tile_filename = self.tileFileName()
         tile_raster.attrs['tile_coords'] = self.tile_index
         tile_raster.attrs['filename'] = tile_filename
-        if self.cacheTileData:
-            self.writeGeotiff( tile_raster, tile_filename )
+        if self.cacheTileData: self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
 
     def _readTileFile( self, iband = -1 ) -> Optional[xa.DataArray]:
@@ -199,6 +208,7 @@ class DataManager:
         if tile_raster is not None:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
             tile_raster.attrs['filename'] = tile_filename
+            self.setTilesPerImage( tile_raster )
         return tile_raster
 
     @classmethod
@@ -211,19 +221,23 @@ class DataManager:
 
 
     def writeGeotiff(self, raster_data: xa.DataArray, filename: str = None ) -> str:
-        if filename is None: filename = raster_data.name
-        if not filename.endswith(".tif"): filename = filename + ".tif"
-        output_file = os.path.join(self.config.value('data/cache'), filename )
-        print(f"Writing raster file {output_file}")
-        raster_data.rio.to_raster(output_file)
-        return output_file
+        try:
+            if filename is None: filename = raster_data.name
+            if not filename.endswith(".tif"): filename = filename + ".tif"
+            output_file = os.path.join(self.config.value('data/cache'), filename )
+            print(f"Writing raster file {output_file}")
+            raster_data.rio.to_raster(output_file)
+            return output_file
+        except Exception as err:
+            print(f"Unable to write raster file to {output_file}: {err}")
+            return None
 
     def readGeotiff( self, filename: str, iband = -1 ) -> Optional[xa.DataArray]:
         if not filename.endswith(".tif"): filename = filename + ".tif"
         try:
             input_file = os.path.join(self.config.value('data/dir'), filename)
             input_bands: xa.DataArray =  rio.open_rasterio(input_file)
-            print(f"Reading raster file {input_file}")
+            print(f"Reading raster file {input_file}, dims = {input_bands.dims}, shape = {input_bands.shape}")
             if iband >= 0:  return input_bands[iband]
             else:           return input_bands
         except Exception as err:

@@ -292,7 +292,7 @@ class LabelingConsole:
     def clearLabels( self, event = None ):
         from PyQt5.QtWidgets import QMessageBox
         if len(self.marker_list) > 0:
-            buttonReply = QMessageBox.question(self, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
             if buttonReply == QMessageBox.No: return
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
@@ -305,6 +305,7 @@ class LabelingConsole:
             self.update_marker_plots()
             self.plot_label_map( self.getLabeledPointData() )
             self.block.flow.clear()
+            self.labels_image.set_alpha(0.0)
             self.umgr.reset_markers()
             self.spectral_plot.clear()
 
