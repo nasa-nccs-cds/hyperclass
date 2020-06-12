@@ -66,7 +66,6 @@ class MarkerManager:
 
 class DataManager:
 
-    valid_bands = [ [3,193], [210,287], [313,421] ]
     settings_initialized = False
     default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
                          'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
@@ -162,8 +161,9 @@ class DataManager:
         if tile_data is None: tile_data = self._getTileDataFromImage()
         if tile_data is None: return None
         tile_data = self.mask_nodata( tile_data )
-        if self.valid_bands:
-            dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in self.valid_bands]
+        if (tile_data.shape[0] == 425):
+            valid_bands = [[3, 193], [210, 287], [313, 421]]
+            dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in valid_bands]
             tile_data = xa.concat(dataslices, dim="band")
             print( f"Selecting valid bands, resulting Tile shape = {tile_data.shape}")
         return self.rescale(tile_data, **kwargs)
@@ -285,7 +285,7 @@ class DataManager:
         return result
 
     def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
-        norm_type = kwargs.get('norm', 'none')
+        norm_type = kwargs.get('norm', 'spatial')
         refresh = kwargs.get('refresh', False )
         if norm_type == "none":
             result = raster

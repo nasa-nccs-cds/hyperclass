@@ -114,6 +114,7 @@ class LabelingConsole:
         self.block: Block = None
         self.slider: Optional[PageSlider] = None
         self.image: Optional[AxesImage] = None
+        self.labels = None
         self.plot_axes: Optional[Axes] = None
         self.marker_list: List[Dict] = []
         self.marker_plot: Optional[PathCollection] = None
@@ -286,7 +287,7 @@ class LabelingConsole:
             callbacks = Callbacks( kwargs )
             prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
-            self.plot_label_map( sample_labels, background=True )
+            self.plot_label_map( sample_labels )
 
     def clearLabels( self, event = None ):
         nodata_value = -2
@@ -295,6 +296,12 @@ class LabelingConsole:
         self.labels.attrs['_FillValue'] = nodata_value
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
+        if len(self.marker_list) > 0:
+            self.marker_list = []
+            self.update_marker_plots()
+            self.plot_label_map( self.getLabeledPointData() )
+            self.block.flow.clear()
+            self.umgr.reset_markers()
 
     def updateLabelsFromMarkers(self):
         print(f"Updating {len(self.marker_list)} labels")
@@ -438,10 +445,9 @@ class LabelingConsole:
             self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
 
     def undo_marker_selection(self, **kwargs ):
-        labeled = kwargs.pop( 'labeled', False )
         if len( self.marker_list ):
             self.marker_list.pop()
-            self.update_marker_plots( labeled=labeled, **kwargs )
+            self.update_marker_plots( **kwargs )
 
     def update_marker_plots( self, **kwargs ):
         taskRunner.start( Task(self.plot_markers_image, **kwargs ), f"Plot markers" )
@@ -458,7 +464,6 @@ class LabelingConsole:
                 self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
-        in_background = kwargs.get( 'background', False )
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int16)
         extent = dataManager.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )

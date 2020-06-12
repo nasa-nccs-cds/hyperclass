@@ -16,9 +16,13 @@ class ActivationFlow:
         self.D: ma.MaskedArray = None
         self.P: ma.MaskedArray = None
         self.C: ma.MaskedArray = None
+        self.reset = True
         self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
         self.init_task = Task( self.setNodeData, nodes_data, **kwargs )
         taskRunner.start( self.init_task, f"Compute NN graph" )
+
+    def clear(self):
+        self.reset = True
 
     def setGraph( self, I: np.ndarray, D: np.ndarray ):
         self.I = I
@@ -43,15 +47,14 @@ class ActivationFlow:
             Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
             return None
         debug = kwargs.get( 'debug', False )
-        reset = kwargs.get( "reset", False)
         sample_mask = sample_labels == -1
-        if self.C is None or reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
+        if self.C is None or self.reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
         label_count = self.C.count()
         if label_count == 0:
             Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
             return None
-        if (self.P is None) or reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
+        if (self.P is None) or self.reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
         else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )
         index0 = np.arange( self.I.shape[0] )
         max_flt = np.finfo( self.P.dtype ).max
@@ -79,6 +82,7 @@ class ActivationFlow:
         result_attrs = dict( converged=converged, **sample_labels.attrs, _FillValue=-2 )
         result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
+        self.reset = False
         return result
 
 
