@@ -122,8 +122,11 @@ class SpectralPlotCanvas(FigureCanvas):
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding )
         FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
         plot.init( self.figure )
-        self.plot = plot
+        self.plot: SpectralPlot = plot
         FigureCanvas.updateGeometry(self)
+
+    def clear(self):
+        self.plot.clear()
 
     def process_event( self, event: Dict ):
         self.plot.process_event(event)

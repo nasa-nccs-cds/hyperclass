@@ -267,10 +267,10 @@ class LabelingConsole:
         else:
             ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
             labels: xa.DataArray = self.getExtendedLabelPoints()
-            embedding: xa.DataArray = self.umgr.learn( self.block, labels, ndim, **kwargs )
-            t1 = time.time()
-            print( f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1-t0} sec")
+            embedding: Optional[xa.DataArray] = self.umgr.learn( self.block, labels, ndim, **kwargs )
             if embedding is not None:
+                t1 = time.time()
+                print(f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1 - t0} sec")
                 score = self.get_svc(**kwargs).fit( embedding.values, labels.values, **kwargs )
                 if score is not None:
                     print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
@@ -290,6 +290,10 @@ class LabelingConsole:
             self.plot_label_map( sample_labels )
 
     def clearLabels( self, event = None ):
+        from PyQt5.QtWidgets import QMessageBox
+        if len(self.marker_list) > 0:
+            buttonReply = QMessageBox.question(self, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if buttonReply == QMessageBox.No: return
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
         self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
@@ -302,6 +306,7 @@ class LabelingConsole:
             self.plot_label_map( self.getLabeledPointData() )
             self.block.flow.clear()
             self.umgr.reset_markers()
+            self.spectral_plot.clear()
 
     def updateLabelsFromMarkers(self):
         print(f"Updating {len(self.marker_list)} labels")

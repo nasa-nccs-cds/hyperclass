@@ -18,7 +18,7 @@ class SpectralPlot:
     def __init__( self, **kwargs ):
         self.figure: Optional[Figure] = None
         self.axes: Optional[Axes] = None
-        self.lines: OrderedDict[ int, Line2D ] = {}
+        self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
         self.parms = kwargs
 
@@ -40,6 +40,10 @@ class SpectralPlot:
             self.clear_unlabeled()
         self.current_line, = self.axes.plot( x, data.values, linewidth=3, color=color )
         self.lines[ index ] = self.current_line
+
+    def clear(self):
+        self.lines = OrderedDict()
+        self.current_line = None
 
     def clear_current_line(self):
         index, line = self.lines.popitem()

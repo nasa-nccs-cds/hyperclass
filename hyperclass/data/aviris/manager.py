@@ -285,7 +285,7 @@ class DataManager:
         return result
 
     def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
-        norm_type = kwargs.get('norm', 'spatial')
+        norm_type = kwargs.get('norm', 'spectral')
         refresh = kwargs.get('refresh', False )
         if norm_type == "none":
             result = raster

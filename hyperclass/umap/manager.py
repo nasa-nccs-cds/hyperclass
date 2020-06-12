@@ -35,7 +35,7 @@ class UMAPManager:
         self.point_cloud.set_colormap( self.class_colors )
         self.mixing_space.set_colormap( self.class_colors )
 
-    def embedding( self, block: Block, ndim: int = 3 ) -> xa.DataArray:
+    def embedding( self, block: Block, ndim: int = 3 ) -> Optional[xa.DataArray]:
         mapper: UMAP = self.getMapper( block, ndim )
         if mapper.embedding_ is not None:
             return self.wrap_embedding( block, mapper.embedding_ )
@@ -72,7 +72,10 @@ class UMAPManager:
         self.point_cloud.update_point_sizes( increase )
         self.mixing_space.update_point_sizes( increase )
 
-    def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> xa.DataArray:
+    def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> Optional[xa.DataArray]:
+        if block.flow.nnd is None:
+            Task.taskNotAvailable("Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+            return None
         self.learned_mapping = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         self.learned_mapping.embed(point_data.data, block.flow.nnd, labels.values, **kwargs)
@@ -96,12 +99,14 @@ class UMAPManager:
         t2 = time.time()
         print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
 
-    def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
+    def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> Optional[xa.DataArray]:
+        if block.flow.nnd is None:
+            Task.taskNotAvailable("Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+            return None
         ndim = kwargs.get( "ndim", 3 )
         t0 = time.time()
         mapper = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
-
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
