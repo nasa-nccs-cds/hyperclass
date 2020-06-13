@@ -71,7 +71,7 @@ class MarkerManager:
 class DataManager:
 
     settings_initialized = False
-    default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/nblocks': 16,
+    default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200,
                          'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
 
     def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
@@ -116,9 +116,7 @@ class DataManager:
 
     @property
     def tile_shape(self) -> List[int]:
-        block_size = self.config.value( 'block/size', 250, type=int )
-        tile_size =  round( math.sqrt( self.config.value( 'tile/nblocks', 16, type=int ) ) ) * block_size
-        return  [ tile_size, tile_size ]
+        return self.config.value( 'tile/shape', [ 1000, 1000 ], type=int )
 
     @property
     def block_shape(self):
@@ -155,16 +153,17 @@ class DataManager:
         return result
 
     def setTilesPerImage(self, image: xa.DataArray ):
-        block_size = self.config.value('block/size', 250, type=int)
-        tshape = self.tile_shape
-        ishape = image.shape[1:]
-        tile_dims = get_rounded_dims( ishape, tshape )
-        tile_shape = get_rounded_dims( ishape, tile_dims )
-        block_dims = get_rounded_dims( tile_shape, [ block_size ]*2  )
-        block_size = min( get_rounded_dims( tile_shape, block_dims ) )
-        self.config.value('block/size', block_size, type=int)
-        bdim = min( block_dims )
-        self.config.setValue( 'tile/nblocks', bdim*bdim )
+        block_size = self.config.value( 'block/size', 250, type=int)
+        tile_size  = self.config.value( 'tile/size', 1000, type=int)
+        ishape = list(image.shape[1:])
+        tile_array_shape = get_rounded_dims( ishape, [tile_size]*2 )
+        tile_shape = get_rounded_dims( ishape, tile_array_shape )
+        block_array_shape = get_rounded_dims( tile_shape, [ block_size ]*2  )
+        block_shape = get_rounded_dims( tile_shape, block_array_shape )
+        self.config.setValue( 'tile/shape', tile_shape )
+        self.config.setValue( 'tile/array_shape', tile_array_shape )
+        self.config.setValue( 'block/shape', block_shape )
+        self.config.setValue( 'block/array_shape', block_array_shape)
 
     def getTileData(self, **kwargs ) -> Optional[xa.DataArray]:
         tile_data: Optional[xa.DataArray] = self._readTileFile() if self.cacheTileData else None
@@ -259,7 +258,7 @@ class DataManager:
         return str(value).strip("([])").replace(",", "-").replace(" ", "")
 
     def markerFileName(self) -> str:
-        return f"{self.image_name}.tdata.{self._cfg('block/size')}.{self._cfg('tile/nblocks')}_{self._cfg('tile/indices')}"
+        return f"{self.image_name}.tdata.{self._cfg('block/size')}.{self._cfg('tile/size')}_{self._cfg('tile/indices')}"
 
     @property
     def normFileName( self ) -> str:
