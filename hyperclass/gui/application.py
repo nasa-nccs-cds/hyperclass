@@ -112,7 +112,7 @@ class HyperclassConsole(QMainWindow):
     def loadCurrentBlock(self, **kwargs):
         filename = dataManager.config.value("data/init/file", None)
         if filename is not None:
-            buttonReply = QMessageBox.question(self, 'Hyperclass Initialization', "Load current block?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
+            buttonReply = QMessageBox.question( self, 'Hyperclass Initialization', "Load current block?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
             if buttonReply == QMessageBox.Yes:
                 taskRunner.start(Task(self.openFile, filename, **kwargs), f"Load Data File")
 

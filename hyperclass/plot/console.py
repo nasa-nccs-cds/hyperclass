@@ -147,7 +147,7 @@ class LabelingConsole:
         self.button_actions =  OrderedDict(model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
                                            spread=  self.spread_labels,
                                            undo=    self.undo_marker_selection,
-                                           clear=   self.clearLabels,
+                                           clear=   self.pleaseClearLabels,
 #                                            mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
@@ -224,7 +224,6 @@ class LabelingConsole:
             self.umgr.clear_pointcloud()
             self.update_plot_axis_bounds()
             self.plot_markers_image()
-            self.clearLabels()
             self.update_plots()
 
         return self.block
@@ -289,11 +288,14 @@ class LabelingConsole:
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
             self.plot_label_map( sample_labels )
 
-    def clearLabels( self, event = None ):
+    def pleaseClearLabels(self):
         from PyQt5.QtWidgets import QMessageBox
         if len(self.marker_list) > 0:
             buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
-            if buttonReply == QMessageBox.No: return
+            if buttonReply == QMessageBox.Yes:
+                self.clearLabels()
+
+    def clearLabels( self ):
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
         self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
@@ -607,15 +609,6 @@ class LabelingConsole:
         cax = self.control_axes[controls_window]
         cax.title.set_text('Class Selection')
         self.class_selector = ColoredRadioButtons( cax, self.class_labels, list(self.class_colors.values()), active=self.currentClass )
-
-    def add_button_box( self, buttons_window=1, **kwargs ):
-        cax = self.control_axes[ buttons_window ]
-        cax.title.set_text('Actions')
-        actions = [ "Submit", "Undo", "Clear" ]
-        self.button_box = ButtonBox( cax, [3,3], actions )
-        self.button_box.addCallback(actions[0], self.spread_labels)
-        self.button_box.addCallback(actions[1], self.undo_marker_selection)
-        self.button_box.addCallback( actions[2], self.clearLabels )
 
     def wait_for_key_press(self):
         keyboardClick = False
