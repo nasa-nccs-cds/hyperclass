@@ -141,8 +141,13 @@ class Block:
         ylim1, xlim1 = transform(inProj, outProj, xlim, ylim)   # Requires result order reversal- error in transform?
         return xlim1, ylim1
 
-    def inBounds(self, yc: float, xc: float ) -> bool:
+    def inBounds1(self, yc: float, xc: float ) -> bool:
         if (yc < self._ylim[0]) or (yc > self._ylim[1]): return False
+        if (xc < self._xlim[0]) or (xc > self._xlim[1]): return False
+        return True
+
+    def inBounds(self, yc: float, xc: float ) -> bool:
+        if (yc < min(self._ylim)) or (yc > max(self._ylim)): return False
         if (xc < self._xlim[0]) or (xc > self._xlim[1]): return False
         return True
 
