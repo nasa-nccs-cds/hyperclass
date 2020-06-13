@@ -14,10 +14,19 @@ from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.gui.points import VTKFrame, MixingFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
+def h2c( hexColor: str ) -> List[float]:
+    hc = hexColor.strip( "# ")
+    cv = [ int(hc[i0:i0+2],16) for i0 in range(0,len(hc),2) ]
+    cv = cv if len(cv) == 4 else cv + [255]
+    return [ c/255 for c in cv ]
+
+def format_colors( classes: List[Tuple[str,Union[str,List[float]]]] ) -> List[Tuple[str,List[float]]]:
+    return [ ( label, h2c(color) ) for (label,color) in classes ] if isinstance( classes[0][1], str ) else classes
+
 class HyperclassConsole(QMainWindow):
-    def __init__( self, classes: List[ Tuple[str,List[float]]], **kwargs ):
+    def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
         QMainWindow.__init__(self)
-        self.umgr = UMAPManager(classes)
+        self.umgr = UMAPManager( format_colors(classes) )
         self.title = 'hyperclass'
         self.left = 10
         self.top = 10
