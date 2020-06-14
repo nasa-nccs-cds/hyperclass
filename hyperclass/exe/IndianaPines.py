@@ -5,8 +5,7 @@ import sys
 
 ref_file = "/Users/tpmaxwel/Dropbox/Tom/Data/Aviris/IndianPines/documentation/Site3_Project_and_Ground_Reference_Files/19920612_AVIRIS_IndianPine_Site3_gr.tif"
 
-classes = [ ('Background', (255, 255, 255) ),
-            ('Alfalfa', (255, 254, 137) ),
+classes = [ ('Alfalfa', (255, 254, 137) ),
             ('Corn-notill', (3,28,241) ),
             ('Corn-mintill', (255, 89, 1) ),
             ('Corn', (5, 255, 133) ),
