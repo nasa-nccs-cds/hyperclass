@@ -11,6 +11,7 @@ from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
+import collections.abc
 from hyperclass.data.google import GoogleMaps
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.plot.labels import format_colors
@@ -248,8 +249,9 @@ class ReferenceImageCanvas(FigureCanvas):
             if event.inaxes ==  self.axes:
                 coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
                 point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
+                ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
                 for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button) )
+                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button), label=ic )
                     listener.process_event(event)
 
 

@@ -13,6 +13,7 @@ from matplotlib.backend_bases import PickEvent, MouseEvent
 from collections import OrderedDict
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.umap.manager import UMAPManager
+from PyQt5.QtWidgets import QMessageBox
 from functools import partial
 from pyproj import Proj, transform
 import matplotlib.pyplot as plt
@@ -147,7 +148,7 @@ class LabelingConsole:
         self.button_actions =  OrderedDict(model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
                                            spread=  self.spread_labels,
                                            undo=    self.undo_marker_selection,
-                                           clear=   self.pleaseClearLabels,
+                                           clear=   self.clearLabels,
 #                                            mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
                                            learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
                                            apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
@@ -187,9 +188,14 @@ class LabelingConsole:
             elif event['type'] == "release": self.key_mode = None
 
     def get_image_selection_marker( self, event ) -> Dict:
-        lat, lon = event['lat'], event['lon']
-        proj = Proj( self.data.spatial_ref.crs_wkt )
-        x, y = proj( lon, lat )
+        if 'lat' in event:
+            lat, lon = event['lat'], event['lon']
+            proj = Proj( self.data.spatial_ref.crs_wkt )
+            x, y = proj( lon, lat )
+        else:
+            x, y = event['x'], event['y']
+        if 'label' in event:
+            self.class_selector.set_active( event['label'] )
         return dict( c=self.selectedClass, x=x, y=y )
 
     def point_coords( self, point_index: int ) -> Dict:
@@ -219,6 +225,7 @@ class LabelingConsole:
 
             self.add_plots(**kwargs)
             self.add_slider(**kwargs)
+            self.initLabels()
 
             self.google = GoogleMaps( self.block )
             self.umgr.clear_pointcloud()
@@ -288,20 +295,19 @@ class LabelingConsole:
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
             self.plot_label_map( sample_labels )
 
-    def pleaseClearLabels(self):
-        from PyQt5.QtWidgets import QMessageBox
-        if len(self.marker_list) > 0:
-            buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
-            if buttonReply == QMessageBox.Yes:
-                self.clearLabels()
-
-    def clearLabels( self ):
+    def initLabels(self):
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
         self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
         self.labels.attrs['_FillValue'] = nodata_value
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
+
+    def clearLabels( self, ask_permission = True ):
+        if ask_permission and (len(self.marker_list) > 0):
+            buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if buttonReply == QMessageBox.No: return
+        self.initLabels()
         if len(self.marker_list) > 0:
             self.marker_list = []
             self.update_marker_plots()
