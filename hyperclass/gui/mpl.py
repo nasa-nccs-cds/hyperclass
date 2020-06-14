@@ -234,7 +234,7 @@ class ReferenceImageCanvas(FigureCanvas):
         self.image: xa.DataArray = rio.open_rasterio( self.spec['path'] )
         self.xdim = self.image.dims[-1]
         self.ydim = self.image.dims[-2]
-        self.classes = format_colors( self.spec.get( 'classes', [] ) )
+        self.classes = [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + format_colors( self.spec.get( 'classes', [] ) )
         if self.classes == None:    cmap = "jet"
         else:                       cmap = ListedColormap( [ item[1] for item in self.classes ] )
         self.plot: AxesImage = self.axes.imshow( self.image.squeeze().values, alpha=1.0, aspect='auto', cmap=cmap  )

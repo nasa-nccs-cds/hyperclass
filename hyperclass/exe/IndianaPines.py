@@ -20,7 +20,7 @@ classes = [ ('Alfalfa', (255, 254, 137) ),
             ('Wheat', (104, 192,  63)),
             ('Woods', (139,  69,  46)),
             ('Bldg-Grass-Tree-Drives', (119, 255, 172)),
-            ('Stone/steel-towers', (119, 255, 172))
+            ('Stone/steel-towers', (254, 255, 3))
             ]
 
 tabs = dict( Reference=dict( type="reference", classes=classes, path=ref_file ) )
