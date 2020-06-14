@@ -1,5 +1,8 @@
 import sys
+import xarray as xa
+import rioxarray as rio
 from hyperclass.plot.console import LabelingConsole
+from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from hyperclass.plot.spectra import SpectralPlot
 from matplotlib.image import AxesImage
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
@@ -7,10 +10,10 @@ from hyperclass.data.aviris.manager import DataManager
 from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 from matplotlib.axes import Axes
-from typing import List, Union, Dict, Callable, Tuple, Optional
+from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from hyperclass.data.google import GoogleMaps
 from hyperclass.gui.tasks import taskRunner, Task
-from PyQt5.QtCore import QThread
+from hyperclass.plot.labels import format_colors
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -209,5 +212,47 @@ class SatellitePlotCanvas(FigureCanvas):
         self.figure.canvas.draw_idle()
 #        self.repaint()
 
+class ReferenceImageCanvas(FigureCanvas):
 
+    RIGHT_BUTTON = 3
+    MIDDLE_BUTTON = 2
+    LEFT_BUTTON = 1
+
+    def __init__(self, parent, image_spec: Dict[str,Any], **kwargs ):
+        self.figure = Figure( constrained_layout=True )
+        FigureCanvas.__init__(self, self.figure )
+        self.mouse_listeners = []
+        self.spec = image_spec
+        self.setParent(parent)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
+        FigureCanvas.updateGeometry(self)
+        self.axes: Axes = self.figure.add_subplot(111)
+        self.axes.get_xaxis().set_visible(False)
+        self.axes.get_yaxis().set_visible(False)
+        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self.image: xa.DataArray = rio.open_rasterio( self.spec['path'] )
+        self.xdim = self.image.dims[-1]
+        self.ydim = self.image.dims[-2]
+        self.classes = format_colors( self.spec.get( 'classes', [] ) )
+        if self.classes == None:    cmap = "jet"
+        else:                       cmap = ListedColormap( [ item[1] for item in self.classes ] )
+        self.plot: AxesImage = self.axes.imshow( self.image.squeeze().values, alpha=1.0, aspect='auto', cmap=cmap  )
+        self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+
+    def addEventListener( self, listener ):
+        self.mouse_listeners.append( listener )
+
+    def onMouseClick(self, event):
+        if event.xdata != None and event.ydata != None:
+            if event.inaxes ==  self.axes:
+                coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
+                point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
+                for listener in self.mouse_listeners:
+                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button) )
+                    listener.process_event(event)
+
+
+    def mpl_update(self):
+        self.figure.canvas.draw_idle()
 

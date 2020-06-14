@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QSize, QCoreApplication, QSettings
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas
+from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas, ReferenceImageCanvas
 from .config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
@@ -11,23 +11,17 @@ import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
 from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.plot.labels import format_colors
 from hyperclass.gui.points import VTKFrame, MixingFrame
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
-def h2c( hexColor: str ) -> List[float]:
-    hc = hexColor.strip( "# ")
-    cv = [ int(hc[i0:i0+2],16) for i0 in range(0,len(hc),2) ]
-    cv = cv if len(cv) == 4 else cv + [255]
-    return [ c/255 for c in cv ]
-
-def format_colors( classes: List[Tuple[str,Union[str,List[float]]]] ) -> List[Tuple[str,List[float]]]:
-    return [ ( label, h2c(color) ) for (label,color) in classes ] if isinstance( classes[0][1], str ) else classes
 
 class HyperclassConsole(QMainWindow):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
         QMainWindow.__init__(self)
         self.umgr = UMAPManager( format_colors(classes) )
         self.title = 'hyperclass'
+        self.tabs = kwargs.pop('tabs',{})
         self.left = 10
         self.top = 10
         self.width = 1920
@@ -101,6 +95,9 @@ class HyperclassConsole(QMainWindow):
         vizTabs.addTab(  self.vtkFrame, "Embedding" )
 #        vizTabs.addTab( self.mixingFrame, "Mixing")
         vizTabs.addTab( self.satelliteCanvas, "Satellite")
+        for label, image_spec in self.tabs.items():
+            if image_spec.get( 'type', "none" ) == "reference":
+                vizTabs.addTab(ReferenceImageCanvas(widget, image_spec), label)
         vizLayout.addWidget( vizTabs, 15 )
         vizLayout.addWidget( self.spectralPlot, 5 )
 

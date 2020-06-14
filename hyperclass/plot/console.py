@@ -359,8 +359,9 @@ class LabelingConsole:
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
         self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
         self.figure.suptitle(f"Point Labeling Console",fontsize=14)
-        for iC in range(4):
-            self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[iC, -1] )
+        for iC in range(2):
+            y0,y1 = 2*iC, 2*(iC+1)
+            self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[y0:y1, -1] )
             self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())
             self.control_axes[iC].yaxis.set_major_locator(plt.NullLocator())
         self.slider_axes: Axes = self.figure.add_axes([0.1, 0.01, 0.8, 0.04])  # [left, bottom, width, height]

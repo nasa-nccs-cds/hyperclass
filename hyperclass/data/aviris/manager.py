@@ -251,14 +251,14 @@ class DataManager:
     def tileFileName(self) -> str:
         return f"{self.image_name}.{self._fmt(self.tile_shape)}_{self._fmt(self.tile_index)}"
 
-    def _cfg(self, settings_key: str ) -> str:
-        return self._fmt( self.config.value( settings_key ) )
-
     def _fmt(self, value) -> str:
         return str(value).strip("([])").replace(",", "-").replace(" ", "")
 
+    def _icfg(self, settings_key: str ) -> str:
+        return self._fmt( self.config.value( settings_key, type=int ) )
+
     def markerFileName(self) -> str:
-        return f"{self.image_name}.tdata.{self._cfg('block/size')}.{self._cfg('tile/size')}_{self._cfg('tile/indices')}"
+        return f"{self.image_name}.tdata.{self._icfg('block/size')}.{self._icfg('tile/size')}_{self._icfg('tile/indices')}"
 
     @property
     def normFileName( self ) -> str:

@@ -31,7 +31,8 @@ class UMAPManager:
         self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
         for elem in class_labels:
             self.class_labels.append( elem[0] )
-            self.class_colors[ elem[0] ] = elem[1]
+            color = elem[1] if (len( elem[1] ) == 4) else elem[1] + [1.0]
+            self.class_colors[ elem[0] ] = color
         self.point_cloud.set_colormap( self.class_colors )
         self.mixing_space.set_colormap( self.class_colors )
 
