@@ -170,8 +170,8 @@ class DataManager:
         if tile_data is None: tile_data = self._getTileDataFromImage()
         if tile_data is None: return None
         tile_data = self.mask_nodata( tile_data )
-        if (tile_data.shape[0] == 425):
-            valid_bands = [[3, 193], [210, 287], [313, 421]]
+        valid_bands = self.config.value('data/valid_bands', None)
+        if valid_bands is not None:
             dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in valid_bands]
             tile_data = xa.concat(dataslices, dim="band")
             print( f"Selecting valid bands, resulting Tile shape = {tile_data.shape}")

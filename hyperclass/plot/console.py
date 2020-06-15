@@ -116,6 +116,7 @@ class LabelingConsole:
         self.slider: Optional[PageSlider] = None
         self.image: Optional[AxesImage] = None
         self.labels = None
+        self.transients = []
         self.plot_axes: Optional[Axes] = None
         self.marker_list: List[Dict] = []
         self.marker_plot: Optional[PathCollection] = None
@@ -431,21 +432,17 @@ class LabelingConsole:
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
-            if not self.toolbarMode:
-                if event.inaxes ==  self.plot_axes:
-                    leftButton: bool = int(event.button) == self.LEFT_BUTTON
-                    if leftButton and (self.key_mode == None):
-                        marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
-                        self.add_marker( marker )
-                        self.dataLims = event.inaxes.dataLim
+            if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
+                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
+                marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
+                self.add_marker( marker, rightButton )
+                self.dataLims = event.inaxes.dataLim
 
-    def add_marker(self, marker: Dict, **kwargs ):
-        is_unlabeled = (marker['c'] == 0)
-        if is_unlabeled:
-            self.clear_unlabeled()
+    def add_marker(self, marker: Dict, transient: bool, **kwargs ):
+        self.clear_transients()
+        if transient: self.transients.append( transient )
         self.marker_list.append( marker )
-        if is_unlabeled:    taskRunner.start( Task( self.plot_markers_volume, reset=True, labeled=False ), f"Plot markers" )
-        else:               taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
+        taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
         self.plot_markers_image( **kwargs )
         self.plot_spectrum( marker )
 
@@ -528,6 +525,13 @@ class LabelingConsole:
     def clear_unlabeled(self):
         if self.marker_list:
             self.marker_list = [ marker for marker in self.marker_list if marker['c'] > 0 ]
+
+    def add_marker(self, marker: Dict, transient: bool ):
+        if self.marker_list:
+            if transient:
+                self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
+                self.transients = [ transient ]
+            self.marker_list.append( marker )
 
     def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []

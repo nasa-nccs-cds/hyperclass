@@ -21,7 +21,6 @@ class HyperclassConsole(QMainWindow):
         QMainWindow.__init__(self)
         self.umgr = UMAPManager( format_colors(classes) )
         self.title = 'hyperclass'
-        self.tabs = kwargs.pop('tabs',{})
         self.left = 10
         self.top = 10
         self.width = 1920
@@ -32,7 +31,7 @@ class HyperclassConsole(QMainWindow):
         self.message_stack = []
         self.newfig : Figure = None
         self.fileChanged = True
-        self.initSettings()
+        self.initSettings(kwargs)
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -165,7 +164,10 @@ class HyperclassConsole(QMainWindow):
         menuButton.triggered.connect(menuItem[3])
         parent_menu.addAction(menuButton)
 
-    def initSettings(self):
+    def initSettings(self, kwargs ):
+        valid_bands = kwargs.pop('valid_bands', None )
+        if valid_bands: dataManager.config.setValue( 'data/valid_bands', valid_bands )
+        self.tabs = kwargs.pop('tabs',{})
         self.settings = dataManager.config
 
     def setPreferences(self):
