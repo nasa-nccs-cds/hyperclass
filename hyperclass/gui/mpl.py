@@ -205,8 +205,9 @@ class SatellitePlotCanvas(FigureCanvas):
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
             if event.inaxes ==  self.axes:
+                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button) )
+                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button), transient=rightButton )
                     listener.process_event(event)
 
     def mpl_update(self):
@@ -250,8 +251,9 @@ class ReferenceImageCanvas(FigureCanvas):
                 coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
                 point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
                 ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
+                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button), label=ic )
+                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button), label=ic, transient=rightButton )
                     listener.process_event(event)
 
 

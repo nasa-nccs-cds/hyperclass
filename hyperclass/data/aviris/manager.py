@@ -258,7 +258,7 @@ class DataManager:
         return self._fmt( self.config.value( settings_key, type=int ) )
 
     def markerFileName(self) -> str:
-        return f"{self.image_name}.tdata.{self._icfg('block/size')}.{self._icfg('tile/size')}_{self._icfg('tile/indices')}"
+        return self.image_name.strip("/").replace("/","_")
 
     @property
     def normFileName( self ) -> str:

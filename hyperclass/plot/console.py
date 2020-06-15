@@ -179,11 +179,12 @@ class LabelingConsole:
     def process_event( self, event: Dict ):
         print( f" LabelingConsole: process_event: {event}")
         if event['event'] == 'pick':
+            transient = event.pop('transient',True)
             if event['type'] == 'vtkpoint':
                 point_index = event['pid']
-                self.mark_point( point_index )
+                self.mark_point( point_index, transient )
             elif event['type'] == 'image':
-                self.add_marker( self.get_image_selection_marker( event ) )
+                self.add_marker( self.get_image_selection_marker( event ), transient )
         elif event['event'] == 'key':
             if   event['type'] == "press":   self.key_mode = event['key']
             elif event['type'] == "release": self.key_mode = None
@@ -204,9 +205,9 @@ class LabelingConsole:
         selected_sample: np.ndarray = samples[ point_index ].values
         return dict( y = selected_sample[1], x = selected_sample[0] )
 
-    def mark_point( self, point_index: int ):
+    def mark_point( self, point_index: int, transient: bool ):
         marker = self.block.pindex2coords(point_index)
-        self.add_marker( dict( c=0, **marker), labeled=False )
+        self.add_marker( dict( c=0, **marker), transient, labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         refresh_tile = kwargs.pop("refresh_tile",False)
@@ -320,14 +321,14 @@ class LabelingConsole:
 
     def updateLabelsFromMarkers(self):
         print(f"Updating {len(self.marker_list)} labels")
+        self.clear_transients()
         for marker in self.marker_list:
             [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
-            if c > 0:
-                index = self.block.coords2indices(y, x)
-                try:
-                    self.labels[ index['iy'], index['ix'] ] = c
-                except:
-                    print( f"Skipping out of bounds label at local row/col coords {index['iy']} {index['ix']}")
+            index = self.block.coords2indices(y, x)
+            try:
+                self.labels[ index['iy'], index['ix'] ] = c
+            except:
+                print( f"Skipping out of bounds label at local row/col coords {index['iy']} {index['ix']}")
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabelsFromMarkers()
@@ -438,9 +439,12 @@ class LabelingConsole:
                 self.add_marker( marker, rightButton )
                 self.dataLims = event.inaxes.dataLim
 
+    def clear_transients(self):
+        self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
+
     def add_marker(self, marker: Dict, transient: bool, **kwargs ):
         self.clear_transients()
-        if transient: self.transients.append( transient )
+        if transient: self.transients = [ transient ]
         self.marker_list.append( marker )
         taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
         self.plot_markers_image( **kwargs )
@@ -450,9 +454,7 @@ class LabelingConsole:
         [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
         color = self.get_color(c)
         pindex = self.block.coords2pindex( y, x )
-        if pindex < 0:
-            self.spectral_plot.clear_spectrum()
-        else:
+        if pindex >= 0:
             pdata = self.block.getPointData( )
             self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
 
@@ -525,13 +527,6 @@ class LabelingConsole:
     def clear_unlabeled(self):
         if self.marker_list:
             self.marker_list = [ marker for marker in self.marker_list if marker['c'] > 0 ]
-
-    def add_marker(self, marker: Dict, transient: bool ):
-        if self.marker_list:
-            if transient:
-                self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
-                self.transients = [ transient ]
-            self.marker_list.append( marker )
 
     def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
