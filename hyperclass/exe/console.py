@@ -3,9 +3,9 @@ from hyperclass.gui.application import HyperclassConsole
 from hyperclass.data.aviris.manager import dataManager
 import sys
 
-classes = [ ('BareEarth', [1.0, 1.0, 0.0, 1.0]),
+classes = [ ('Vegetation', [1.0, 1.0, 0.0, 1.0]),
            ('Forest', [0.0, 1.0, 0.0, 1.0]),
-           ('Urban', [1.0, 0.0, 1.0, 1.0]),
+           ('BareEarth', [1.0, 0.0, 1.0, 1.0]),
            ('Water', [0.0, 0.0, 1.0, 1.0])]
 
 valid_bands = [[3, 193], [210, 287], [313, 421]]
