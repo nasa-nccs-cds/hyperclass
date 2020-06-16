@@ -258,7 +258,10 @@ class DataManager:
         return self._fmt( self.config.value( settings_key, type=int ) )
 
     def markerFileName(self) -> str:
-        return self.image_name.strip("/").replace("/","_")
+        try:
+            return self.image_name.strip("/").replace("/","_")
+        except Exception:
+            return ""
 
     @property
     def normFileName( self ) -> str:
