@@ -139,7 +139,7 @@ class HyperclassConsole(QMainWindow):
                 self.load_block.addAction(menuButton)
 
     def populate_tile_load_menu(self):
-        nTiles = [2,2] # dataManager.config.value("tile/array_shape", [1, 1], type=int)
+        nTiles = dataManager.config.value("tile/array_shape", [1, 1], type=int)
         for action in self.load_tile.actions():
             self.load_tile.removeAction( action)
 

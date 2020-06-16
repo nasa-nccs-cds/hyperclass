@@ -152,10 +152,10 @@ class DataManager:
         result.name = kwargs.get( "name", "")
         return result
 
-    def setTilesPerImage(self, image: xa.DataArray ):
+    def setTilesPerImage( self, image_specs ):
         block_size = self.config.value( 'block/size', 250, type=int)
         tile_size  = self.config.value( 'tile/size', 1000, type=int)
-        ishape = list(image.shape[1:])
+        ishape = image_specs['shape'] if image_specs else [ tile_size, tile_size ]
         tile_array_shape = get_rounded_dims( ishape, [tile_size]*2 )
         tile_shape = get_rounded_dims( ishape, tile_array_shape )
         block_array_shape = get_rounded_dims( tile_shape, [ block_size ]*2  )
@@ -191,12 +191,16 @@ class DataManager:
     def _getTileDataFromImage(self) -> Optional[xa.DataArray]:
         full_input_bands: xa.DataArray = self.readGeotiff( self.image_name )
         if full_input_bands is None: return None
-        self.setTilesPerImage( full_input_bands )
+        image_attrs = dict(shape=full_input_bands.shape[-2:], attrs=full_input_bands.attrs)
+        self.setTilesPerImage( image_attrs )
         ybounds, xbounds = self.getTileBounds()
         tile_raster = full_input_bands[:, ybounds[0]:ybounds[1], xbounds[0]:xbounds[1] ]
         tile_filename = self.tileFileName()
         tile_raster.attrs['tile_coords'] = self.tile_index
         tile_raster.attrs['filename'] = tile_filename
+        tile_raster.attrs['image']  = self.image_name
+        tile_raster.attrs['image_shape'] = full_input_bands.shape
+        dataManager.config.setValue( self.image_name, image_attrs )
         if self.cacheTileData: self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
 
@@ -207,7 +211,9 @@ class DataManager:
         if tile_raster is not None:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
             tile_raster.attrs['filename'] = tile_filename
-            self.setTilesPerImage( tile_raster )
+            image_specs = dataManager.config.value(self.image_name, None)
+            if image_specs: tile_raster.attrs.update( image_specs['attrs'] )
+            self.setTilesPerImage( image_specs )
         return tile_raster
 
     @classmethod
@@ -224,8 +230,8 @@ class DataManager:
             if filename is None: filename = raster_data.name
             if not filename.endswith(".tif"): filename = filename + ".tif"
             output_file = os.path.join(self.config.value('data/cache'), filename )
-            print(f"Writing raster file {output_file}")
-            raster_data.rio.to_raster(output_file)
+            print(f"Writing (raster) tile file {output_file}")
+            raster_data.rio.to_raster( output_file )
             return output_file
         except Exception as err:
             print(f"Unable to write raster file to {output_file}: {err}")
@@ -301,7 +307,7 @@ class DataManager:
         return result
 
     def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
-        norm_type = kwargs.get('norm', 'spectral')
+        norm_type = kwargs.get('norm', 'spatial')
         refresh = kwargs.get('refresh', False )
         if norm_type == "none":
             result = raster
