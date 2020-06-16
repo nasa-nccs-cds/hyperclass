@@ -210,6 +210,7 @@ class LabelingConsole:
         self.add_marker( dict( c=0, **marker), transient, labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
+        print(" LabelingConsole.setBlock ")
         refresh_tile = kwargs.pop("refresh_tile",False)
         if refresh_tile:
             self.tile = Tile()
@@ -444,7 +445,7 @@ class LabelingConsole:
 
     def add_marker(self, marker: Dict, transient: bool, **kwargs ):
         self.clear_transients()
-        if transient: self.transients = [ transient ]
+        if transient: self.transients = [ marker ]
         self.marker_list.append( marker )
         taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
         self.plot_markers_image( **kwargs )

@@ -182,10 +182,12 @@ class SatellitePlotCanvas(FigureCanvas):
         self.mouse_listeners.append( listener )
 
     def setBlock(self, block: Block, type ='satellite'):
+        print(" SatelliteCanvas.setBlock ")
         self.block = block
         self.google = GoogleMaps(block)
         try:
             extent = block.extent(4326)
+            print( f"Setting satellite image extent: {extent}, xlim = {block.xlim}, ylim = {block.ylim}")
             self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
             self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
             self.axes.set_xlim(extent[0],extent[1])

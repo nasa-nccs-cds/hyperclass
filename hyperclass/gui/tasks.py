@@ -112,6 +112,7 @@ class TaskRunner(QObject):
             task.signals.finished.connect( partial( self.complete, message ) )
             task.signals.message.connect( kwargs.get( "message_callback", self.message ) )
             task.signals.error.connect(kwargs.get("error_callback", self.error))
+            print(f"Task[{task.context}] starting: {message}")
             self.threadpool.start(task)
         else:
             print( f"Task already running: {message}")
