@@ -127,29 +127,33 @@ class HyperclassConsole(QMainWindow):
 
     def populate_block_load_menu(self):
         nBlocks = dataManager.config.value("block/array_shape", [ 1, 1 ], type=int )
+        block_indices = dataManager.config.value("block/indices", [-1, -1], type=int)
         for action in self.load_block.actions():
             self.load_block.removeAction( action)
 
         for ib0 in range( nBlocks[0] ):
             for ib1 in range( nBlocks[1] ):
-                bname = f"[{ib0},{ib1}]"
-                menuButton = QAction( bname, self.load_block )
-                menuButton.setStatusTip(f"Load block at block coords {bname}")
-                menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
-                self.load_block.addAction(menuButton)
+                if ( [ib0, ib1] != block_indices ):
+                    bname = f"[{ib0},{ib1}]"
+                    menuButton = QAction( bname, self.load_block )
+                    menuButton.setStatusTip(f"Load block at block coords {bname}")
+                    menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
+                    self.load_block.addAction(menuButton)
 
     def populate_tile_load_menu(self):
         nTiles = dataManager.config.value("tile/array_shape", [1, 1], type=int)
+        tile_indices = dataManager.config.value("tile/indices", [-1, -1], type=int)
         for action in self.load_tile.actions():
             self.load_tile.removeAction( action)
 
         for it0 in range( nTiles[0] ):
             for it1 in range( nTiles[1] ):
-                tname = f"[{it0},{it1}]"
-                menuButton = QAction( tname, self)
-                menuButton.setStatusTip(f"Load tile at index {tname}")
-                menuButton.triggered.connect( partial( self.runSetTile, [it0, it1] ) )
-                self.load_tile.addAction(menuButton)
+                if ( [it0, it1] != tile_indices ):
+                    tname = f"[{it0},{it1}]"
+                    menuButton = QAction( tname, self)
+                    menuButton.setStatusTip(f"Load tile at index {tname}")
+                    menuButton.triggered.connect( partial( self.runSetTile, [it0, it1] ) )
+                    self.load_tile.addAction(menuButton)
 
     def runSetBlock( self, coords, **kwargs ):
         taskRunner.start( Task(self.setBlock, coords,  **kwargs ), "Loading block" )
@@ -187,12 +191,8 @@ class HyperclassConsole(QMainWindow):
     def openFile(self, fileName: str, **kwargs ):
         print( f"Opening file: {fileName}")
         dataManager.setImageName( fileName )
-        current_filename = dataManager.config.value("data/init/file", None)
-        if current_filename !=  fileName:
-            dataManager.config.setValue('block/indices', [0, 0] )
-            dataManager.config.setValue('tile/indices',  [0, 0] )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
-        self.setBlock( block_indices, refresh_tile=True, **kwargs )
+        self.setBlock( block_indices, **kwargs )
         self.fileChanged = True
 
     def tabShape(self) -> QTabWidget.TabShape:

@@ -221,10 +221,6 @@ class DataManager:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
             tile_raster.attrs['filename'] = tile_filename
             image_specs = dataManager.config.value(self.image_name, None)
-            if image_specs:
-                image_attrs = image_specs['attrs']
-                global_transform = image_attrs.pop('transform',[])
-                tile_raster.attrs.update( image_attrs )
             self.setTilesPerImage( image_specs )
         return tile_raster
 

@@ -21,7 +21,7 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 #### Install with rapids-ai
 ``` 
 >> conda create --name hyperclass python=3.7
->> conda activate hyperclass
+>> conda activate hyperclass``
 (hyperclass)>> conda install -c rapidsai -c nvidia -c conda-forge -c defaults rapids matplotlib pynndescent  rasterio  rioxarray  pyqt vtk googlemaps requests responses pyproj umap-learn scikit-image
 ```
 #### Google Maps Access

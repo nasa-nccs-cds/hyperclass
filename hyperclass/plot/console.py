@@ -139,7 +139,7 @@ class LabelingConsole:
         self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
         self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
-        self.tile = Tile()
+        self._tiles: Dict[List,Tile] = {}
 
         self.read_markers()
         self.spectral_plot = SpectralPlot()
@@ -167,6 +167,11 @@ class LabelingConsole:
         self.add_selection_controls( **kwargs )
         atexit.register(self.exit)
         self._update(0)
+
+    @property
+    def tile(self):
+        tile_indices = dataManager.config.value( 'tile/indices', [0,0] )
+        return self._tiles.setdefault( tuple(tile_indices), Tile() )
 
     @property
     def toolbar(self):
@@ -210,11 +215,7 @@ class LabelingConsole:
         self.add_marker( dict( c=0, **marker), transient, labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
-        print(" LabelingConsole.setBlock ")
-        refresh_tile = kwargs.pop("refresh_tile",False)
-        if refresh_tile:
-            self.tile = Tile()
-        print( f"setBlock: {block_coords}")
+        print( f"LabelingConsole setBlock: {block_coords}")
         self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
         if self.block is not None:
             dataManager.config.setValue( 'block/indices', block_coords )
@@ -426,9 +427,19 @@ class LabelingConsole:
         self.navigation_listeners.append( listener )
 
     def onMouseRelease(self, event):
-        pass
-        # if event.inaxes ==  self.plot_axes:
-        #     if self.toolbarMode:
+        from PyQt5.QtWidgets import QAction
+        if event.inaxes ==  self.plot_axes:
+             if self.toolbarMode == "zoom rect":
+                 action: QAction = self.toolbar._actions.get( "zoom", None)
+                 if action:
+                     action.toogle()
+                     action.setChecked( False )
+             elif self.toolbarMode == "pan rect":
+                 action: QAction = self.toolbar._actions.get( "pan", None)
+                 if action:
+                     action.toogle()
+                     action.setChecked(False)
+
         #         for listener in self.navigation_listeners:
         #             listener.set_axis_limits( self.plot_axes.get_xlim(), self.plot_axes.get_ylim() )
 
@@ -442,6 +453,7 @@ class LabelingConsole:
 
     def clear_transients(self):
         self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
+        self.spectral_plot.clear_current_line()
 
     def add_marker(self, marker: Dict, transient: bool, **kwargs ):
         self.clear_transients()
