@@ -175,7 +175,15 @@ class DataManager:
             dataslices = [tile_data.isel(band=slice(valid_band[0], valid_band[1])) for valid_band in valid_bands]
             tile_data = xa.concat(dataslices, dim="band")
             print( f"Selecting valid bands, resulting Tile shape = {tile_data.shape}")
-        return self.rescale(tile_data, **kwargs)
+        result =  self.rescale(tile_data, **kwargs)
+        return result
+
+    def set_tile_transform( self, data: xa.DataArray ):
+        tr0 = data.transform
+        tile_indices = self.config.value( "tile/indices" )
+        iy0, ix0 =  tile_indices[0] * self.tile_shape[0], tile_indices[1] * self.tile_shape[1]
+        y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
+        data.attrs['transform'] = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0  ]
 
     def _computeSpatialNorm(self, tile_raster: xa.DataArray, refresh=False) -> xa.DataArray:
         norm_file = os.path.join( self.config.value('data/cache'), self.normFileName )
@@ -201,6 +209,7 @@ class DataManager:
         tile_raster.attrs['image']  = self.image_name
         tile_raster.attrs['image_shape'] = full_input_bands.shape
         dataManager.config.setValue( self.image_name, image_attrs )
+        self.set_tile_transform( tile_raster )
         if self.cacheTileData: self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
 
@@ -212,7 +221,10 @@ class DataManager:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
             tile_raster.attrs['filename'] = tile_filename
             image_specs = dataManager.config.value(self.image_name, None)
-            if image_specs: tile_raster.attrs.update( image_specs['attrs'] )
+            if image_specs:
+                image_attrs = image_specs['attrs']
+                global_transform = image_attrs.pop('transform',[])
+                tile_raster.attrs.update( image_attrs )
             self.setTilesPerImage( image_specs )
         return tile_raster
 

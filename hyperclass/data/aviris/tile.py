@@ -33,18 +33,15 @@ class Tile:
     def transform(self) -> Optional[ProjectiveTransform]:
         if self.data is None: return None
         if self._transform is None:
-            self._transform = ProjectiveTransform( np.array(list(self.data.transform) + [0, 0, 1]).reshape(3, 3) )
+            self._transform = ProjectiveTransform( np.array(list(self.data.attrs['transform']) + [0, 0, 1]).reshape(3, 3) )
         return self._transform
 
     def get_block_transform( self, iy, ix ) -> ProjectiveTransform:
-        tr0 = self.data.transform
-        tile_indices = dataManager.config.value( "tile/indices" )
-        tile_shape = dataManager.tile_shape
-        iy0 = iy * dataManager.block_shape[0] + tile_indices[0] * tile_shape[0]
-        ix0 = ix * dataManager.block_shape[1] + tile_indices[1] * tile_shape[1]
+        tr0 = self.data.attrs['transform']
+        iy0, ix0 = iy * dataManager.block_shape[0], ix * dataManager.block_shape[1]
         y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
         tr1 = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0, 0, 0, 1  ]
-        print( f"Tile transform: {tr1}, block global indices = [ {iy0}, {ix0} ]" )
+        print( f"Tile transform: {tr0}, Block transform: {tr1}, tile indices = [{dataManager.config.value('tile/indices')}], block indices = [ {iy}, {ix} ]" )
         return  ProjectiveTransform( np.array(tr1).reshape(3, 3) )
 
     @property
