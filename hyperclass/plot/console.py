@@ -278,8 +278,8 @@ class LabelingConsole:
             Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
         else:
             ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
-            labels: xa.DataArray = self.getExtendedLabelPoints()
-            embedding: Optional[xa.DataArray] = self.umgr.learn( self.block, labels, ndim, **kwargs )
+            full_labels: xa.DataArray = self.getExtendedLabelPoints()
+            embedding, labels = self.umgr.learn( self.block, full_labels, ndim, **kwargs )
             if embedding is not None:
                 t1 = time.time()
                 print(f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1 - t0} sec")

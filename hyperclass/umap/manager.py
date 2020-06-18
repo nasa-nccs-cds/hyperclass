@@ -73,14 +73,20 @@ class UMAPManager:
         self.point_cloud.update_point_sizes( increase )
         self.mixing_space.update_point_sizes( increase )
 
-    def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> Optional[xa.DataArray]:
+    def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> Tuple[Optional[xa.DataArray],Optional[xa.DataArray]]:
+        from hyperclass.graph.flow import ActivationFlow
         if block.flow.nnd is None:
             Task.taskNotAvailable("Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
-            return None
+            return None, None
         self.learned_mapping = self.getMapper( block, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
-        self.learned_mapping.embed(point_data.data, block.flow.nnd, labels.values, **kwargs)
-        return self.wrap_embedding( block, self.learned_mapping.embedding_ )
+        labels_mask = ( labels > 0 )
+        filtered_labels: xa.DataArray = labels.where( labels_mask, drop = True )
+        filtered_point_data: xa.DataArray = point_data.where( labels_mask, drop=True )
+        nnd = ActivationFlow.getNNGraph( filtered_point_data, **kwargs )
+        self.learned_mapping.embed(filtered_point_data.data, nnd, filtered_labels.values, **kwargs)
+        coords = dict( samples=filtered_point_data.samples, model=np.arange(self.learned_mapping.embedding_.shape[1]) )
+        return xa.DataArray( self.learned_mapping.embedding_, dims=['samples','model'], coords=coords ), filtered_labels
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
         if (self.learned_mapping is None) or (self.learned_mapping.embedding_ is None):

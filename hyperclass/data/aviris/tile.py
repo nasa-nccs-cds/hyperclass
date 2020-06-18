@@ -99,7 +99,8 @@ class Block:
         if self._flow is None:
             n_neighbors = self.config.pop( 'n_neighbors', self.iparm('umap/nneighbors') )
             print( f"Computing NN graph using {n_neighbors} neighbors")
-            self._flow = ActivationFlow( self.getPointData(), n_neighbors=n_neighbors,  **self.config )
+            point_data = self.getPointData()
+            self._flow = ActivationFlow( point_data, n_neighbors=n_neighbors,  **self.config )
 
     @property
     def flow(self):

@@ -31,15 +31,22 @@ class ActivationFlow:
         if nodes_data.size > 0:
             t0 = time.time()
             self.nodes = nodes_data
-            n_trees =  kwargs.get( 'ntree', 5 + int(round((self.nodes.shape[0]) ** 0.5 / 20.0)) )
-            n_iters = kwargs.get( 'niter', max(5, 2*int(round(np.log2(self.nodes.shape[0])))))
-            self.nnd = NNDescent(self.nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=self.n_neighbors, max_candidates=60, verbose=True)
-            self.nnd._init_search_graph()  # Allowing this to be executed lazily causes problems with multithreading
+            n_neighbors: int = kwargs.pop('n_neighbors', self.n_neighbors )
+            self.nnd = self.getNNGraph( nodes_data, n_neighbors=n_neighbors, **kwargs )
             self.I = self.nnd.neighbor_graph[0]
             self.D = ma.MaskedArray(self.nnd.neighbor_graph[1])
             print( f"Computed NN[{self.n_neighbors}] Graph in {time.time()-t0} sec")
         else:
             print( "No data available for this block")
+
+    @classmethod
+    def getNNGraph(cls, nodes: xa.DataArray, **kwargs ):
+        n_neighbors: int = kwargs.get('n_neighbors', 10)
+        n_trees = kwargs.get('ntree', 5 + int(round((nodes.shape[0]) ** 0.5 / 20.0)))
+        n_iters = kwargs.get('niter', max(5, 2 * int(round(np.log2(nodes.shape[0])))))
+        nnd = NNDescent(nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=n_neighbors, max_candidates=60, verbose=True)
+        nnd._init_search_graph()
+        return nnd
 
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
         if self.D is None:
@@ -49,6 +56,8 @@ class ActivationFlow:
         sample_mask = sample_labels == -1
         if self.C is None or self.reset:  self.C = np.ma.masked_equal( sample_labels, -1 )
         else:                        self.C = np.ma.where( sample_mask, self.C, sample_labels )
+
+        s0, s1 = sample_labels.shape, self.C.shape
         label_count = self.C.count()
         if label_count == 0:
             Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
@@ -67,6 +76,7 @@ class ActivationFlow:
             best_neighbors: ma.MaskedArray = PN.argmin(axis=1, fill_value=max_flt)
             self.P = PN[index0, best_neighbors]
             self.C = CN[index0, best_neighbors]
+            s1 = self.C.shape
             new_label_count = self.C.count()
             if new_label_count == label_count:
                 print( "Converged!" )
@@ -79,6 +89,7 @@ class ActivationFlow:
 
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs, _FillValue=-2 )
+        s1 = self.C.shape
         result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
         self.reset = False

@@ -54,7 +54,7 @@ class SVCL(SVC):
 #        self._support_vectors = X[ self.support_vector_indices ]
 
     def predict( self, X: np.ndarray ) -> np.ndarray:
-        return self.svc.predict( X )
+        return self.svc.predict( X ).astype( int )
 
     @property
     def decision_function(self) -> Callable:
