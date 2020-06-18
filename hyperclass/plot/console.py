@@ -10,6 +10,7 @@ from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 from matplotlib.backend_bases import PickEvent, MouseEvent
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from collections import OrderedDict
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.umap.manager import UMAPManager
@@ -28,6 +29,7 @@ import xarray as xa
 import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, atexit, os
+from PyQt5.QtWidgets import QAction
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -174,7 +176,7 @@ class LabelingConsole:
         return self._tiles.setdefault( tuple(tile_indices), Tile() )
 
     @property
-    def toolbar(self):
+    def toolbar(self)-> NavigationToolbar:
         return self.figure.canvas.toolbar
 
     @property
@@ -427,18 +429,9 @@ class LabelingConsole:
         self.navigation_listeners.append( listener )
 
     def onMouseRelease(self, event):
-        from PyQt5.QtWidgets import QAction
         if event.inaxes ==  self.plot_axes:
-             if self.toolbarMode == "zoom rect":
-                 action: QAction = self.toolbar._actions.get( "zoom", None)
-                 if action:
-                     action.toogle()
-                     action.setChecked( False )
-             elif self.toolbarMode == "pan rect":
-                 action: QAction = self.toolbar._actions.get( "pan", None)
-                 if action:
-                     action.toogle()
-                     action.setChecked(False)
+             if   self.toolbarMode == "zoom rect":   self.toolbar.zoom()
+             elif self.toolbarMode == "pan/zoom":    self.toolbar.pan()
 
         #         for listener in self.navigation_listeners:
         #             listener.set_axis_limits( self.plot_axes.get_xlim(), self.plot_axes.get_ylim() )

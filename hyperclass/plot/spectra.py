@@ -47,9 +47,10 @@ class SpectralPlot:
         self.axes.clear()
 
     def clear_current_line(self):
-        index, line = self.lines.popitem()
-        line.remove()
-        self.current_line = None
+        if self.current_line is not None:
+            index, line = self.lines.popitem()
+            line.remove()
+            self.current_line = None
 
     def remove_spectrum(self, index: int ):
         line: Line2D = self.lines[ index ]
