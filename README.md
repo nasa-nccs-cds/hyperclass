@@ -24,6 +24,13 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 >> conda activate hyperclass``
 (hyperclass)>> conda install -c rapidsai -c nvidia -c conda-forge -c defaults rapids matplotlib pynndescent  rasterio  rioxarray  pyqt vtk googlemaps requests responses pyproj umap-learn scikit-image
 ```
+
+#### GeoProc environment 
+``` 
+>> conda create --name geohyperclass python=3.6
+>> conda activate geohyperclass``
+(hyperclass)>> conda install -c conda-forge xarray dask matplotlib pynndescent numpy rasterio scikit-image umap-learn scipy scikit-learn rioxarray numba pyqt vtk googlemaps requests responses pyproj python-wget utm bottleneck geopandas regionmask shapely 
+```
 #### Google Maps Access
   To access google maps you must obtain an API key: <https://cloud.google.com/docs/authentication/api-keys>
   

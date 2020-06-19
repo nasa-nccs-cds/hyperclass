@@ -1,19 +1,17 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QSize, QCoreApplication, QSettings
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas, ReferenceImageCanvas
-from .config import PreferencesDialog
+from hyperclass.data.aviris.config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.aviris.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
-from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.plot.labels import format_colors
 from hyperclass.gui.points import VTKFrame, MixingFrame
-from typing import List, Union, Dict, Callable, Tuple, Optional
+from typing import List, Union, Tuple
 
 
 class HyperclassConsole(QMainWindow):
