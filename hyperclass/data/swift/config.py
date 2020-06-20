@@ -23,10 +23,11 @@ class PrepareInputsDialog(QDialog):
         self.setLayout(mainLayout)
         self.resize( 800, 400)
 
-    def createSettingInputField(self, label_text, settings_key ) -> QLayout:
+    def createSettingInputField(self, label_text, settings_key, hidden=False ) -> QLayout:
         layout = QHBoxLayout()
         init_value = self.settings.value( settings_key )
         textField = QLineEdit( init_value )
+        if hidden: textField.setEchoMode(QLineEdit.Password)
         label = QLabel( label_text )
         label.setBuddy( textField )
         layout.addWidget( label )
