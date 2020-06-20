@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from hyperclass.gui.application import HyperclassConsole
+from hyperclass.data.aviris.application import HyperclassConsole
 from hyperclass.data.aviris.manager import dataManager
 import sys
 

@@ -29,7 +29,8 @@ def prepare_inputs():
     data_vars['scaled_spectra'] = xa.DataArray( scaled_spectra, dims=['samples','bands'], coords=dict( samples=samples, bands=bands ) )
 
     dataset = xa.Dataset( data_vars, coords=dict( samples=samples, bands=bands ) )
-    output_file = os.path.join( dataManager.config.value('data/cache'), "swift_spectra.nc" )
+    dsid = dataManager.config.value('dataset/id', PrepareInputsDialog.DSID )
+    output_file = os.path.join( dataManager.config.value('data/cache'), dsid + ".nc" )
     print( f"Writing output to {output_file}")
     dataset.to_netcdf( output_file )
 

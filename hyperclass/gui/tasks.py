@@ -1,4 +1,4 @@
-from typing import List, Union, Dict, Callable, Tuple, Optional
+from typing import Dict, Tuple, Optional
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -102,7 +102,7 @@ class TaskRunner(QObject):
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
     def start(self, task: Task, message: str, **kwargs ):
-        from hyperclass.gui.application import HyperclassConsole
+        from hyperclass.data.aviris.application import HyperclassConsole
         if message not in self.executing_tasks:
             print(f"Task[{task.context}] running: {message}")
             self.executing_tasks.append( message )

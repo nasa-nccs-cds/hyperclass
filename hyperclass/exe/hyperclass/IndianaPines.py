@@ -1,6 +1,5 @@
 from PyQt5 import QtWidgets
-from hyperclass.gui.application import HyperclassConsole
-from typing import List, Union, Tuple, Optional
+from hyperclass.data.aviris.application import HyperclassConsole
 import sys
 
 ref_file = "/Users/tpmaxwel/Dropbox/Tom/Data/Aviris/IndianPines/documentation/Site3_Project_and_Ground_Reference_Files/19920612_AVIRIS_IndianPine_Site3_gr.tif"

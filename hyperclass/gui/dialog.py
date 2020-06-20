@@ -12,12 +12,13 @@ class DialogBase(QDialog):
     def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
         super(DialogBase, self).__init__(None)
         self.callback = callback
+        self.scope = scope
         self.settings: QSettings = dataManager.getSettings( scope )
         self.mainLayout = QVBoxLayout()
         self.addContent()
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect( self.save )
-        self.buttonBox.rejected.connect(self.cancel)
+        self.buttonBox.rejected.connect( self.cancel )
         self.mainLayout.addWidget( self.buttonBox )
         self.setLayout(self.mainLayout)
         self.resize( 800, 400)
@@ -39,9 +40,12 @@ class DialogBase(QDialog):
         comboBox.currentIndexChanged.connect( selectionchange )
         return sizeSelectorLayout
 
-    def createSettingInputField(self, label_text, settings_key, hidden=False ) -> QLayout:
+    def createSettingInputField(self, label_text, settings_key, default_value = None, hidden=False ) -> QLayout:
         layout = QHBoxLayout()
-        init_value = self.settings.value( settings_key )
+        init_value = self.settings.value( settings_key, None )
+        if init_value is None:
+            init_value = default_value
+            self.settings.setValue( settings_key, init_value )
         textField = QLineEdit( init_value )
         if hidden: textField.setEchoMode(QLineEdit.Password)
         label = QLabel( label_text )
