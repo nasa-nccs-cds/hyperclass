@@ -3,7 +3,6 @@ import xarray as xa
 import numpy as np
 import pickle, os
 
-input_file_ids = [ "obsids", "specs", "scaled_specs", "target_names", 'spectra_x_axis' ]
 data_vars = dict( )
 
 obsids = dataManager.getInputFileData( "obsids" )
