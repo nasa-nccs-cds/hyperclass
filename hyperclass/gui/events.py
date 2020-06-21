@@ -1,11 +1,8 @@
 import abc
-import xarray as xa
-import numpy as np
-from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtCore import *
 from enum import Enum
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
-import time, math, atexit, os
+import time, math, os
 
 class EventMode(Enum):
     Foreground = 1
@@ -17,8 +14,10 @@ class EventClient:
 
     def __init__(self, **kwargs):
         eventCentral.addClient( self )
-        self.process_event = pyqtSignal()
-        self.process_event.connect( self.processEvent )
+
+    @pyqtSlot(dict)
+    def gui_process_event(self, event: Dict):
+        self.processEvent( event )
 
     @abc.abstractmethod
     def processEvent(self, event: Dict ):
@@ -36,13 +35,14 @@ class EventCentral:
         self._clients.append( client )
 
     def submitEvent(self, event: Dict, mode: EventMode ):
+        from hyperclass.gui.tasks import taskRunner, Task
         for client in self._clients:
             if mode == EventMode.Foreground:
                 client.processEvent(event)
             elif mode == EventMode.Background:
-                task = Task( client.processEvent, event )
-                taskRunner.start(task, f"Submitting event: {event}")
+                task = Task(  f"Submitting event: {event}", client.processEvent, event )
+                taskRunner.start( task )
             elif mode == EventMode.Gui:
-                client.process_event.emit( event )
+                client.gui_process_event(event)
 
 eventCentral = EventCentral()

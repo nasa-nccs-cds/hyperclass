@@ -1,26 +1,12 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Callable
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from functools import partial
 import traceback, sys
+from hyperclass.gui.events import EventClient, EventMode
 
-class TaskSignals(QObject):
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    message = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
-
-class Callbacks:
-
-    def __init__(self, args: Dict ):
-        self.progress_callback = args.pop('progress_callback', None)
-        self.error_callback = args.pop('error_callback', None)
-        self.finished_callback = args.pop('finished_callback', None)
-        self.message_callback = args.pop('message_callback', None)
-
-class Task(QRunnable):
+class Task(QRunnable,EventClient):
     '''
     Worker thread
 
@@ -33,19 +19,14 @@ class Task(QRunnable):
 
     '''
 
-    def __init__(self, fn, *args, **kwargs):
-        super(Task, self).__init__()
+    def __init__(self, label: str, fn: Callable, *args, **kwargs):
+        QRunnable.__init__(self)
+        EventClient.__init__(self)
+        self.label = label
         self.fn = fn
         self.args = args
         self.context = kwargs.pop('task_context','console')
         self.kwargs = kwargs
-        self.signals = TaskSignals()
-
-        # Add the callback to our kwargs
-        self.kwargs['progress_callback'] = self.signals.progress
-        self.kwargs['error_callback'] = self.signals.error
-        self.kwargs['finished_callback'] = self.signals.finished
-        self.kwargs['message_callback'] = self.signals.message
 
     def id(self):
         return f"{id(self.fn):0X}{id(self.args):0X}{id(self.kwargs):0X}"
@@ -53,24 +34,17 @@ class Task(QRunnable):
     @pyqtSlot()
     def run(self):
         try:
+            self.submitEvent(dict( event='task', type='start', label=self.label), EventMode.Gui)  # Done
             result = self.fn(*self.args, **self.kwargs)
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            self.signals.error.emit((exctype, value, traceback.format_exc()))
+            event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc() )
+            self.submitEvent(  event, EventMode.Gui )
         else:
-            self.signals.result.emit(result)  # Return the result of the processing
+            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Gui )  # Return the result of the processing
         finally:
-            self.signals.finished.emit()  # Done
-
-    @classmethod
-    def mainWindow(cls) -> Optional[QMainWindow]:
-        # Global function to find the (open) QMainWindow in application
-        app = QApplication.instance()
-        for widget in app.topLevelWidgets():
-            if isinstance(widget, QMainWindow):
-                return widget
-        return None
+            self.submitEvent(  dict( event='task', type='completed', label=self.label ), EventMode.Gui )  # Done
 
     @classmethod
     def showErrorMessage(cls, msg: str ):
@@ -78,12 +52,12 @@ class Task(QRunnable):
         error_dialog.showMessage( msg )
 
     @classmethod
-    def showMessage(cls, title: str, caption: str, message: str, icon  ):  # QMessageBox.Critical QMessageBox.Information QMessageBox.Warning
+    def showMessage(cls, title: str, caption: str, label: str, icon  ):  # QMessageBox.Critical QMessageBox.Information QMessageBox.Warning
         msg_dialog = QtWidgets.QMessageBox()
         msg_dialog.setIcon( icon )
         msg_dialog.setText( caption )
         msg_dialog.setMinimumSize(400,100)
-        msg_dialog.setInformativeText(message)
+        msg_dialog.setInformativeText(label)
         msg_dialog.setWindowTitle(title)
         msg_dialog.exec_()
 
@@ -93,7 +67,7 @@ class Task(QRunnable):
         if message_callback is not None:  message_callback.emit( ( "Task Not Available", caption, msg,  QMessageBox.Warning ) )
         else:                             cls.showMessage("Task Not Available", caption, msg,  QMessageBox.Warning )
 
-class TaskRunner(QObject):
+class TaskRunner(EventClient):
 
     def __init__(self, *args, **kwargs):
         super(TaskRunner, self).__init__()
@@ -101,21 +75,13 @@ class TaskRunner(QObject):
         self.executing_tasks = []
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-    def start(self, task: Task, message: str, **kwargs ):
-        from hyperclass.data.aviris.application import HyperclassConsole
-        if message not in self.executing_tasks:
-            print(f"Task[{task.context}] running: {message}")
-            self.executing_tasks.append( message )
-            hyperclass: HyperclassConsole = Task.mainWindow()
-            hyperclass.showMessage( message )
-            task.signals.finished.connect( partial( hyperclass.refresh, message, task.context, **kwargs ) )
-            task.signals.finished.connect( partial( self.complete, message ) )
-            task.signals.message.connect( kwargs.get( "message_callback", self.message ) )
-            task.signals.error.connect(kwargs.get("error_callback", self.error))
-            print(f"Task[{task.context}] starting: {message}")
+    def start(self, task: Task, **kwargs ):
+        if task.label not in self.executing_tasks:
+            print(f"Task[{task.context}] running: {task.label}")
+            self.executing_tasks.append( task.label )
             self.threadpool.start(task)
         else:
-            print( f"Task already running: {message}")
+            print( f"Task already running: {task.label}")
 
     def message(self, message: Tuple ):
         Task.showMessage( *message )
@@ -127,8 +93,11 @@ class TaskRunner(QObject):
     def kill_all_tasks(self):
         self.threadpool.clear()
 
-    def complete( self, message, **kwargs ):
-        self.executing_tasks.remove( message )
-        print(f"Task completed: {message}")
+    def processEvent( self, event, **kwargs ) :
+        if event.get('event') == 'task':
+            if event.get('type') == 'finished':
+                label = event.get('label')
+                self.executing_tasks.remove( label )
+                print(f"Task completed: {label}")
 
 taskRunner = TaskRunner()

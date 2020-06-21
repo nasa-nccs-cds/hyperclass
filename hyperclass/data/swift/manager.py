@@ -6,7 +6,6 @@ from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
-from hyperclass.gui.tasks import taskRunner, Task, Callbacks
 import os, math, pickle
 
 QCoreApplication.setOrganizationName("ilab")

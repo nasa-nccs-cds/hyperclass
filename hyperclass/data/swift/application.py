@@ -1,5 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
+
+from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import SpectralPlotCanvas
 from hyperclass.gui.directory import DirectoryWidget
@@ -18,9 +20,10 @@ import xarray as xa
 import os
 
 
-class SwiftConsole(QMainWindow):
+class SwiftConsole(EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
-        QMainWindow.__init__(self)
+        EventClient.__init__( self, **kwargs )
+        self.gui = QMainWindow()
         self.umgr = UMAPManager( format_colors(classes) )
         self.title = 'swiftclass'
         self.left = 10
@@ -35,32 +38,32 @@ class SwiftConsole(QMainWindow):
         self.fileChanged = True
         self.initSettings(kwargs)
 
-        self.setWindowTitle(self.title)
-        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.gui.setWindowTitle(self.title)
+        self.gui.setGeometry(self.left, self.top, self.width, self.height)
 
         self.showMessage('Ready')
 
-        mainMenu = self.menuBar()
+        mainMenu = self.gui.menuBar()
         mainMenu.setNativeMenuBar(False)
         fileMenu = mainMenu.addMenu('File')
         helpMenu = mainMenu.addMenu('Help')
 
         self.load_dataset = fileMenu.addMenu("Load Dataset")
 
-        prefButton = QAction( 'Preferences', self)
+        prefButton = QAction( 'Preferences', self.gui )
         prefButton.setShortcut('Ctrl+P')
         prefButton.setStatusTip('Set application configuration parameters')
         prefButton.triggered.connect( self.setPreferences )
         fileMenu.addAction(prefButton)
 
-        exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
+        exitButton = QAction(QIcon('exit24.png'), 'Exit', self.gui )
         exitButton.setShortcut('Ctrl+Q')
         exitButton.setStatusTip('Exit application')
-        exitButton.triggered.connect(self.close)
+        exitButton.triggered.connect(self.gui.close)
         fileMenu.addAction(exitButton)
 
-        widget =  QWidget(self)
-        self.setCentralWidget(widget)
+        widget =  QWidget( self.gui )
+        self.gui.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)
 
         framesLayout = QHBoxLayout()
@@ -75,7 +78,7 @@ class SwiftConsole(QMainWindow):
         framesLayout.addLayout(vizLayout, 7)
 
         self.vtkFrame = VTKFrame( self.umgr )
-        self.directoryConsole = DirectoryWidget( self, **kwargs )
+        self.directoryConsole = DirectoryWidget( self.gui, **kwargs )
         self.vtkFrame.addEventListener(self.directoryConsole)
         self.spectral_plot = SpectralPlot()
         self.spectralPlot = SpectralPlotCanvas( widget, self.spectral_plot )
@@ -103,13 +106,13 @@ class SwiftConsole(QMainWindow):
         for file in os.listdir(directory):
             if file.endswith(".nc"):
                 dsid = file[:-3]
-                menuButton = QAction( dsid, self )
+                menuButton = QAction( dsid, self.gui )
                 menuButton.setStatusTip(f"Load Dataset {dsid}")
                 menuButton.triggered.connect( partial(self.runLoadDataset, dsid ))
                 self.load_dataset.addAction(menuButton)
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
-        menuButton = QAction(menuItem[0], self)
+        menuButton = QAction(menuItem[0], self.gui )
         if menuItem[1] is not None: menuButton.setShortcut(menuItem[1])
         if menuItem[2] is not None: menuButton.setStatusTip(menuItem[2])
         menuButton.triggered.connect(menuItem[3])
@@ -126,31 +129,25 @@ class SwiftConsole(QMainWindow):
         preferences.show()
 
     def runLoadDataset( self, dsid: str, **kwargs ):
-        taskRunner.start(Task(self.loadDataset, dsid, **kwargs), f"Load Dataset {dsid}")
+        taskRunner.start( Task( f"Load Dataset {dsid}", self.loadDataset, dsid, **kwargs) )
 
-    def loadDataset( self, dsid: str, *args, **kwargs ):
+    def loadDataset( self, dsid: str, *args, **kwargs ) -> xa.Dataset:
         data_dir = dataManager.config.value('data/cache')
         data_file = os.path.join( data_dir, dsid + ".nc" )
         dataset: xa.Dataset = xa.open_dataset( data_file )
         print( f"Opened Dataset {dsid} from file {data_file}")
+        return dataset
 
     def loadCurrentDataset(self):
         dsid = dataManager.config.value("dataset/id",None)
         if dsid is not None: self.loadDataset( dsid )
 
-    def openFile(self, fileName: str, **kwargs ):
-        print( f"Opening file: {fileName}")
-        dataManager.setImageName( fileName )
-        block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
-        self.setBlock( block_indices, **kwargs )
-        self.fileChanged = True
-
     def tabShape(self) -> QTabWidget.TabShape:
-        return super().tabShape()
+        return self.gui.tabShape()
 
     def showMessage( self, message: str ):
         self.message_stack.append( message )
-        self.statusBar().showMessage(message)
+        self.gui.statusBar().showMessage(message)
 
     def refresh( self, message, task_context: str,  **kwargs ):
         self.message_stack.remove( message )
@@ -173,8 +170,9 @@ class SwiftConsole(QMainWindow):
         except AttributeError: pass
 
     def show(self):
-        QMainWindow.show(self)
+        self.gui.show()
         self.vtkFrame.Initialize()
+        self.submitEvent( dict( event="show" ), EventMode.Gui )
         self.loadCurrentDataset()
 
 

@@ -6,7 +6,6 @@ from typing import List, Union, Tuple, Optional, Dict
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
-from hyperclass.gui.tasks import taskRunner, Task, Callbacks
 import os, math, pickle
 import rioxarray as rio
 
@@ -347,7 +346,6 @@ class DataManager:
     @classmethod
     def plotRaster(cls, raster: xa.DataArray, **kwargs ):
         from matplotlib.colorbar import Colorbar
-        callbacks = Callbacks( kwargs )
         ax = kwargs.pop( 'ax', None )
         showplot = ( ax is None )
         if showplot: fig, ax = plt.subplots(1,1)

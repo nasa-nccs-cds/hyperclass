@@ -1,6 +1,5 @@
 import matplotlib.widgets
 import matplotlib.patches
-from hyperclass.gui.tasks import taskRunner, Task, Callbacks
 from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from hyperclass.data.google import GoogleMaps
 from hyperclass.plot.spectra import SpectralPlot
@@ -256,8 +255,8 @@ class LabelingConsole:
             self.plot_axes.set_ylim( self.block.ylim )
 
     def run_task(self, executable: Callable, messsage: str, *args, **kwargs ):
-        task = Task( executable, *args, **kwargs )
-        taskRunner.start( task, messsage )
+        task = Task( messsage, executable, *args, **kwargs )
+        taskRunner.start( task )
 
     def computeMixingSpace(self, *args, **kwargs):
         labels: xa.DataArray = self.getExtendedLabelPoints()
@@ -296,7 +295,6 @@ class LabelingConsole:
     def apply_classification( self, *args, **kwargs ):
         embedding: Optional[xa.DataArray] = self.umgr.apply( self.block, **kwargs )
         if embedding is not None:
-            callbacks = Callbacks( kwargs )
             prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
             sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
             self.plot_label_map( sample_labels )
@@ -452,7 +450,7 @@ class LabelingConsole:
         self.clear_transients()
         if transient: self.transients = [ marker ]
         self.marker_list.append( marker )
-        taskRunner.start( Task( self.plot_marker, marker ), f"Plot marker at {marker['y']} {marker['x']}" )
+        taskRunner.start( Task( f"Plot marker at {marker['y']} {marker['x']}", self.plot_marker, marker ) )
         self.plot_markers_image( **kwargs )
         self.plot_spectrum( marker )
 
@@ -470,8 +468,8 @@ class LabelingConsole:
             self.update_marker_plots( **kwargs )
 
     def update_marker_plots( self, **kwargs ):
-        taskRunner.start( Task(self.plot_markers_image, **kwargs ), f"Plot markers" )
-        taskRunner.start( Task(self.plot_markers_volume, reset=True, **kwargs ), f"Plot markers")
+        taskRunner.start( Task( f"Plot markers", self.plot_markers_image, **kwargs )  )
+        taskRunner.start( Task( f"Plot markers", self.plot_markers_volume, reset=True, **kwargs ))
 
     def spread_labels(self, *args, **kwargs):
         if self.block is None:
@@ -496,7 +494,7 @@ class LabelingConsole:
             self.labels_image.set_alpha(class_alpha  )
 
         self.labels_image.set_extent( extent )
-        taskRunner.start( Task( self.color_pointcloud, sample_labels), "Plot labels" )
+        taskRunner.start( Task( "Plot labels", self.color_pointcloud, sample_labels)  )
 
     def show_labels(self):
         if self.labels_image is not None:

@@ -210,7 +210,7 @@ class SatellitePlotCanvas(FigureCanvas):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 for listener in self.mouse_listeners:
                     event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button), transient=rightButton )
-                    listener.process_event(event)
+                    listener.gui_process_event(event)
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()
@@ -256,7 +256,7 @@ class ReferenceImageCanvas(FigureCanvas):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 for listener in self.mouse_listeners:
                     event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button), label=ic, transient=rightButton )
-                    listener.process_event(event)
+                    listener.gui_process_event(event)
 
 
     def mpl_update(self):

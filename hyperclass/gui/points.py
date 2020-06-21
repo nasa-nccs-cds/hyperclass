@@ -37,7 +37,7 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
             if self.debug: print( f"Picked point {picked_point}")
             for listener in self.event_listeners:
                 event = dict( event="pick", type="vtkpoint", pid=picked_point, transient=True )
-                listener.process_event(event)
+                listener.gui_process_event(event)
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 

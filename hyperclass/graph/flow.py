@@ -17,8 +17,8 @@ class ActivationFlow:
         self.C: ma.MaskedArray = None
         self.reset = True
         self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
-        self.init_task = Task( self.setNodeData, nodes_data, **kwargs )
-        taskRunner.start( self.init_task, f"Compute NN graph" )
+        self.init_task = Task( f"Compute NN graph", self.setNodeData, nodes_data, **kwargs )
+        taskRunner.start( self.init_task )
 
     def clear(self):
         self.reset = True

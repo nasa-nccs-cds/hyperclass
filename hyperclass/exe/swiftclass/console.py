@@ -10,5 +10,5 @@ classes = [ ('Type 1', [1.0, 1.0, 0.0, 1.0]),
 
 app = QtWidgets.QApplication(sys.argv)
 swiftclass = SwiftConsole( classes )
-swiftclass.show()
+swiftclass.gui.show()
 sys.exit(app.exec_())

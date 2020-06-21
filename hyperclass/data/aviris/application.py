@@ -110,7 +110,7 @@ class HyperclassConsole(QMainWindow):
         if filename is not None:
             buttonReply = QMessageBox.question( self, 'Hyperclass Initialization', "Load current block?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
             if buttonReply == QMessageBox.Yes:
-                taskRunner.start(Task(self.openFile, filename, **kwargs), f"Load Data File")
+                taskRunner.start(Task(f"Load Data File", self.openFile, filename, **kwargs))
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
@@ -154,10 +154,10 @@ class HyperclassConsole(QMainWindow):
                     self.load_tile.addAction(menuButton)
 
     def runSetBlock( self, coords, **kwargs ):
-        taskRunner.start( Task(self.setBlock, coords,  **kwargs ), "Loading block" )
+        taskRunner.start( Task("Loading block", self.setBlock, coords,  **kwargs ) )
 
     def runSetTile( self, coords, **kwargs ):
-        taskRunner.start( Task(self.setTile, coords,  **kwargs ), "Loading tile" )
+        taskRunner.start( Task("Loading tile", self.setTile, coords,  **kwargs ) )
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self)
@@ -183,7 +183,7 @@ class HyperclassConsole(QMainWindow):
         dialog.setViewMode(QFileDialog.Detail)
         if (dialog.exec()):
             fileNames = dialog.selectedFiles()
-            taskRunner.start(Task(self.openFile, fileNames[0], **kwargs), f"Load Data File")
+            taskRunner.start(Task(f"Load Data File", self.openFile, fileNames[0], **kwargs))
         dialog.close()
 
     def openFile(self, fileName: str, **kwargs ):
@@ -236,7 +236,7 @@ class HyperclassConsole(QMainWindow):
         if current_tile_coords is None or current_tile_coords != tile_coords:
             dataManager.config.setValue( "tile/indices", tile_coords )
             filename = dataManager.config.value("data/init/file", None)
-            if filename is not None: taskRunner.start(Task(self.openFile, filename, **kwargs), f"Load New Tile")
+            if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )
 
     def setBlock(self, block_coords: Tuple[int], **kwargs ):
         block = self.labelingConsole.setBlock( block_coords, **kwargs )
