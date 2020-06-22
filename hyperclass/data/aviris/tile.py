@@ -95,17 +95,8 @@ class Block:
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
         self._point_data = None
 
-    def flow_init( self, **kwargs ):
-        if self._flow is None:
-            n_neighbors = self.config.pop( 'n_neighbors', self.iparm('umap/nneighbors') )
-            print( f"Computing NN graph using {n_neighbors} neighbors")
-            point_data = self.getPointData()
-            self._flow = ActivationFlow( point_data, n_neighbors=n_neighbors,  **self.config )
-
-    @property
-    def flow(self):
-        self.flow_init()
-        return self._flow
+    def mid( self,  ndim: int = 3 ):
+        return "-".join( [ str(i) for i in [ ndim, *self.block_coords ]] )
 
     def _getData( self ) -> Optional[xa.DataArray]:
         if self.tile.data is None: return None

@@ -3,7 +3,6 @@ import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from hyperclass.data.aviris.tile import Tile, Block
-from hyperclass.umap.manager import UMAPManager
 from hyperclass.plot.point_cloud import PointCloud
 from collections import OrderedDict
 
@@ -88,32 +87,18 @@ class VTKWidget(QVTKRenderWindowInteractor):
             QVTKRenderWindowInteractor.keyPressEvent(self, ev)
         except TypeError: pass
 
-class MainWindow(QtWidgets.QMainWindow):
-
-    def __init__(self, umgr: UMAPManager, parent=None):
-        QtWidgets.QMainWindow.__init__(self, parent)
-        self.frame = VTKFrame( umgr )
-        self.setCentralWidget(self.frame)
-
-    def show(self):
-        QtWidgets.QMainWindow.show(self)
-        self.frame.Initialize()
-
-    def initPlot( self, block: Block, class_colors: OrderedDict, **kwargs ):
-        self.frame.initPlot( block, class_colors, **kwargs )
-
 class VTKFrame(QtWidgets.QFrame):
 
-    def __init__( self, umgr: UMAPManager  ):
+    def __init__( self, point_cloud: PointCloud  ):
         QtWidgets.QFrame.__init__( self  )
-        self.umgr = umgr
+        self.point_cloud = point_cloud
         self.vl = QtWidgets.QVBoxLayout()
         self.vtkWidget = VTKWidget(self)
         self.vl.addWidget(self.vtkWidget)
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
-        self.iren.addEventListener( self.umgr.point_cloud )
+        self.iren.addEventListener( self.point_cloud )
 
     def addEventListener( self, listener ):
         self.iren.addEventListener( listener )
@@ -127,42 +112,42 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Start()
 
     def update(self, **kwargs ):
-        self.umgr.point_cloud.createActor(self.renderer)
-        self.umgr.point_cloud.update()
+        self.point_cloud.createActor(self.renderer)
+        self.point_cloud.update()
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
 
-class MixingFrame(QtWidgets.QFrame):
-
-    def __init__( self, umgr: UMAPManager  ):
-        QtWidgets.QFrame.__init__( self  )
-        self.umgr = umgr
-        self.vl = QtWidgets.QVBoxLayout()
-        self.vtkWidget = VTKWidget(self)
-        self.vl.addWidget(self.vtkWidget)
-        self.renderer = vtk.vtkRenderer()
-        self.vtkWidget.setRenderer( self.renderer )
-        self.setLayout(self.vl)
-        self.iren.addEventListener( self.umgr.point_cloud )
-
-    def addEventListener( self, listener ):
-        self.iren.addEventListener( listener )
-
-    @property
-    def iren(self):
-        return self.vtkWidget.iren
-
-    def Initialize(self):
-        self.iren.Initialize()
-        self.iren.Start()
-
-    def update(self, **kwargs ):
-        self.umgr.mixing_space.createActor(self.renderer)
-        self.umgr.mixing_space.update()
-        self.vtkWidget.Render()
-        QtWidgets.QFrame.update(self)
-
-
+# class MixingFrame(QtWidgets.QFrame):
+#
+#     def __init__( self, umgr: UMAPManager  ):
+#         QtWidgets.QFrame.__init__( self  )
+#         self.umgr = umgr
+#         self.vl = QtWidgets.QVBoxLayout()
+#         self.vtkWidget = VTKWidget(self)
+#         self.vl.addWidget(self.vtkWidget)
+#         self.renderer = vtk.vtkRenderer()
+#         self.vtkWidget.setRenderer( self.renderer )
+#         self.setLayout(self.vl)
+#         self.iren.addEventListener( self.umgr.point_cloud )
+#
+#     def addEventListener( self, listener ):
+#         self.iren.addEventListener( listener )
+#
+#     @property
+#     def iren(self):
+#         return self.vtkWidget.iren
+#
+#     def Initialize(self):
+#         self.iren.Initialize()
+#         self.iren.Start()
+#
+#     def update(self, **kwargs ):
+#         self.umgr.mixing_space.createActor(self.renderer)
+#         self.umgr.mixing_space.update()
+#         self.vtkWidget.Render()
+#         QtWidgets.QFrame.update(self)
+#
+#
 
 
 

@@ -15,7 +15,7 @@ from functools import partial
 from hyperclass.plot.labels import format_colors
 from hyperclass.gui.points import VTKFrame
 from hyperclass.plot.spectra import SpectralPlot
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 import xarray as xa
 import os
 
@@ -32,11 +32,11 @@ class SwiftConsole(EventClient):
         self.height = 1080
         self.NFunctionButtons = 0
         self.directoryConsole = None
-        self.vtkFrame = None
         self.message_stack = []
         self.newfig : Figure = None
         self.fileChanged = True
         self.initSettings(kwargs)
+        self.activate_event_listening()
 
         self.gui.setWindowTitle(self.title)
         self.gui.setGeometry(self.left, self.top, self.width, self.height)
@@ -73,22 +73,21 @@ class SwiftConsole(EventClient):
         vlay.addLayout(buttonsLayout)
 
         consoleLayout = QVBoxLayout()
-        framesLayout.addLayout(consoleLayout, 10)
+        framesLayout.addLayout( consoleLayout, 10 )
         vizLayout = QVBoxLayout()
-        framesLayout.addLayout(vizLayout, 7)
+        framesLayout.addLayout( vizLayout, 8 )
 
-        self.vtkFrame = VTKFrame( self.umgr )
         self.directoryConsole = DirectoryWidget( self.gui, **kwargs )
-        self.vtkFrame.addEventListener(self.directoryConsole)
         self.spectral_plot = SpectralPlot()
         self.spectralPlot = SpectralPlotCanvas( widget, self.spectral_plot )
 
-        consoleLayout.addWidget(self.directoryConsole)
-        vizTabs = QTabWidget()
-        vizTabs.addTab(  self.vtkFrame, "Embedding" )
+        consoleLayout.addWidget(self.directoryConsole, 10 )
+        consoleLayout.addWidget( self.spectralPlot, 6 )
 
-        vizLayout.addWidget( vizTabs, 15 )
-        vizLayout.addWidget( self.spectralPlot, 5 )
+        vizTabs = QTabWidget()
+        vizTabs.addTab(  self.umgr.gui(), "Embedding" )
+        vizLayout.addWidget( vizTabs )
+
         self.populate_load_menues()
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
@@ -136,6 +135,8 @@ class SwiftConsole(EventClient):
         data_file = os.path.join( data_dir, dsid + ".nc" )
         dataset: xa.Dataset = xa.open_dataset( data_file )
         print( f"Opened Dataset {dsid} from file {data_file}")
+        dataset.attrs['dsid'] = dsid
+        dataset.attrs['type'] = 'spectra'
         return dataset
 
     def loadCurrentDataset(self):
@@ -149,19 +150,12 @@ class SwiftConsole(EventClient):
         self.message_stack.append( message )
         self.gui.statusBar().showMessage(message)
 
-    def refresh( self, message, task_context: str,  **kwargs ):
+    def refresh( self, message,  **kwargs ):
         self.message_stack.remove( message )
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
-        if task_context == "console":
-            self.refresh_points( **kwargs )
-            self.refresh_images( **kwargs )
-        else:
-            print( f"Warning, unknown task type: {task_context}, doing nothing for refresh.")
-
-    def refresh_points( self, **kwargs ):
-        if self.vtkFrame is not None:
-            self.vtkFrame.update( **kwargs )
+        self.umgr.update()
+        self.refresh_images( **kwargs )
 
     def refresh_images( self, **kwargs ):
         try: self.directoryConsole.mpl_update()
@@ -171,8 +165,14 @@ class SwiftConsole(EventClient):
 
     def show(self):
         self.gui.show()
-        self.vtkFrame.Initialize()
         self.submitEvent( dict( event="show" ), EventMode.Gui )
         self.loadCurrentDataset()
+
+    def processEvent(self, event: Dict ):
+        if event.get('event') == 'task':
+            if event.get('type') == 'completed':
+                print( "SwiftConsole: refreshing panels on task completion")
+                self.refresh( event.get('label') )
+
 
 

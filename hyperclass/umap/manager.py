@@ -1,30 +1,56 @@
 import xarray as xa
 import time, pickle
 import numpy as np
+
+from hyperclass.graph.flow import activationFlowManager
+from hyperclass.gui.events import EventClient, EventMode
+from hyperclass.gui.points import VTKFrame
 from hyperclass.umap.model import UMAP
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
-from hyperclass.plot.mixing import MixingSpace
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
-class UMAPManager:
+class UMAPManager(EventClient):
 
     def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
+        EventClient.__init__( self, **kwargs )
+        self.point_cloud: PointCloud = PointCloud( **kwargs )
+        self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
-        self.point_cloud: PointCloud = PointCloud( **kwargs )
-        self.mixing_space: MixingSpace = MixingSpace( **kwargs )
         self.setClassColors( [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + class_labels )
 
-    def mid( self, block: Block, ndim: int = 3 ):
-        return "-".join( [ str(i) for i in [ ndim, *block.block_coords ]] )
+    def gui( self ):
+        if self._gui is None:
+            self._gui = VTKFrame( self.point_cloud )
+            self.activate_event_listening()
+        return self._gui
+
+    def processEvent( self, event: Dict ):
+        print( f" **** UMAPManager.processEvent: {event}")
+        if event.get('event') == 'task':
+            label: str = event.get('label','')
+            if label.lower().startswith( 'load dataset' ):
+                if event.get('type') == 'result':
+                    result = event.get('result')
+                    if result is not None:
+                        if isinstance( result, Block ):
+                            self.block_embedding(result)
+                        elif isinstance( result, xa.DataArray ):
+                            self.embedding(result)
+                        elif isinstance( result, xa.Dataset ):
+                            dset_type = result.attrs['type']
+                            if dset_type == 'spectra':
+                                point_data: xa.DataArray = result['spectra']
+                                point_data.attrs['dsid'] = result.attrs['dsid']
+                                self.embedding( point_data )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         self.class_labels: List[str] = []
@@ -34,21 +60,24 @@ class UMAPManager:
             color = elem[1] if (len( elem[1] ) == 4) else elem[1] + [1.0]
             self.class_colors[ elem[0] ] = color
         self.point_cloud.set_colormap( self.class_colors )
-        self.mixing_space.set_colormap( self.class_colors )
 
-    def embedding( self, block: Block, ndim: int = 3 ) -> Optional[xa.DataArray]:
-        mapper: UMAP = self.getMapper( block, ndim )
+    def block_embedding( self, block: Block, ndim: int = 3 ) -> Optional[xa.DataArray]:
+        mapper: UMAP = self.getMapper( block.mid( ndim ), ndim )
         if mapper.embedding_ is not None:
-            return self.wrap_embedding( block, mapper.embedding_ )
-        return self.embed( block, ndim = ndim )
+            return self.wrap_embedding( block.getPointData().coords['samples'], mapper.embedding_ )
+        return self.embed( block.getPointData(), ndim = ndim )
 
-    def wrap_embedding(self, block: Block, embedding: np.ndarray, **kwargs )-> xa.DataArray:
-        ax_samples = block.getPointData(**kwargs).coords['samples']
+    def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
+        mapper: UMAP = self.getMapper( point_data.attrs['dsid'], ndim )
+        if mapper.embedding_ is not None:
+            return self.wrap_embedding( point_data.coords['samples'], mapper.embedding_ )
+        return self.embed( point_data, ndim = ndim )
+
+    def wrap_embedding(self, ax_samples: xa.DataArray, embedding: np.ndarray, **kwargs )-> xa.DataArray:
         ax_model = np.arange( embedding.shape[1] )
         return xa.DataArray( embedding, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, block: Block, ndim: int ) -> UMAP:
-        mid = self.mid( block, ndim )
+    def getMapper(self, mid: str, ndim: int ) -> UMAP:
         mapper = self._mapper.get( mid )
         if ( mapper is None ):
             n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
@@ -63,22 +92,20 @@ class UMAPManager:
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
         self.point_cloud.set_point_colors( labels.values, **kwargs )
-        self.mixing_space.set_point_colors( labels.values, **kwargs )
 
     def clear_pointcloud(self):
         self.point_cloud.clear()
-        self.mixing_space.clear()
 
     def update_point_sizes(self, increase: bool  ):
         self.point_cloud.update_point_sizes( increase )
-        self.mixing_space.update_point_sizes( increase )
 
     def learn(self, block: Block, labels: xa.DataArray, ndim: int, **kwargs ) -> Tuple[Optional[xa.DataArray],Optional[xa.DataArray]]:
         from hyperclass.graph.flow import ActivationFlow
         if block.flow.nnd is None:
-            Task.taskNotAvailable("Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+            event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
+            self.submitEvent( event, EventMode.Gui )
             return None, None
-        self.learned_mapping = self.getMapper( block, ndim )
+        self.learned_mapping = self.getMapper( self.mid( block, ndim ), ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         labels_mask = ( labels > 0 )
         filtered_labels: xa.DataArray = labels.where( labels_mask, drop = True )
@@ -94,26 +121,27 @@ class UMAPManager:
             return None
         point_data: xa.DataArray = block.getPointData( **kwargs )
         embedding: np.ndarray = self.learned_mapping.transform( point_data )
-        return self.wrap_embedding( block, embedding )
+        return self.wrap_embedding( point_data.coords['samples'], embedding )
 
-    def computeMixingSpace(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
-        ndim = kwargs.get( "ndim", 3 )
-        t0 = time.time()
-        point_data: xa.DataArray = block.getPointData( **kwargs )
-        t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
-        self.mixing_space.setPoints( point_data, labels )
-        t2 = time.time()
-        print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
+    # def computeMixingSpace(self, block: Block, labels: xa.DataArray = None, **kwargs) -> xa.DataArray:
+    #     ndim = kwargs.get( "ndim", 3 )
+    #     t0 = time.time()
+    #     point_data: xa.DataArray = block.getPointData( **kwargs )
+    #     t1 = time.time()
+    #     print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
+    #     self.mixing_space.setPoints( point_data, labels )
+    #     t2 = time.time()
+    #     print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
 
-    def embed(self, block: Block, labels: xa.DataArray = None, **kwargs) -> Optional[xa.DataArray]:
-        if block.flow.nnd is None:
-            Task.taskNotAvailable("Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+    def embed( self, point_data: xa.DataArray, labels: xa.DataArray = None, **kwargs ) -> Optional[xa.DataArray]:
+        flow = activationFlowManager.getActivationFlow( point_data )
+        if flow.nnd is None:
+            event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
+            self.submitEvent( event, EventMode.Gui )
             return None
         ndim = kwargs.get( "ndim", 3 )
         t0 = time.time()
-        mapper = self.getMapper( block, ndim )
-        point_data: xa.DataArray = block.getPointData( **kwargs )
+        mapper = self.getMapper( point_data.attrs['dsid'], ndim )
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
@@ -121,15 +149,15 @@ class UMAPManager:
             mapper.init = mapper.embedding_
         etype = self.embedding_type.lower()
         if etype == "umap":
-            mapper.embed(point_data.data, block.flow.nnd, labels_data, **kwargs)
+            mapper.embed(point_data.data, flow.nnd, labels_data, **kwargs)
         elif etype == "spectral":
-            mapper.spectral_embed(point_data.data, block.flow.nnd, labels_data, **kwargs)
+            mapper.spectral_embed(point_data.data, flow.nnd, labels_data, **kwargs)
         else: raise Exception( f" Unknown embedding type: {etype}")
         if ndim == 3:
             self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = {mapper.embedding_.shape}")
-        return self.wrap_embedding( block, mapper.embedding_ )
+        return self.wrap_embedding( point_data.coords['samples'], mapper.embedding_ )
 
     @property
     def conf_keys(self) -> List[str]:
@@ -146,24 +174,22 @@ class UMAPManager:
 
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         pindices: np.ndarray  = block.multi_coords2pindex( ycoords, xcoords )
-        mapper = self.getMapper( block, 3 )
+        mapper = self.getMapper( self.mid( block, 3 ), 3 )
         if mapper.embedding_ is not None:
             transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
-            self.mixing_space.plotMarkers( transformed_data.tolist(), colors, **kwargs )
 
     def reset_markers(self):
         self.point_cloud.initMarkers( )
-        self.mixing_space.initMarkers( )
 
     def update(self):
         self.point_cloud.update()
-        self.mixing_space.update()
+        self._gui.update()
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
         ndim = kwargs.get( 'ndim', 3 )
-        mapper = self.getMapper( block, ndim )
+        mapper = self.getMapper( self.mid( block, ndim ), ndim )
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()

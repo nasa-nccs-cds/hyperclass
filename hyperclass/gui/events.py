@@ -13,6 +13,9 @@ class EventClient:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
+        pass
+
+    def activate_event_listening(self):
         eventCentral.addClient( self )
 
     @pyqtSlot(dict)
@@ -40,7 +43,8 @@ class EventCentral:
             if mode == EventMode.Foreground:
                 client.processEvent(event)
             elif mode == EventMode.Background:
-                task = Task(  f"Submitting event: {event}", client.processEvent, event )
+                task_label = ".".join( [ event.get(id,"") for id in [ 'event', 'type', 'label'] ] )
+                task = Task( task_label, client.processEvent, event )
                 taskRunner.start( task )
             elif mode == EventMode.Gui:
                 client.gui_process_event(event)

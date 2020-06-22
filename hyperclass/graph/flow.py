@@ -3,10 +3,29 @@ import numpy as np
 import numpy.ma as ma
 import xarray as xa
 from typing import List, Union, Tuple, Optional
+from hyperclass.gui.events import EventClient
+from hyperclass.data.aviris.manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 import os, time
 
-class ActivationFlow:
+class ActivationFlowManager:
+
+    def __init__( self ):
+        self.instances = {}
+
+    def __getitem__( self, dsid ):
+        return self.instances.get( dsid )
+
+    def getActivationFlow( self, point_data: xa.DataArray, **kwargs ):
+        dsid = point_data.attrs['dsid']
+        return self.instances.setdefault( dsid, self.create_flow( point_data, **kwargs ) )
+
+    def create_flow(self, point_data: xa.DataArray, **kwargs):
+        n_neighbors = kwargs.pop('n_neighbors', dataManager.iparm('umap/nneighbors'))
+        print(f"Computing NN graph using {n_neighbors} neighbors")
+        return ActivationFlow( point_data, n_neighbors=n_neighbors, **kwargs )
+
+class ActivationFlow(EventClient):
 
     def __init__(self, nodes_data: xa.DataArray,  **kwargs ):
         self.nodes: xa.DataArray = None
@@ -17,8 +36,12 @@ class ActivationFlow:
         self.C: ma.MaskedArray = None
         self.reset = True
         self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
-        self.init_task = Task( f"Compute NN graph", self.setNodeData, nodes_data, **kwargs )
-        taskRunner.start( self.init_task )
+        background = kwargs.get( 'background', False )
+        if background:
+            self.init_task = Task( f"Compute NN graph", self.setNodeData, nodes_data, **kwargs )
+            taskRunner.start( self.init_task )
+        else:
+            self.setNodeData( nodes_data, **kwargs )
 
     def clear(self):
         self.reset = True
@@ -94,5 +117,7 @@ class ActivationFlow:
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ]")
         self.reset = False
         return result
+
+activationFlowManager = ActivationFlowManager()
 
 

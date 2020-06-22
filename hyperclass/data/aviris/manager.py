@@ -87,6 +87,9 @@ class DataManager:
             self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
             self.config.setValue('data/init/file', self.image_name)
 
+    def iparm(self, key: str ):
+        return int( self.config.value(key) )
+
     @classmethod
     def root_dir(cls) -> str:
         parent_dirs = pathlib.Path(__file__).parents

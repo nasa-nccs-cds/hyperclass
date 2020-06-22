@@ -3,7 +3,7 @@ from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from functools import partial
-import traceback, sys
+import traceback, sys, time
 from hyperclass.gui.events import EventClient, EventMode
 
 class Task(QRunnable,EventClient):
@@ -35,6 +35,7 @@ class Task(QRunnable,EventClient):
     def run(self):
         try:
             self.submitEvent(dict( event='task', type='start', label=self.label), EventMode.Gui)  # Done
+            t0 = time.time()
             result = self.fn(*self.args, **self.kwargs)
         except:
             traceback.print_exc()
@@ -42,8 +43,10 @@ class Task(QRunnable,EventClient):
             event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc() )
             self.submitEvent(  event, EventMode.Gui )
         else:
-            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Gui )  # Return the result of the processing
+            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Foreground )  # Return the result of the processing
         finally:
+            dt = time.time()-t0
+            print( f"Completed task {self.label} in {dt} sec ({dt/60} min)")
             self.submitEvent(  dict( event='task', type='completed', label=self.label ), EventMode.Gui )  # Done
 
     @classmethod
@@ -60,12 +63,6 @@ class Task(QRunnable,EventClient):
         msg_dialog.setInformativeText(label)
         msg_dialog.setWindowTitle(title)
         msg_dialog.exec_()
-
-    @classmethod
-    def taskNotAvailable(cls, caption: str, msg: str, **kwargs ):
-        message_callback = kwargs.get( 'message_callback', None )
-        if message_callback is not None:  message_callback.emit( ( "Task Not Available", caption, msg,  QMessageBox.Warning ) )
-        else:                             cls.showMessage("Task Not Available", caption, msg,  QMessageBox.Warning )
 
 class TaskRunner(EventClient):
 
@@ -99,5 +96,12 @@ class TaskRunner(EventClient):
                 label = event.get('label')
                 self.executing_tasks.remove( label )
                 print(f"Task completed: {label}")
+        elif event.get('event') == "message":
+            icon = None
+            type: str = event.get('type').lower()
+            if type.startswith('warn'): icon = QMessageBox.Warning
+            elif type.startswith('info'): icon = QMessageBox.Information
+            elif type in ['critical','error']: icon = QMessageBox.Critical
+            Task.showMessage( event.get('title'), event.get('caption'), event.get('label'), icon)
 
 taskRunner = TaskRunner()
