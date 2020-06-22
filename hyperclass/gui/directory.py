@@ -15,7 +15,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 class DirectoryWidget(QWidget):
     def __init__(self, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+        QWidget.__init__(self)
         self.setLayout(QVBoxLayout())
 
     def keyPressEvent( self, event ):

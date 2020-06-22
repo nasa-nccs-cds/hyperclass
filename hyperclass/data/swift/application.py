@@ -24,7 +24,7 @@ class SwiftConsole(EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
         EventClient.__init__( self, **kwargs )
         self.gui = QMainWindow()
-        self.umgr = UMAPManager( format_colors(classes) )
+        self.umgr = UMAPManager( format_colors(classes), **kwargs )
         self.title = 'swiftclass'
         self.left = 10
         self.top = 10
@@ -151,7 +151,8 @@ class SwiftConsole(EventClient):
         self.gui.statusBar().showMessage(message)
 
     def refresh( self, message,  **kwargs ):
-        self.message_stack.remove( message )
+        try: self.message_stack.remove( message )
+        except ValueError: print( f"Atempt to remove unrecognized message: {message}, #msg = {len( self.message_stack )}")
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
         self.umgr.update()

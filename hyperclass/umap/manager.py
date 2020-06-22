@@ -22,6 +22,7 @@ class UMAPManager(EventClient):
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
+        self.subsample = kwargs.pop('subsample', None)
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
@@ -49,6 +50,8 @@ class UMAPManager(EventClient):
                             dset_type = result.attrs['type']
                             if dset_type == 'spectra':
                                 point_data: xa.DataArray = result['spectra']
+                                if self.subsample is not None:
+                                    point_data = point_data[::self.subsample]
                                 point_data.attrs['dsid'] = result.attrs['dsid']
                                 self.embedding( point_data )
 
