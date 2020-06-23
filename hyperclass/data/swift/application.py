@@ -152,7 +152,7 @@ class SwiftConsole(EventClient):
 
     def refresh( self, message,  **kwargs ):
         try: self.message_stack.remove( message )
-        except ValueError: print( f"Atempt to remove unrecognized message: {message}, #msg = {len( self.message_stack )}")
+        except ValueError: print( f"Atempt to remove unrecognized message: {message}, msgs = {self.message_stack}")
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
         self.umgr.update()

@@ -68,7 +68,7 @@ class ActivationFlow(EventClient):
         n_trees = kwargs.get('ntree', 5 + int(round((nodes.shape[0]) ** 0.5 / 20.0)))
         n_iters = kwargs.get('niter', max(5, 2 * int(round(np.log2(nodes.shape[0])))))
         nnd = NNDescent(nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=n_neighbors, max_candidates=60, verbose=True)
-        nnd._init_search_graph()
+#        nnd._init_search_graph()
         return nnd
 
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:

@@ -186,7 +186,6 @@ class UMAPManager(EventClient):
         self.point_cloud.initMarkers( )
 
     def update(self):
-        self.point_cloud.update()
         self._gui.update()
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
