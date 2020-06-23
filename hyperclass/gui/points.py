@@ -114,8 +114,6 @@ class VTKFrame(QtWidgets.QFrame):
     def update(self, **kwargs ):
         self.point_cloud.createActor(self.renderer)
         self.point_cloud.update()
-#        if self.point_cloud.points_modified:
-        self.renderer.ResetCamera()
         self.vtkWidget.Render()
         QtWidgets.QFrame.update(self)
 

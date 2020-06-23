@@ -68,6 +68,7 @@ class PointCloud():
         self.colormap = np.vstack( colors )
         print(".")
 
+
     def keyPressEvent( self, *args ):
         print("YYY")
 
