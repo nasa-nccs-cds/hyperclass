@@ -54,11 +54,15 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
 
 class VTKWidget(QVTKRenderWindowInteractor):
     def __init__(self, parent ):
-        self.rw = vtk.vtkRenderWindow()
+        self.rw: vtk.vtkRenderWindow = vtk.vtkRenderWindow()
         self.iren = HCRenderWindowInteractor()
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )
         self.picker = vtk.vtkPointPicker()
+
+    def Render(self):
+        QVTKRenderWindowInteractor.Render( self )
+        self.rw.Render()
 
     @property
     def renderer(self):
