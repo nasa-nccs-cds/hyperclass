@@ -4,9 +4,10 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from hyperclass.data.aviris.tile import Tile, Block
 from hyperclass.plot.point_cloud import PointCloud
+from hyperclass.gui.events import EventClient, EventMode
 from collections import OrderedDict
 
-class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
+class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient):
 
     def __init__(self):
         self.debug = False
@@ -19,7 +20,6 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
         self.SetInteractorStyle(interactorStyle)
         interactorStyle.KeyPressActivationOff()
         interactorStyle.SetEnabled(1)
-        self.event_listeners = []
 
     def setRenderer( self, renderer: vtk.vtkRenderer ):
         self.renderer = renderer
@@ -34,9 +34,9 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
             picker.Pick(clickPos[0], clickPos[1], 0, self.renderer )
             picked_point = picker.GetPointId()
             if self.debug: print( f"Picked point {picked_point}")
-            for listener in self.event_listeners:
-                event = dict( event="pick", type="vtkpoint", pid=picked_point, transient=True )
-                listener.gui_process_event(event)
+            event = dict(event="pick", type="vtkpoint", pid=picked_point, transient=True)
+            self.submitEvent( event, EventMode.Gui )
+
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 
@@ -102,10 +102,6 @@ class VTKFrame(QtWidgets.QFrame):
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
-        self.iren.addEventListener( self.point_cloud )
-
-    def addEventListener( self, listener ):
-        self.iren.addEventListener( listener )
 
     @property
     def iren(self):

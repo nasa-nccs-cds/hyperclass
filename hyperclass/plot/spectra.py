@@ -5,6 +5,7 @@ from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from collections import OrderedDict
 from mpl_toolkits.axes_grid1 import Divider, Size
+from hyperclass.gui.events import EventClient, EventMode
 import xarray as xa
 import numpy as np
 
@@ -13,7 +14,7 @@ def isUnlabeled(color):
         if color[ix] < 1.0: return False
     return True
 
-class SpectralPlot:
+class SpectralPlot(EventClient):
 
     def __init__( self, **kwargs ):
         self.figure: Optional[Figure] = None
@@ -32,6 +33,9 @@ class SpectralPlot:
         self.axes.title.set_color( (1.0, 1.0, 1.0) )
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+
+    def processEvent(self, event: Dict ):
+        print( f"SpectralPlot.processEvent: {event}")
 
     def plot_spectrum(self, index: int, data: xa.DataArray, color: List[float] ):
         x = range( data.size )

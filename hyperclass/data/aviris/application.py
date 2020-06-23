@@ -79,7 +79,6 @@ class HyperclassConsole(QMainWindow):
 
         self.vtkFrame = VTKFrame( self.umgr )
         self.labelingConsole = MplWidget( self.umgr, self, **kwargs)
-        self.vtkFrame.addEventListener(self.labelingConsole)
         self.spectralPlot = SpectralPlotCanvas( widget, self.labelingConsole.spectral_plot )
         self.satelliteCanvas = SatellitePlotCanvas( widget, self.labelingConsole.toolbar, self.labelingConsole.getBlock() )
         self.satelliteCanvas.addEventListener(self.labelingConsole)

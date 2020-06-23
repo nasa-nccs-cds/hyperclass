@@ -58,7 +58,8 @@ class ActivationFlow(EventClient):
             self.nnd = self.getNNGraph( nodes_data, n_neighbors=n_neighbors, **kwargs )
             self.I = self.nnd.neighbor_graph[0]
             self.D = ma.MaskedArray(self.nnd.neighbor_graph[1])
-            print( f"Computed NN[{self.n_neighbors}] Graph in {time.time()-t0} sec")
+            dt = (time.time()-t0)
+            print( f"Computed NN[{self.n_neighbors}] Graph in {dt} sec ({dt/60} min)")
         else:
             print( "No data available for this block")
 
