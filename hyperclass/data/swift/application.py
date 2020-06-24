@@ -1,29 +1,26 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 
+from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import SpectralPlotCanvas
 from hyperclass.gui.directory import DirectoryWidget
 from hyperclass.data.aviris.config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.swift.manager import dataManager
-import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
 from hyperclass.plot.labels import format_colors
-from hyperclass.gui.points import VTKFrame
 from hyperclass.plot.spectra import SpectralPlot
 from typing import List, Union, Tuple, Dict
 import xarray as xa
 import os
 
-
 class SwiftConsole(EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
-        EventClient.__init__( self, **kwargs )
         self.gui = QMainWindow()
+        dataEventHandler.config( subsample=kwargs.pop('subsample')  )
         self.umgr = UMAPManager( format_colors(classes), **kwargs )
         self.title = 'swiftclass'
         self.left = 10
@@ -79,10 +76,9 @@ class SwiftConsole(EventClient):
 
         self.directoryConsole = DirectoryWidget( self.gui, **kwargs )
         self.spectral_plot = SpectralPlot()
-        self.spectralPlot = SpectralPlotCanvas( widget, self.spectral_plot )
 
         consoleLayout.addWidget(self.directoryConsole, 10 )
-        consoleLayout.addWidget( self.spectralPlot, 6 )
+        consoleLayout.addWidget( self.spectral_plot.gui(widget), 6 )
 
         vizTabs = QTabWidget()
         vizTabs.addTab(  self.umgr.gui(), "Embedding" )
@@ -152,7 +148,8 @@ class SwiftConsole(EventClient):
 
     def refresh( self, message,  **kwargs ):
         try: self.message_stack.remove( message )
-        except ValueError: print( f"Atempt to remove unrecognized message: {message}, msgs = {self.message_stack}")
+        except ValueError:
+            print( f"Atempt to remove unrecognized message: {message}, msgs = {self.message_stack}")
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
         self.umgr.update()
@@ -161,7 +158,7 @@ class SwiftConsole(EventClient):
     def refresh_images( self, **kwargs ):
         try: self.directoryConsole.mpl_update()
         except AttributeError: pass
-        try: self.spectralPlot.mpl_update()
+        try: self.spectral_plot.update()
         except AttributeError: pass
 
     def show(self):

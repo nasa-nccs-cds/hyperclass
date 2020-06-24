@@ -21,7 +21,6 @@ class Task(QRunnable,EventClient):
 
     def __init__(self, label: str, fn: Callable, *args, **kwargs):
         QRunnable.__init__(self)
-        EventClient.__init__(self)
         self.label = label
         self.fn = fn
         self.args = args

@@ -9,8 +9,8 @@ from collections import OrderedDict
 
 class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient):
 
-    def __init__(self):
-        self.debug = False
+    def __init__(self ):
+        self.debug = True
         vtk.vtkGenericRenderWindowInteractor.__init__(self)
         self.renderer = None
         self.enable_pick_sym = "Alt_L"
@@ -20,12 +20,10 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
         self.SetInteractorStyle(interactorStyle)
         interactorStyle.KeyPressActivationOff()
         interactorStyle.SetEnabled(1)
+        self.activate_event_listening()
 
     def setRenderer( self, renderer: vtk.vtkRenderer ):
         self.renderer = renderer
-
-    def addEventListener( self, listener ):
-        self.event_listeners.append( listener )
 
     def RightButtonPressEvent( self, *args  ):
         if self.pick_enabled:
@@ -43,8 +41,10 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
     def KeyPressEvent( self, *args ):
         vtk.vtkGenericRenderWindowInteractor.KeyPressEvent( self, *args )
         sym = self.GetKeySym()
-        if self.debug: print( f"KeyPressEvent: {sym}")
-        if sym == self.enable_pick_sym: self.pick_enabled = True
+        if self.debug: print( f"KeyPressEvent: {sym}, enable_pick_sym: {self.enable_pick_sym}")
+        if sym == self.enable_pick_sym:
+            self.pick_enabled = True
+            if self.debug: print(f"PICK ENABLED")
 
     def KeyReleaseEvent( self, *args ):
         vtk.vtkGenericRenderWindowInteractor.KeyReleaseEvent( self, *args )
@@ -53,15 +53,17 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
         if sym == self.enable_pick_sym: self.pick_enabled = False
 
 class VTKWidget(QVTKRenderWindowInteractor):
-    def __init__(self, parent ):
+    def __init__(self, parent, point_cloud ):
         self.rw: vtk.vtkRenderWindow = vtk.vtkRenderWindow()
+        self.point_cloud = point_cloud
         self.iren = HCRenderWindowInteractor()
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )
         self.picker = vtk.vtkPointPicker()
 
-    def Render(self):
-        QVTKRenderWindowInteractor.Render( self )
+    def update(self):
+        self.point_cloud.createActor(self.iren.renderer)
+        self.point_cloud.update()
         self.rw.Render()
 
     @property
@@ -95,9 +97,8 @@ class VTKFrame(QtWidgets.QFrame):
 
     def __init__( self, point_cloud: PointCloud  ):
         QtWidgets.QFrame.__init__( self  )
-        self.point_cloud = point_cloud
         self.vl = QtWidgets.QVBoxLayout()
-        self.vtkWidget = VTKWidget(self)
+        self.vtkWidget = VTKWidget( self, point_cloud )
         self.vl.addWidget(self.vtkWidget)
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
@@ -112,9 +113,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Start()
 
     def update(self, **kwargs ):
-        self.point_cloud.createActor(self.renderer)
-        self.point_cloud.update()
-        self.vtkWidget.Render()
+        self.vtkWidget.update()
         QtWidgets.QFrame.update(self)
 
 # class MixingFrame(QtWidgets.QFrame):

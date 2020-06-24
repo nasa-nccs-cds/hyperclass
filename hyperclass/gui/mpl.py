@@ -115,43 +115,6 @@ class MplCanvas(FigureCanvas):
     def extent(self):
         return self.console.block.extent()
 
-
-
-class SpectralPlotCanvas(FigureCanvas):
-
-    def __init__(self, parent, plot: SpectralPlot, **kwargs ):
-        self.figure = Figure( constrained_layout=True )
-        FigureCanvas.__init__(self, self.figure )
-        self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding )
-        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
-        plot.init( self.figure )
-        self.plot: SpectralPlot = plot
-        FigureCanvas.updateGeometry(self)
-
-    def clear(self):
-        self.plot.clear()
-
-    def process_event( self, event: Dict ):
-        self.plot.process_event(event)
-
-    def setBlock(self, block_coords: Tuple[int]   ):
-        self.plot.setBlock( block_coords )
-
-    @property
-    def button_actions(self) -> Dict[str,Callable]:
-        return self.plot.button_actions
-
-    @property
-    def menu_actions(self) -> Dict:
-        return self.plot.menu_actions
-
-    def mpl_update(self):
-        self.plot.update_canvas()
-        self.update()
-        self.repaint()
-
-
 class SatellitePlotCanvas(FigureCanvas):
 
     RIGHT_BUTTON = 3

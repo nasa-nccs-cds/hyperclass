@@ -2,6 +2,7 @@ import xarray as xa
 import time, pickle
 import numpy as np
 
+from hyperclass.data.events import dataEventHandler
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.points import VTKFrame
@@ -18,11 +19,9 @@ cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 class UMAPManager(EventClient):
 
     def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
-        EventClient.__init__( self, **kwargs )
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
-        self.subsample = kwargs.pop('subsample', None)
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
@@ -36,24 +35,18 @@ class UMAPManager(EventClient):
 
     def processEvent( self, event: Dict ):
         print( f" **** UMAPManager.processEvent: {event}")
-        if event.get('event') == 'task':
-            label: str = event.get('label','')
-            if label.lower().startswith( 'load dataset' ):
-                if event.get('type') == 'result':
-                    result = event.get('result')
-                    if result is not None:
-                        if isinstance( result, Block ):
-                            self.block_embedding(result)
-                        elif isinstance( result, xa.DataArray ):
-                            self.embedding(result)
-                        elif isinstance( result, xa.Dataset ):
-                            dset_type = result.attrs['type']
-                            if dset_type == 'spectra':
-                                point_data: xa.DataArray = result['spectra']
-                                if self.subsample is not None:
-                                    point_data = point_data[::self.subsample]
-                                point_data.attrs['dsid'] = result.attrs['dsid']
-                                self.embedding( point_data )
+        if dataEventHandler.isDataLoadEvent(event):
+            result = dataEventHandler.getLoadedData( event )
+            if isinstance( result, Block ):
+                self.block_embedding( result )
+            elif isinstance( result, xa.DataArray ):
+                self.embedding( dataEventHandler.subsample( result ) )
+            elif isinstance( result, xa.Dataset ):
+                dset_type = result.attrs['type']
+                if dset_type == 'spectra':
+                    point_data: xa.DataArray = dataEventHandler.subsample( result['scaled_spectra'] )
+                    point_data.attrs['dsid'] = result.attrs['dsid']
+                    self.embedding( point_data )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         self.class_labels: List[str] = []

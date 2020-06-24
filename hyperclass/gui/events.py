@@ -12,9 +12,6 @@ class EventMode(Enum):
 class EventClient:
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, **kwargs):
-        pass
-
     def activate_event_listening(self):
         eventCentral.addClient( self )
 
@@ -38,7 +35,9 @@ class EventCentral:
         self._clients.append( client )
 
     def submitEvent(self, event: Dict, mode: EventMode ):
+        from hyperclass.data.events import dataEventHandler
         from hyperclass.gui.tasks import taskRunner, Task
+        dataEventHandler.reset( event )
         for client in self._clients:
             if mode == EventMode.Foreground:
                 client.processEvent(event)

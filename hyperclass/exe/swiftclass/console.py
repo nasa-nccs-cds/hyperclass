@@ -8,7 +8,7 @@ classes = [ ('Type 1', [1.0, 1.0, 0.0, 1.0]),
             ('Type 3', [1.0, 0.0, 1.0, 1.0]),
             ('Type 4', [0.0, 0.0, 1.0, 1.0])]
 
-subsample = None
+subsample = 50
 
 app = QtWidgets.QApplication(sys.argv)
 swiftclass = SwiftConsole( classes, subsample=subsample )
