@@ -158,6 +158,8 @@ class Block:
             result: xa.DataArray =  dataManager.raster2points( self.data )
             self._point_data =  result if subsample is None else result[::subsample]
             self._samples_axis = self._point_data.coords['samples']
+            self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
+            self._point_data.attrs['type'] = 'block'
         return self._point_data
 
     @property

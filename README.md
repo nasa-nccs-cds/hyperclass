@@ -34,6 +34,39 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 #### Google Maps Access
   To access google maps you must obtain an API key: <https://cloud.google.com/docs/authentication/api-keys>
   
+#### VNC Setup
+
+Certain hosts, such as the visgpu cluster at NASA, utilize a vnc rather then X conncetion.  The vnc setup procedure for visgpu02 is as follows:
+* On your local machine create a file ~/.ssh/ssh_config with the following text (replace tpmaxwel with your username):
+``` 
+host visgpu02
+        User tpmaxwel
+        ForwardX11 yes
+        LogLevel QUIET
+        LocalForward 23128 localhost:3128
+        ProxyCommand ssh -l tpmaxwel login.nccs.nasa.gov direct %h
+        Protocol 2
+        ConnectTimeout 30
+``` 
+* Install a vnc client. That can be found here https://www.realvnc.com/en/connect/download/viewer/ . You will need admin privileges to install that on your machine. 
+
+* Connect to visgpu02:
+``` 
+> ssh visgpu02
+``` 
+* Once logged in start the vnc server:
+``` 
+> startvnc
+``` 
+
+* Configure the vnc client: 
+    Navigate to the system preferences then to the proxy tab. There select "use these proxy settings" and from there enter for "Server: 127.0.0.1:<vncPort>" and "Type" should say "HTTP CONNECT".  The <vncPort> number will be listed in the vnc startup output on the server.
+
+* Startup the client:
+``` 
+> startvnc
+``` 
+
 #### Configuration
   Set default parameters for all users:
 ```    

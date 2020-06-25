@@ -25,6 +25,7 @@ def prepare_inputs():
     data_vars['spectra'] = xa.DataArray( spectra, dims=['samples','bands'], coords=dict( samples=samples, bands=bands ) )
 
     scaled_spectra_data = dataManager.getInputFileData( "scaled_specs" )
+    s0 = scaled_spectra_data[0]
     scaled_spectra = np.array( scaled_spectra_data, dtype=np.single )
     data_vars['scaled_spectra'] = xa.DataArray( scaled_spectra, dims=['samples','bands'], coords=dict( samples=samples, bands=bands ) )
 

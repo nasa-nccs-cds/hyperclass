@@ -36,17 +36,8 @@ class UMAPManager(EventClient):
     def processEvent( self, event: Dict ):
         print( f" **** UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
-            result = dataEventHandler.getLoadedData( event )
-            if isinstance( result, Block ):
-                self.block_embedding( result )
-            elif isinstance( result, xa.DataArray ):
-                self.embedding( dataEventHandler.subsample( result ) )
-            elif isinstance( result, xa.Dataset ):
-                dset_type = result.attrs['type']
-                if dset_type == 'spectra':
-                    point_data: xa.DataArray = dataEventHandler.subsample( result['scaled_spectra'] )
-                    point_data.attrs['dsid'] = result.attrs['dsid']
-                    self.embedding( point_data )
+            point_data = dataEventHandler.getPointData( event, scaled = True )
+            self.embedding( point_data )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         self.class_labels: List[str] = []
@@ -57,16 +48,12 @@ class UMAPManager(EventClient):
             self.class_colors[ elem[0] ] = color
         self.point_cloud.set_colormap( self.class_colors )
 
-    def block_embedding( self, block: Block, ndim: int = 3 ) -> Optional[xa.DataArray]:
-        mapper: UMAP = self.getMapper( block.mid( ndim ), ndim )
-        if mapper.embedding_ is not None:
-            return self.wrap_embedding( block.getPointData().coords['samples'], mapper.embedding_ )
-        return self.embed( block.getPointData(), ndim = ndim )
 
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
-        mapper: UMAP = self.getMapper( point_data.attrs['dsid'], ndim )
+        mid = f"{ndim}-{point_data.attrs['dsid']}"
+        mapper: UMAP = self.getMapper( mid, ndim )
         if mapper.embedding_ is not None:
-            return self.wrap_embedding( point_data.coords['samples'], mapper.embedding_ )
+            return self.wrap_embedding( point_data.coords[ point_data.dims[0] ], mapper.embedding_ )
         return self.embed( point_data, ndim = ndim )
 
     def wrap_embedding(self, ax_samples: xa.DataArray, embedding: np.ndarray, **kwargs )-> xa.DataArray:

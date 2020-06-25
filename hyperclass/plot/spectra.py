@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import  QSizePolicy
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from collections import OrderedDict
-
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 import xarray as xa
@@ -25,19 +24,34 @@ class SpectralPlot(EventClient):
         self.current_line: Optional[Line2D] = None
         self.spectra = None
         self._gui = None
+        self._titles = None
         self.parms = kwargs
 
     def init( self ):
         self.figure = Figure(constrained_layout=True)
         self.axes = self.figure.add_subplot(111)
-        self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
-        self.axes.axis('off')
-        self.axes.title.set_text( "Point Spectra")
         self.axes.title.set_fontsize(14)
-        self.axes.title.set_color( (1.0, 1.0, 1.0) )
         self.axes.set_facecolor((0.0, 0.0, 0.0))
-        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self.axes.get_yaxis().set_visible(False)
         self.activate_event_listening()
+
+    def configure(self ):
+        type = self.spectra.attrs.get('type')
+        if type == 'spectra':
+            plot_metadata = dataEventHandler.getMetadata()
+            obsids = plot_metadata['obsids'].values
+            targets = plot_metadata['targets'].values
+            self._titles = {}
+            for index in range( obsids.shape[0] ):
+                self._titles[index] = f"{targets[index]}: {obsids[index]}"
+            self.axes.title.set_text( "Point Spectra" )
+            self.axes.title.set_color((0.0, 0.0, 0.0))
+        else:
+            self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
+            self.axes.axis('off')
+            self.axes.title.set_text( "Point Spectra")
+            self.axes.title.set_color((1.0, 1.0, 1.0))
+            self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
 
     def gui(self, parent) :
         if self._gui is None:
@@ -51,30 +65,30 @@ class SpectralPlot(EventClient):
 
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            result = dataEventHandler.getLoadedData( event )
-            if isinstance(result, Block):
-                self.spectra = dataEventHandler.subsample( result.getPointData() )
-            elif isinstance(result, xa.DataArray):
-                self.spectra = dataEventHandler.subsample( result )
-            elif isinstance(result, xa.Dataset):
-                dset_type = result.attrs['type']
-                if dset_type == 'spectra':
-                    self.spectra: xa.DataArray = dataEventHandler.subsample( result['spectra'] )
-                    self.spectra.attrs['dsid'] = result.attrs['dsid']
+            self.spectra: xa.DataArray = dataEventHandler.getPointData( event, scaled = True )
+            self.configure()
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':
                 index = event.get('pid')
-                color = [1.0, 1.0, 1.0 ]
+                color = event.get('color')
+                linewidth = 3
+                if color is None:
+                    self.clear_current_line()
+                    color = [1.0, 1.0, 1.0 ]
+                    linewidth = 1
                 print( f"SpectralPlot: pick event, pid = {index}")
-                self.plot_spectrum( index, self.spectra[index], color )
+                self.plot_spectrum( index, self.spectra[index], color, linewidth )
+                if self._titles is not None:
+                    self.axes.title.set_text( self._titles.get(index,"*SPECTRA*" ) )
                 self.submitEvent(dict(event='task', type='completed', label="Spectral Plot"), EventMode.Gui)
 
-    def plot_spectrum(self, index: int, data: xa.DataArray, color: List[float] ):
+    def plot_spectrum(self, index: int, data: xa.DataArray, color: List[float], linewidth ):
         x = range( data.size )
         if len(color) == 4: color[3] = 1.0
+        spectrum = data.values
         if self.current_line is not None:
             self.current_line.set_linewidth(1)
-        self.current_line, = self.axes.plot( x, data.values, linewidth=3, color=color )
+        self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
         self.lines[ index ] = self.current_line
 
     def clear(self):
