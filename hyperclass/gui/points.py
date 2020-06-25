@@ -103,6 +103,14 @@ class VTKFrame(QtWidgets.QFrame):
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
+        self.setFocusPolicy( QtCore.Qt.StrongFocus )
+        self.setMouseTracking(True)
+
+    def enterEvent(self, event ):
+        QtWidgets.QFrame.enterEvent( self, event )
+        self.vtkWidget.setFocus()
+        self.update()
+        print(" VTKFrame set focus on mouse enter event ")
 
     @property
     def iren(self):

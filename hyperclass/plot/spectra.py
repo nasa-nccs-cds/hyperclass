@@ -15,6 +15,11 @@ def isUnlabeled(color):
         if color[ix] < 1.0: return False
     return True
 
+class SpectralCanvas( FigureCanvas ):
+
+    def __init__(self, figure: Figure ):
+        FigureCanvas.__init__( self, figure )
+
 class SpectralPlot(EventClient):
 
     def __init__( self, **kwargs ):
@@ -33,6 +38,7 @@ class SpectralPlot(EventClient):
         self.axes.title.set_fontsize(14)
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.axes.get_yaxis().set_visible(False)
+        self._mousepress = self.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self.activate_event_listening()
 
     def configure(self ):
@@ -53,10 +59,13 @@ class SpectralPlot(EventClient):
             self.axes.title.set_color((1.0, 1.0, 1.0))
             self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
 
+    def onMouseClick(self, event ):
+        print( f"Spectral Plot mouse click at {event.xdata} {event.ydata}")
+
     def gui(self, parent) :
         if self._gui is None:
             self.init( )
-            self._gui = FigureCanvas( self.figure )
+            self._gui = SpectralCanvas( self.figure )
             self._gui.setParent(parent)
             self._gui.setSizePolicy( QSizePolicy.Expanding, QSizePolicy.Expanding)
             self._gui.setContentsMargins( 0, 0, 0, 0 )
