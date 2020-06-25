@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QKeyEvent
 
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
@@ -17,9 +17,18 @@ from typing import List, Union, Tuple, Dict
 import xarray as xa
 import os
 
+class MyMainWindow( QMainWindow,EventClient ):
+
+    def keyPressEvent( self, event: QKeyEvent ):
+        QMainWindow.keyPressEvent( self, event )
+        event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
+                      nativeModifiers= event.nativeModifiers(), nativeScanCode=event.nativeScanCode(),
+                      nativeVirtualKey=event.nativeVirtualKey() )
+        self.submitEvent( event, EventMode.Foreground )
+
 class SwiftConsole(EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
-        self.gui = QMainWindow()
+        self.gui = MyMainWindow()
         dataEventHandler.config( subsample=kwargs.pop('subsample')  )
         self.umgr = UMAPManager( format_colors(classes), **kwargs )
         self.title = 'swiftclass'

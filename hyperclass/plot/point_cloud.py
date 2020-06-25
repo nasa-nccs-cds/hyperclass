@@ -68,10 +68,6 @@ class PointCloud():
         self.colormap = np.vstack( colors )
         print(".")
 
-
-    def keyPressEvent( self, *args ):
-        print("YYY")
-
     def update_point_sizes(self, increase: bool):
         psize = self.actor.GetProperty().GetPointSize()
         psize = psize + 1 if increase else psize - 1
