@@ -14,17 +14,14 @@ class HCApplication( QApplication, EventClient ):
             event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
                           nativeModifiers= event.nativeModifiers(), nativeScanCode=event.nativeScanCode(),
                           nativeVirtualKey=event.nativeVirtualKey() )
-            print( "HCApplication.keyPressEvent")
         except Exception as err:
             print(f"HCApplication.keyPressEvent error: {err}")
         self.submitEvent( event, EventMode.Foreground )
 
     def onKeyRelease(self):
-        print("HCApplication.keyReleaseEvent")
         self.submitEvent( dict( event="gui", type="keyRelease"), EventMode.Foreground )
 
     def eventFilter(self, object, event: QEvent ):
-        print(f"HCApplication.eventFilter: {event.type()}")
         if   event.type() == QEvent.KeyPress:    self.onKeyPress( event )
         elif event.type() == QEvent.KeyRelease:  self.onKeyRelease()
         return False
