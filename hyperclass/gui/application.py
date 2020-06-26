@@ -1,7 +1,33 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QKeyEvent
+from PyQt5.QtCore import *
 from hyperclass.gui.events import EventClient, EventMode
-import os, abc
+import os, abc, sys
+
+class HCApplication( QApplication, EventClient ):
+    def __init__( self ):
+        QApplication.__init__( self, sys.argv )
+        self.installEventFilter(self)
+
+    def onKeyPress( self, event: QKeyEvent ):
+        try:
+            event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
+                          nativeModifiers= event.nativeModifiers(), nativeScanCode=event.nativeScanCode(),
+                          nativeVirtualKey=event.nativeVirtualKey() )
+            print( "HCApplication.keyPressEvent")
+        except Exception as err:
+            print(f"HCApplication.keyPressEvent error: {err}")
+        self.submitEvent( event, EventMode.Foreground )
+
+    def onKeyRelease(self):
+        print("HCApplication.keyReleaseEvent")
+        self.submitEvent( dict( event="gui", type="keyRelease"), EventMode.Foreground )
+
+    def eventFilter(self, object, event: QEvent ):
+        print(f"HCApplication.eventFilter: {event.type()}")
+        if   event.type() == QEvent.KeyPress:    self.onKeyPress( event )
+        elif event.type() == QEvent.KeyRelease:  self.onKeyRelease()
+        return False
 
 class HCMainWindow(QMainWindow, EventClient):
     __metaclass__ = abc.ABCMeta
@@ -38,16 +64,3 @@ class HCMainWindow(QMainWindow, EventClient):
     @abc.abstractmethod
     def getPreferencesDialog(self):
         pass
-
-    def keyPressEvent( self, event: QKeyEvent ):
-        QMainWindow.keyPressEvent( self, event )
-        event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
-                      nativeModifiers= event.nativeModifiers(), nativeScanCode=event.nativeScanCode(),
-                      nativeVirtualKey=event.nativeVirtualKey() )
-        print( "HCMainWindow.keyPressEvent")
-        self.submitEvent( event, EventMode.Foreground )
-
-    def keyReleaseEvent(self, event: QKeyEvent):
-        QMainWindow.keyReleaseEvent( self, event )
-        print("HCMainWindow.keyReleaseEvent")
-        self.submitEvent( dict( event="gui", type="keyRelease"), EventMode.Foreground )

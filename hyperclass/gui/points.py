@@ -13,7 +13,6 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
         self.debug = True
         vtk.vtkGenericRenderWindowInteractor.__init__(self)
         self.renderer = None
-        self.enable_pick_sym = "Alt_L"
         self.pick_enabled = False
         self.SetPicker( vtk.vtkPointPicker() )
         interactorStyle = vtk.vtkInteractorStyleTrackballCamera()
