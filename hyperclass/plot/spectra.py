@@ -1,7 +1,6 @@
 from matplotlib.figure import Figure
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from hyperclass.data.aviris.tile import Tile, Block
 from PyQt5.QtWidgets import  QSizePolicy
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
@@ -38,7 +37,7 @@ class SpectralPlot(EventClient):
         self.axes.title.set_fontsize(14)
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.axes.get_yaxis().set_visible(False)
-        self._mousepress = self.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+#        self.axes.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self.activate_event_listening()
 
     def configure(self ):
@@ -123,7 +122,6 @@ class SpectralPlot(EventClient):
         if self._gui is not None:
             self.figure.canvas.draw_idle()
             self._gui.update()
-            self._gui.repaint()
 
     # def get_axes(self):
     #     h = [Size.Fixed(0.0), Size.Fixed(0.0)]

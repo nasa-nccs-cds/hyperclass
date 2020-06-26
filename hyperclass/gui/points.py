@@ -1,11 +1,11 @@
-import sys
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtCore import Qt
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
-from hyperclass.data.aviris.tile import Tile, Block
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtGui import QCursor
 from hyperclass.plot.point_cloud import PointCloud
 from hyperclass.gui.events import EventClient, EventMode
-from collections import OrderedDict
 
 class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient):
 
@@ -38,19 +38,6 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 
-    def KeyPressEvent( self, *args ):
-        vtk.vtkGenericRenderWindowInteractor.KeyPressEvent( self, *args )
-        sym = self.GetKeySym()
-        if self.debug: print( f"KeyPressEvent: {sym}, enable_pick_sym: {self.enable_pick_sym}")
-        if sym == self.enable_pick_sym:
-            self.pick_enabled = True
-            if self.debug: print(f"PICK ENABLED")
-
-    def KeyReleaseEvent( self, *args ):
-        vtk.vtkGenericRenderWindowInteractor.KeyReleaseEvent( self, *args )
-        sym = self.GetKeySym()
-        if self.debug: print( f"KeyReleaseEvent: {sym}")
-        if sym == self.enable_pick_sym: self.pick_enabled = False
 
 class VTKWidget(QVTKRenderWindowInteractor):
     def __init__(self, parent, point_cloud ):
@@ -60,6 +47,15 @@ class VTKWidget(QVTKRenderWindowInteractor):
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )
         self.picker = vtk.vtkPointPicker()
+
+    @staticmethod
+    def _getPixelRatio():
+        pos = QCursor.pos()
+        for screen in QApplication.screens():
+            rect = screen.geometry()
+            if rect.contains(pos):
+                return screen.devicePixelRatio()
+        return 1
 
     def update(self):
         self.point_cloud.createActor(self.iren.renderer)
@@ -74,24 +70,24 @@ class VTKWidget(QVTKRenderWindowInteractor):
         self.iren.setRenderer( renderer )
         self.rw.AddRenderer( renderer )
 
-    def leaveEvent(self, ev):
-        try: QVTKRenderWindowInteractor.leaveEvent(self, ev)
-        except TypeError: pass
-
-    def mousePressEvent(self, ev: QtGui.QMouseEvent):
-        try:
-            QVTKRenderWindowInteractor.mousePressEvent(self, ev)
-        except TypeError: pass
-
-    def mouseMoveEvent(self, ev):
-        try:
-            QVTKRenderWindowInteractor.mouseMoveEvent(self, ev)
-        except TypeError: pass
-
-    def keyPressEvent(self, ev):
-        try:
-            QVTKRenderWindowInteractor.keyPressEvent(self, ev)
-        except TypeError: pass
+    # def leaveEvent(self, ev):
+    #     try: QVTKRenderWindowInteractor.leaveEvent(self, ev)
+    #     except TypeError: pass
+    #
+    # def mousePressEvent(self, ev: QtGui.QMouseEvent):
+    #     try:
+    #         QVTKRenderWindowInteractor.mousePressEvent(self, ev)
+    #     except TypeError: pass
+    #
+    # def mouseMoveEvent(self, ev):
+    #     try:
+    #         QVTKRenderWindowInteractor.mouseMoveEvent(self, ev)
+    #     except TypeError: pass
+    #
+    # def keyPressEvent(self, ev):
+    #     try:
+    #         QVTKRenderWindowInteractor.keyPressEvent(self, ev)
+    #     except TypeError: pass
 
 class VTKFrame(QtWidgets.QFrame):
 
@@ -105,12 +101,21 @@ class VTKFrame(QtWidgets.QFrame):
         self.setLayout(self.vl)
         self.setFocusPolicy( QtCore.Qt.StrongFocus )
         self.setMouseTracking(True)
+        self._key_state = None
 
-    def enterEvent(self, event ):
-        QtWidgets.QFrame.enterEvent( self, event )
-        self.vtkWidget.setFocus()
-        self.update()
-        print(" VTKFrame set focus on mouse enter event ")
+    @property
+    def keyState(self):
+        return self._key_state
+
+    def setKeyState(self, event ):
+        self._key_state = event.get('key')
+        if self._key_state == Qt.Key_Alt:
+            self.vtkWidget.iren.pick_enabled = True
+
+    def releaseKeyState(self, event ):
+        print( f'releaseKeyState: {event}')
+        self._key_state = None
+        self.vtkWidget.iren.pick_enabled = False
 
     @property
     def iren(self):

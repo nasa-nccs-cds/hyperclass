@@ -38,8 +38,9 @@ class UMAPManager(EventClient):
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, scaled = True )
             self.embedding( point_data )
-        if (event.get('event') == 'gui') and (event.get('type') == 'keyPress'):
-            self._gui.keyPress( )
+        if event.get('event') == 'gui':
+            if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
+            elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         self.class_labels: List[str] = []

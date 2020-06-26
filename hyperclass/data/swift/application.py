@@ -2,10 +2,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QKeyEvent
 
 from hyperclass.data.events import dataEventHandler
+from hyperclass.gui.application import HCMainWindow
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.directory import DirectoryWidget
-from hyperclass.data.aviris.config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.swift.manager import dataManager
@@ -15,23 +15,26 @@ from hyperclass.plot.labels import format_colors
 from hyperclass.plot.spectra import SpectralPlot
 from typing import List, Union, Tuple, Dict
 import xarray as xa
-import os
+import os, abc
 
-class MyMainWindow( QMainWindow,EventClient ):
+class SwiftMainWindow(HCMainWindow):
 
-    def keyPressEvent( self, event: QKeyEvent ):
-        QMainWindow.keyPressEvent( self, event )
-        event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
-                      nativeModifiers= event.nativeModifiers(), nativeScanCode=event.nativeScanCode(),
-                      nativeVirtualKey=event.nativeVirtualKey() )
-        self.submitEvent( event, EventMode.Foreground )
+    def __init__( self, parent, title: str ):
+        HCMainWindow.__init__( self, parent, title )
+
+    def addMenuItems(self):
+        self.load_dataset = self.fileMenu.addMenu("Load Dataset")
+
+    def getPreferencesDialog(self):
+        from hyperclass.data.aviris.config import PreferencesDialog
+        return PreferencesDialog()
 
 class SwiftConsole(EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
-        self.gui = MyMainWindow()
+        self.gui = SwiftMainWindow(None, 'swiftclass')
         dataEventHandler.config( subsample=kwargs.pop('subsample')  )
         self.umgr = UMAPManager( format_colors(classes), **kwargs )
-        self.title = 'swiftclass'
+
         self.left = 10
         self.top = 10
         self.width = 1920
@@ -44,29 +47,8 @@ class SwiftConsole(EventClient):
         self.initSettings(kwargs)
         self.activate_event_listening()
 
-        self.gui.setWindowTitle(self.title)
         self.gui.setGeometry(self.left, self.top, self.width, self.height)
-
         self.showMessage('Ready')
-
-        mainMenu = self.gui.menuBar()
-        mainMenu.setNativeMenuBar(False)
-        fileMenu = mainMenu.addMenu('File')
-        helpMenu = mainMenu.addMenu('Help')
-
-        self.load_dataset = fileMenu.addMenu("Load Dataset")
-
-        prefButton = QAction( 'Preferences', self.gui )
-        prefButton.setShortcut('Ctrl+P')
-        prefButton.setStatusTip('Set application configuration parameters')
-        prefButton.triggered.connect( self.setPreferences )
-        fileMenu.addAction(prefButton)
-
-        exitButton = QAction(QIcon('exit24.png'), 'Exit', self.gui )
-        exitButton.setShortcut('Ctrl+Q')
-        exitButton.setStatusTip('Exit application')
-        exitButton.triggered.connect(self.gui.close)
-        fileMenu.addAction(exitButton)
 
         widget =  QWidget( self.gui )
         self.gui.setCentralWidget(widget)
@@ -113,7 +95,7 @@ class SwiftConsole(EventClient):
                 menuButton = QAction( dsid, self.gui )
                 menuButton.setStatusTip(f"Load Dataset {dsid}")
                 menuButton.triggered.connect( partial(self.runLoadDataset, dsid ))
-                self.load_dataset.addAction(menuButton)
+                self.gui.load_dataset.addAction(menuButton)
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self.gui )
@@ -127,10 +109,6 @@ class SwiftConsole(EventClient):
         if valid_bands: dataManager.config.setValue( 'data/valid_bands', valid_bands )
         self.tabs = kwargs.pop('tabs',{})
         self.settings = dataManager.config
-
-    def setPreferences(self):
-        preferences =  PreferencesDialog()
-        preferences.show()
 
     def runLoadDataset( self, dsid: str, **kwargs ):
         taskRunner.start( Task( f"Load Dataset {dsid}", self.loadDataset, dsid, **kwargs) )
