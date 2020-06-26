@@ -150,6 +150,8 @@ class SwiftConsole(EventClient):
 
     def show(self):
         self.gui.show()
+        self.gui.activateWindow()
+        self.gui.raise_()
         self.submitEvent( dict( event="show" ), EventMode.Gui )
         self.loadCurrentDataset()
 

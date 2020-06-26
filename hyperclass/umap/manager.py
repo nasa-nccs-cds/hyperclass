@@ -34,7 +34,7 @@ class UMAPManager(EventClient):
         return self._gui
 
     def processEvent( self, event: Dict ):
-        print( f" **** UMAPManager.processEvent: {event}")
+ #       print( f" **** UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, scaled = True )
             self.embedding( point_data )

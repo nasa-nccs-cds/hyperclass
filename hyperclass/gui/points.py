@@ -98,8 +98,6 @@ class VTKFrame(QtWidgets.QFrame):
         self.renderer = vtk.vtkRenderer()
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
-        self.setFocusPolicy( QtCore.Qt.StrongFocus )
-        self.setMouseTracking(True)
         self._key_state = None
 
     @property

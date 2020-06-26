@@ -3,6 +3,9 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import  QSizePolicy
 from matplotlib.lines import Line2D
+from matplotlib.backend_bases import PickEvent, MouseEvent
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 from matplotlib.axes import Axes
 from collections import OrderedDict
 from hyperclass.data.events import dataEventHandler
@@ -18,6 +21,7 @@ class SpectralCanvas( FigureCanvas ):
 
     def __init__(self, figure: Figure ):
         FigureCanvas.__init__( self, figure )
+        self.figure = figure
 
 class SpectralPlot(EventClient):
 
@@ -37,7 +41,7 @@ class SpectralPlot(EventClient):
         self.axes.title.set_fontsize(14)
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.axes.get_yaxis().set_visible(False)
-#        self.axes.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+        self.axes.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self.activate_event_listening()
 
     def configure(self ):
@@ -59,7 +63,7 @@ class SpectralPlot(EventClient):
             self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
 
     def onMouseClick(self, event ):
-        print( f"Spectral Plot mouse click at {event.xdata} {event.ydata}")
+        print( f"Spectral Plot onMouseClick at {event.xdata} {event.ydata}")
 
     def gui(self, parent) :
         if self._gui is None:
@@ -69,7 +73,12 @@ class SpectralPlot(EventClient):
             self._gui.setSizePolicy( QSizePolicy.Expanding, QSizePolicy.Expanding)
             self._gui.setContentsMargins( 0, 0, 0, 0 )
             self._gui.updateGeometry()
+            self._gui.mpl_connect('button_press_event', self.mouseClick)
+
         return self._gui
+
+    def mouseClick(self, event: MouseEvent):
+        print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
 
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):

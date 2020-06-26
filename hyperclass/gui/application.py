@@ -9,6 +9,11 @@ class HCApplication( QApplication, EventClient ):
         QApplication.__init__( self, sys.argv )
         self.installEventFilter(self)
 
+    def eventFilter(self, object, event: QEvent ):
+        if   event.type() == QEvent.KeyPress:    self.onKeyPress( event )
+        elif event.type() == QEvent.KeyRelease:  self.onKeyRelease()
+        return False
+
     def onKeyPress( self, event: QKeyEvent ):
         try:
             event = dict( event="gui", type="keyPress", key=event.key(), modifiers=event.modifiers(),
@@ -21,10 +26,7 @@ class HCApplication( QApplication, EventClient ):
     def onKeyRelease(self):
         self.submitEvent( dict( event="gui", type="keyRelease"), EventMode.Foreground )
 
-    def eventFilter(self, object, event: QEvent ):
-        if   event.type() == QEvent.KeyPress:    self.onKeyPress( event )
-        elif event.type() == QEvent.KeyRelease:  self.onKeyRelease()
-        return False
+
 
 class HCMainWindow(QMainWindow, EventClient):
     __metaclass__ = abc.ABCMeta
