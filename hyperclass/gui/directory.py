@@ -9,6 +9,8 @@ from hyperclass.gui.events import EventClient
 
 
 class DirectoryWidget(QWidget,EventClient):
+    build_table = pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         QWidget.__init__(self)
         self.layout = QVBoxLayout()
@@ -16,6 +18,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.table  = QTableWidget( self )
         self.layout.addWidget( self.table )
         self.col_data = OrderedDict()
+        self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
     def keyPressEvent( self, event ):
@@ -27,24 +30,25 @@ class DirectoryWidget(QWidget,EventClient):
         self.process_event(event)
 
     @pyqtSlot()
-    def build_table(self):
+    def build_table_slot(self):
         cols = list(self.col_data.values())
         self.table.setRowCount( cols[0].size )
         self.table.setColumnCount( len( self.col_data.keys() ) )
         for column, (cid, row_data) in enumerate(self.col_data.items()):
-            self.table.setColumnWidth( column, 64 )
+            self.table.setColumnWidth( column, 200 )
             column_header: QTableWidgetItem = QTableWidgetItem(cid)
             self.table.setHorizontalHeaderItem( column, column_header )
             for row,item_text in enumerate(row_data):
                 table_item: QTableWidgetItem  = QTableWidgetItem(item_text)
                 self.table.setItem(row, column, table_item)
+        self.update()
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata = dataEventHandler.getMetadata( event )
             self.col_data['obsids'] = plot_metadata['obsids'].values
             self.col_data['targets'] = plot_metadata['targets'].values
-            self.build_table()
+            self.build_table.emit()
 
     @property
     def button_actions(self) -> Dict[str, Callable]:

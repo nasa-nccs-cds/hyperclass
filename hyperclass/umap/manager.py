@@ -53,7 +53,6 @@ class UMAPManager(QObject,EventClient):
             self.class_colors[ elem[0] ] = color
         self.point_cloud.set_colormap( self.class_colors )
 
-
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
         mid = f"{ndim}-{point_data.attrs['dsid']}"
         mapper: UMAP = self.getMapper( mid, ndim )
