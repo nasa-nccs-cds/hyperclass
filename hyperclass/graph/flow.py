@@ -6,6 +6,7 @@ from typing import List, Union, Tuple, Optional
 from hyperclass.gui.events import EventClient
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 import os, time
 
 class ActivationFlowManager:
@@ -25,9 +26,10 @@ class ActivationFlowManager:
         print(f"Computing NN graph using {n_neighbors} neighbors")
         return ActivationFlow( point_data, n_neighbors=n_neighbors, **kwargs )
 
-class ActivationFlow(EventClient):
+class ActivationFlow(QObject,EventClient):
 
     def __init__(self, nodes_data: xa.DataArray,  **kwargs ):
+        QObject.__init__(self)
         self.nodes: xa.DataArray = None
         self.nnd: NNDescent = None
         self.I: np.ndarray = None

@@ -3,6 +3,7 @@ import time, pickle
 import numpy as np
 
 from hyperclass.data.events import dataEventHandler
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.points import VTKFrame
@@ -16,9 +17,10 @@ from hyperclass.gui.tasks import taskRunner, Task
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
-class UMAPManager(EventClient):
+class UMAPManager(QObject,EventClient):
 
     def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
+        QObject.__init__(self)
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')

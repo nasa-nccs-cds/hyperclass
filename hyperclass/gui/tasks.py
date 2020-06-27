@@ -63,7 +63,7 @@ class Task(QRunnable,EventClient):
         msg_dialog.setWindowTitle(title)
         msg_dialog.exec_()
 
-class TaskRunner(EventClient):
+class TaskRunner(QObject,EventClient):
 
     def __init__(self, *args, **kwargs):
         super(TaskRunner, self).__init__()

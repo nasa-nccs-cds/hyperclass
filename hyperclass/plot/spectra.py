@@ -23,9 +23,10 @@ class SpectralCanvas( FigureCanvas ):
         FigureCanvas.__init__( self, figure )
         self.figure = figure
 
-class SpectralPlot(EventClient):
+class SpectralPlot(QObject,EventClient):
 
     def __init__( self, **kwargs ):
+        QObject.__init__(self)
         self.figure: Optional[Figure] = None
         self.axes: Optional[Axes] = None
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()

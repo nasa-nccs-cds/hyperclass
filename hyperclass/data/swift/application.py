@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QKeyEvent
-
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.application import HCMainWindow
 from hyperclass.gui.events import EventClient, EventMode
@@ -29,8 +29,9 @@ class SwiftMainWindow(HCMainWindow):
         from hyperclass.data.aviris.config import PreferencesDialog
         return PreferencesDialog()
 
-class SwiftConsole(EventClient):
+class SwiftConsole(QObject,EventClient):
     def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
+        QObject.__init__(self)
         self.gui = SwiftMainWindow(None, 'swiftclass')
         dataEventHandler.config( subsample=kwargs.pop('subsample')  )
         self.umgr = UMAPManager( format_colors(classes), **kwargs )
