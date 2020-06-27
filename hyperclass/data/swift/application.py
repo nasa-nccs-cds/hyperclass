@@ -65,7 +65,7 @@ class SwiftConsole(EventClient):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout( vizLayout, 8 )
 
-        self.directoryConsole = DirectoryWidget( self.gui, **kwargs )
+        self.directoryConsole = DirectoryWidget()
         self.spectral_plot = SpectralPlot()
 
         consoleLayout.addWidget(self.directoryConsole, 10 )
@@ -76,6 +76,8 @@ class SwiftConsole(EventClient):
         vizLayout.addWidget( vizTabs )
 
         self.populate_load_menues()
+
+
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():

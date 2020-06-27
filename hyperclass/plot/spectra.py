@@ -30,7 +30,9 @@ class SpectralPlot(EventClient):
         self.axes: Optional[Axes] = None
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
-        self.spectra = None
+        self.current_pid = -1
+        self.scaled_spectra = None
+        self.raw_spectra = None
         self._gui = None
         self._titles = None
         self.parms = kwargs
@@ -41,29 +43,22 @@ class SpectralPlot(EventClient):
         self.axes.title.set_fontsize(14)
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.axes.get_yaxis().set_visible(False)
-        self.axes.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+        self.figure.suptitle("Point Spectra")
         self.activate_event_listening()
 
-    def configure(self ):
-        type = self.spectra.attrs.get('type')
+    def configure(self, event: Dict ):
+        type = self.scaled_spectra.attrs.get('type')
         if type == 'spectra':
-            plot_metadata = dataEventHandler.getMetadata()
+            plot_metadata = dataEventHandler.getMetadata( event )
             obsids = plot_metadata['obsids'].values
             targets = plot_metadata['targets'].values
             self._titles = {}
             for index in range( obsids.shape[0] ):
                 self._titles[index] = f"{targets[index]}: {obsids[index]}"
-            self.axes.title.set_text( "Point Spectra" )
-            self.axes.title.set_color((0.0, 0.0, 0.0))
         else:
             self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
             self.axes.axis('off')
-            self.axes.title.set_text( "Point Spectra")
-            self.axes.title.set_color((1.0, 1.0, 1.0))
             self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
-
-    def onMouseClick(self, event ):
-        print( f"Spectral Plot onMouseClick at {event.xdata} {event.ydata}")
 
     def gui(self, parent) :
         if self._gui is None:
@@ -78,35 +73,46 @@ class SpectralPlot(EventClient):
         return self._gui
 
     def mouseClick(self, event: MouseEvent):
-        print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
+        if self.axes is not None:
+            print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
+            xindex = int( event.xdata )
+            data_values = self.raw_spectra[ self.current_pid ]
+            axis_values = self.raw_spectra.coords[ self.raw_spectra.dims[1] ]
+            xval = axis_values[xindex].values.tolist()
+            yval = data_values[xindex].values.tolist()
+            title = f" {xval:.2f}: {yval:.3f} "
+            self.axes.set_title( title, {'fontsize': 10 }, 'right' )
+            self.update()
 
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            self.spectra: xa.DataArray = dataEventHandler.getPointData( event, scaled = True )
-            self.configure()
+            self.scaled_spectra: xa.DataArray = dataEventHandler.getPointData(event, scaled = True)
+            self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData(event, scaled = False)
+            self.configure( event )
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':
-                index = event.get('pid')
+                self.current_pid = event.get('pid')
                 color = event.get('color')
                 linewidth = 3
                 if color is None:
                     self.clear_current_line()
                     color = [1.0, 1.0, 1.0 ]
                     linewidth = 1
-                print( f"SpectralPlot: pick event, pid = {index}")
-                self.plot_spectrum( index, self.spectra[index], color, linewidth )
+                print( f"SpectralPlot: pick event, pid = {self.current_pid}")
+                scaled_values = self.scaled_spectra[self.current_pid]
+                self.plot_spectrum( scaled_values, color, linewidth)
                 if self._titles is not None:
-                    self.axes.title.set_text( self._titles.get(index,"*SPECTRA*" ) )
+                    self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
                 self.submitEvent(dict(event='task', type='completed', label="Spectral Plot"), EventMode.Gui)
 
-    def plot_spectrum(self, index: int, data: xa.DataArray, color: List[float], linewidth ):
+    def plot_spectrum(self, data: xa.DataArray, color: List[float], linewidth ):
         x = range( data.size )
         if len(color) == 4: color[3] = 1.0
         spectrum = data.values
         if self.current_line is not None:
             self.current_line.set_linewidth(1)
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
-        self.lines[ index ] = self.current_line
+        self.lines[ self.current_pid ] = self.current_line
 
     def clear(self):
         self.lines = OrderedDict()
