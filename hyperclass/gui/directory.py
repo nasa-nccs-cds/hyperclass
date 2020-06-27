@@ -23,11 +23,11 @@ class DirectoryWidget(QWidget,EventClient):
 
     def keyPressEvent( self, event ):
         event = dict( event="key", type="press", key=event.key() )
-        self.process_event(event)
+        self.processEvent(event)
 
     def keyReleaseEvent(self, event):
         event = dict( event="key", type="release", key=event.key() )
-        self.process_event(event)
+        self.processEvent(event)
 
     @pyqtSlot()
     def build_table_slot(self):
@@ -46,8 +46,8 @@ class DirectoryWidget(QWidget,EventClient):
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata = dataEventHandler.getMetadata( event )
-            self.col_data['obsids'] = plot_metadata['obsids'].values
             self.col_data['targets'] = plot_metadata['targets'].values
+            self.col_data['obsids'] = plot_metadata['obsids'].values
             self.build_table.emit()
 
     @property
