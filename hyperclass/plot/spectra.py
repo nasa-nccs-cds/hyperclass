@@ -95,7 +95,7 @@ class SpectralPlot(QObject,EventClient):
             self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData(event, scaled = False)
             self.configure( event )
         elif event.get('event') == 'pick':
-            if event.get('type') == 'vtkpoint':
+            if event.get('type') in [ 'vtkpoint', 'directory' ]:
                 self.current_pid = event.get('pid')
                 color = event.get('color')
                 linewidth = 3

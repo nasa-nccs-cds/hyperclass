@@ -155,7 +155,7 @@ class SwiftConsole(QObject,EventClient):
         self.gui.show()
         self.gui.activateWindow()
         self.gui.raise_()
-        self.submitEvent( dict( event="show" ), EventMode.Gui )
+        self.submitEvent( dict( event="gui", type="show" ), EventMode.Gui )
         self.loadCurrentDataset()
 
     def processEvent(self, event: Dict ):

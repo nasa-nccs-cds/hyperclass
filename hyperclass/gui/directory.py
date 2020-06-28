@@ -5,7 +5,8 @@ from collections import OrderedDict
 from PyQt5.QtWidgets import QWidget, QTableWidgetItem, QAction, QVBoxLayout, QTableWidget
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from hyperclass.data.events import dataEventHandler
-from hyperclass.gui.events import EventClient
+from hyperclass.gui.events import EventClient, EventMode
+
 
 class NumericTableWidgetItem(QTableWidgetItem):
 
@@ -31,16 +32,22 @@ class DirectoryWidget(QWidget,EventClient):
         self.activate_event_listening()
 
     def onCellClicked(self, row, col ):
-        table_item: QTableWidgetItem = self.table.item( row, 0 )
-        pid = int( table_item.text() )
+        self.table.selectRow(row)
+        self.selectRow(row)
+        self.update()
 
-
-    def onColumnSelection(self, col  ):
+    def onColumnSelection( self, col  ):
         self.table.sortItems(col)
         self.update()
 
-    def onRowSelection(self, row  ):
+    def selectRow( self, row ):
         print(f"DirectoryWidget:onRowSelection: {row} ")
+        table_item: QTableWidgetItem = self.table.item( row, 0 )
+        event = dict( event="pick", type="directory", pid=int( table_item.text() ) )
+        self.submitEvent( event, EventMode.Foreground )
+
+    def onRowSelection( self, row  ):
+        self.selectRow(row)
 
     def keyPressEvent( self, event ):
         event = dict( event="key", type="press", key=event.key() )
@@ -69,11 +76,11 @@ class DirectoryWidget(QWidget,EventClient):
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata = dataEventHandler.getMetadata( event )
-            targets = plot_metadata['targets'].values.tolist()
-            obsids = plot_metadata['obsids'].values.tolist()
-            self.col_data['index'] = range( len( targets ) )
-            self.col_data['targets'] = targets
-            self.col_data['obsids'] = obsids
+            targets = plot_metadata['targets']
+            obsids = plot_metadata['obsids']
+            self.col_data['index'] = range( targets.shape[0] )
+            self.col_data['targets'] = targets.values.tolist()
+            self.col_data['obsids'] = obsids.values.tolist()
             self.build_table.emit()
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':

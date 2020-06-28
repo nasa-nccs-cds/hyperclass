@@ -18,6 +18,7 @@ from hyperclass.gui.tasks import taskRunner, Task
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager(QObject,EventClient):
+    update_signal = pyqtSignal()
 
     def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
         QObject.__init__(self)
@@ -27,7 +28,9 @@ class UMAPManager(QObject,EventClient):
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
+        self._current_mapper = None
         self.setClassColors( [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + class_labels )
+        self.update_signal.connect( self.update )
 
     def gui( self ):
         if self._gui is None:
@@ -36,13 +39,24 @@ class UMAPManager(QObject,EventClient):
         return self._gui
 
     def processEvent( self, event: Dict ):
- #       print( f" **** UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, scaled = True )
             self.embedding( point_data )
-        if event.get('event') == 'gui':
+        elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
+        elif event.get('event') == 'pick':
+            if event.get('type') == 'directory':
+                if self._current_mapper is not None:
+                    try:
+                        pid = event.get('pid')
+                        print( f"UMAPManager.processEvent-> pick: {pid}")
+                        transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
+                        colors = [ [1.0,1.0,0.0] ]
+                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors, reset = True )
+                        self.update_signal.emit()
+                    except Exception as err:
+                        print( f"Point selection error: {err}")
 
     def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
         self.class_labels: List[str] = []
@@ -72,6 +86,7 @@ class UMAPManager(QObject,EventClient):
             parms = dict( n_neighbors=n_neighbors, n_epochs=n_epochs ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
+        self._current_mapper = mapper
         return mapper
 
     def iparm(self, key: str ):
@@ -169,6 +184,7 @@ class UMAPManager(QObject,EventClient):
     def reset_markers(self):
         self.point_cloud.initMarkers( )
 
+    @pyqtSlot()
     def update(self):
         self._gui.update()
 

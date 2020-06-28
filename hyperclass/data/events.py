@@ -53,7 +53,7 @@ class DataEventHandler:
         self.getLoadedData( event )
         dset_type = self._loaded_data.attrs.get('type')
         if dset_type == 'spectra':
-            return { key: self._loaded_data.variables[key] for key in [ 'obsids', 'targets'] }
+            return { key: dataEventHandler.subsample(  self._loaded_data.variables[key] ) for key in [ 'obsids', 'targets'] }
         else: return {}
 
 
