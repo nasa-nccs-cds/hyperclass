@@ -42,13 +42,13 @@ class PointCloud():
 
     def __init__( self, **kwargs ):
         self.renWin = None
-        self.renderer = None
+        self.renderer: vtk.vtkRenderer = None
         self.colormap = None
-        self.mapper = None
-        self.actor = None
-        self.picker = None
-        self.polydata = None
-        self.marker_actor = None
+        self.mapper: vtk.vtkMapper = None
+        self.actor: vtk.vtkActor = None
+        self.picker: vtk.vtkPicker = None
+        self.polydata: vtk.vtkPolyData= None
+        self.marker_actor: vtk.vtkActor = None
         self.points_modified = False
         self.unlabeled_color = [ 1.0, 1.0, 1.0 ]
 
@@ -169,7 +169,8 @@ class PointCloud():
 
     def plotMarkers(self, points: List[List[float]], colors: List[List[float]], **kwargs  ):
         reset = kwargs.get( 'reset', False )
-        if reset: self.initMarkers( )
+#        if reset: self.initMarkers( )
+        print(f"PointCloud-> Plot Markers: {points} {colors} " )
         for point_coords in points:
             id = self.marker_points.InsertNextPoint( *point_coords  )
             self.marker_verts.InsertNextCell(1)

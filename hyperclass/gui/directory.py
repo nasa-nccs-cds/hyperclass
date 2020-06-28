@@ -44,7 +44,7 @@ class DirectoryWidget(QWidget,EventClient):
         print(f"DirectoryWidget:onRowSelection: {row} ")
         table_item: QTableWidgetItem = self.table.item( row, 0 )
         event = dict( event="pick", type="directory", pid=int( table_item.text() ) )
-        self.submitEvent( event, EventMode.Foreground )
+        self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
         self.selectRow(row)

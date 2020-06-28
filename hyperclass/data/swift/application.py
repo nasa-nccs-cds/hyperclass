@@ -146,8 +146,6 @@ class SwiftConsole(QObject,EventClient):
         self.refresh_images( **kwargs )
 
     def refresh_images( self, **kwargs ):
-        try: self.directoryConsole.mpl_update()
-        except AttributeError: pass
         try: self.spectral_plot.update()
         except AttributeError: pass
 
