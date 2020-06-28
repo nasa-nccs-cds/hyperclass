@@ -22,15 +22,18 @@ class DirectoryWidget(QWidget,EventClient):
         self.setLayout(self.layout)
         self.table  = QTableWidget( self )
         self.table.cellClicked.connect( self.onCellClicked )
-        self.table.verticalHeader().sectionDoubleClicked.connect( self.onRowSelection )
-        self.table.horizontalHeader().sectionDoubleClicked.connect( self.onColumnSelection )
+        self.table.verticalHeader().sectionClicked.connect( self.onRowSelection )
+        self.table.horizontalHeader().sectionClicked.connect( self.onColumnSelection )
         self.layout.addWidget( self.table )
         self.col_data = OrderedDict()
+        self.current_pid = None
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
     def onCellClicked(self, row, col ):
-        print( f"DirectoryWidget:cell_clicked: {row} {col} ")
+        table_item: QTableWidgetItem = self.table.item( row, 0 )
+        pid = int( table_item.text() )
+
 
     def onColumnSelection(self, col  ):
         self.table.sortItems(col)
@@ -72,6 +75,12 @@ class DirectoryWidget(QWidget,EventClient):
             self.col_data['targets'] = targets
             self.col_data['obsids'] = obsids
             self.build_table.emit()
+        elif event.get('event') == 'pick':
+            if event.get('type') == 'vtkpoint':
+                self.current_pid = event.get('pid')
+                color = event.get( 'color', [1.0, 1.0, 1.0 ] )
+                print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
+                self.selectRowByIndex( self.current_pid )
 
     @property
     def button_actions(self) -> Dict[str, Callable]:
@@ -80,4 +89,16 @@ class DirectoryWidget(QWidget,EventClient):
     @property
     def menu_actions(self) -> Dict:
         return self.canvas.menu_actions
+
+    def selectRowByIndex(self, pid: int, col: int = 0 ):
+        rows = self.table.rowCount()
+        for iRow in range( rows ):
+            item: QTableWidgetItem = self.table.item( iRow, col )
+            if pid == int( item.text() ):
+                self.table.scrollToItem( item )
+                self.table.selectRow( iRow )
+                break
+        self.update()
+
+
 

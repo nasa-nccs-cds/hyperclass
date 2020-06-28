@@ -24,6 +24,7 @@ class SpectralCanvas( FigureCanvas ):
         self.figure = figure
 
 class SpectralPlot(QObject,EventClient):
+    update_signal = pyqtSignal()
 
     def __init__( self, **kwargs ):
         QObject.__init__(self)
@@ -34,9 +35,11 @@ class SpectralPlot(QObject,EventClient):
         self.current_pid = -1
         self.scaled_spectra = None
         self.raw_spectra = None
+        self.marker: Line2D = None
         self._gui = None
         self._titles = None
         self.parms = kwargs
+        self.update_signal.connect( self.update )
 
     def init( self ):
         self.figure = Figure(constrained_layout=True)
@@ -83,6 +86,7 @@ class SpectralPlot(QObject,EventClient):
             yval = data_values[xindex].values.tolist()
             title = f" {xval:.2f}: {yval:.3f} "
             self.axes.set_title( title, {'fontsize': 10 }, 'right' )
+            self.update_marker( event.xdata )
             self.update()
 
     def processEvent(self, event: Dict ):
@@ -104,7 +108,16 @@ class SpectralPlot(QObject,EventClient):
                 self.plot_spectrum( scaled_values, color, linewidth)
                 if self._titles is not None:
                     self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
-                self.submitEvent(dict(event='task', type='completed', label="Spectral Plot"), EventMode.Gui)
+                self.update_marker()
+                self.axes.set_title( "", {}, 'right' )
+                self.update_signal.emit()
+
+    def update_marker(self, new_xval = None ):
+        if self.marker is not None:
+            self.axes.lines.remove(self.marker)
+            self.marker = None
+        if new_xval is not None:
+            self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
     def plot_spectrum(self, data: xa.DataArray, color: List[float], linewidth ):
         x = range( data.size )
@@ -134,6 +147,7 @@ class SpectralPlot(QObject,EventClient):
     def has_spectrum(self, index: int ):
         return index in self.lines
 
+    @pyqtSlot()
     def update(self):
         if self._gui is not None:
             self.figure.canvas.draw_idle()
