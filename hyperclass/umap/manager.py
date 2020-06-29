@@ -1,7 +1,7 @@
 import xarray as xa
 import time, pickle
 import numpy as np
-
+from hyperclass.gui.labels import labelsManager
 from hyperclass.data.events import dataEventHandler
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.graph.flow import activationFlowManager
@@ -20,7 +20,7 @@ cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 class UMAPManager(QObject,EventClient):
     update_signal = pyqtSignal()
 
-    def __init__(self, class_labels: List[ Tuple[str,List[float]]],  **kwargs ):
+    def __init__(self,  **kwargs ):
         QObject.__init__(self)
         self.point_cloud: PointCloud = PointCloud( **kwargs )
         self._gui: VTKFrame = None
@@ -29,7 +29,7 @@ class UMAPManager(QObject,EventClient):
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self._current_mapper = None
-        self.setClassColors( [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + class_labels )
+        self.setClassColors()
         self.update_signal.connect( self.update )
 
     def gui( self ):
@@ -58,13 +58,9 @@ class UMAPManager(QObject,EventClient):
                     except Exception as err:
                         print( f"Point selection error: {err}")
 
-    def setClassColors(self, class_labels: List[ Tuple[str,List[float]]] ):
-        self.class_labels: List[str] = []
-        self.class_colors: OrderedDict[str,List[float]] = OrderedDict()
-        for elem in class_labels:
-            self.class_labels.append( elem[0] )
-            color = elem[1] if (len( elem[1] ) == 4) else elem[1] + [1.0]
-            self.class_colors[ elem[0] ] = color
+    def setClassColors(self ):
+        self.class_labels: List[str] = labelsManager.labels
+        self.class_colors: OrderedDict[str,List[float]] = labelsManager.toDict( 1.0 )
         self.point_cloud.set_colormap( self.class_colors )
 
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:

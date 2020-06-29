@@ -11,7 +11,7 @@ from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.swift.manager import dataManager
 from collections import Mapping
 from functools import partial
-from hyperclass.plot.labels import format_colors
+from hyperclass.gui.labels import labelsManager
 from hyperclass.plot.spectra import SpectralPlot
 from typing import List, Union, Tuple, Dict
 import xarray as xa
@@ -30,11 +30,11 @@ class SwiftMainWindow(HCMainWindow):
         return PreferencesDialog()
 
 class SwiftConsole(QObject,EventClient):
-    def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
+    def __init__( self, **kwargs ):
         QObject.__init__(self)
         self.gui = SwiftMainWindow(None, 'swiftclass')
         dataEventHandler.config( subsample=kwargs.pop('subsample')  )
-        self.umgr = UMAPManager( format_colors(classes), **kwargs )
+        self.umgr = UMAPManager( **kwargs )
 
         self.left = 10
         self.top = 10
@@ -66,10 +66,14 @@ class SwiftConsole(QObject,EventClient):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout( vizLayout, 8 )
 
+        directoryLayout = QHBoxLayout()
         self.directoryConsole = DirectoryWidget()
-        self.spectral_plot = SpectralPlot()
+        self.labelsConsole = labelsManager.gui()
+        directoryLayout.addWidget(self.directoryConsole, 10)
+        directoryLayout.addWidget(self.labelsConsole, 2)
 
-        consoleLayout.addWidget(self.directoryConsole, 10 )
+        self.spectral_plot = SpectralPlot()
+        consoleLayout.addLayout(directoryLayout, 10 )
         consoleLayout.addWidget( self.spectral_plot.gui(widget), 6 )
 
         vizTabs = QTabWidget()

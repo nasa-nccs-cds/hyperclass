@@ -9,15 +9,15 @@ from hyperclass.data.aviris.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
-from hyperclass.plot.labels import format_colors
-from hyperclass.gui.points import VTKFrame, MixingFrame
+from hyperclass.gui.labels import format_colors
+from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Tuple
 
 
 class HyperclassConsole(QMainWindow):
-    def __init__( self, classes: List[Tuple[str,Union[str,List[float]]]], **kwargs ):
+    def __init__( self, **kwargs ):
         QMainWindow.__init__(self)
-        self.umgr = UMAPManager( format_colors(classes) )
+        self.umgr = UMAPManager( )
         self.title = 'hyperclass'
         self.left = 10
         self.top = 10
