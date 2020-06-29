@@ -52,7 +52,7 @@ class UMAPManager(QObject,EventClient):
                         pid = event.get('pid')
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
-                        colors = [ [1.0,1.0,0.0] ]
+                        colors = [ labelsManager.selectedColor ]
                         self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
                         self.update_signal.emit()
                     except Exception as err:

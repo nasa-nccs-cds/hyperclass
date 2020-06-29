@@ -41,6 +41,8 @@ class LabelsManager(QObject,EventClient):
         QObject.__init__( self )
         self._colors = None
         self._labels = None
+        self.selectedClass = 0
+        self.selectedColor = [1.0,1.0,1.0]
 
     @property
     def colors(self):
@@ -101,6 +103,8 @@ class LabelsManager(QObject,EventClient):
     def onClicked(self):
         radioButton = self.sender()
         if radioButton.isChecked():
+            self.selectedClass = radioButton.index
+            self.selectedColor = self.colors[ radioButton.index ]
             print(f"Selected class {radioButton.index}")
 
 labelsManager = LabelsManager()
