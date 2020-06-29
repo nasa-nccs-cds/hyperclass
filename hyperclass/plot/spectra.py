@@ -77,7 +77,7 @@ class SpectralPlot(QObject,EventClient):
         return self._gui
 
     def mouseClick(self, event: MouseEvent):
-        if self.axes is not None:
+        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.raw_spectra is not None ):
             print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
             xindex = int( event.xdata )
             data_values = self.raw_spectra[ self.current_pid ]

@@ -69,7 +69,16 @@ class SwiftConsole(QObject,EventClient):
         directoryLayout = QHBoxLayout()
         self.directoryConsole = DirectoryWidget()
         self.labelsConsole = labelsManager.gui()
-        directoryLayout.addWidget(self.directoryConsole, 10)
+
+        self.directoryTabs = QTabWidget()
+        self.directoryTabs.addTab(  self.directoryConsole, "Catalog" )
+        self.classDirecories = {}
+        for label in labelsManager.labels[1:]:
+            classDirectoryConsole = DirectoryWidget()
+            self.classDirecories[ label ] = classDirectoryConsole
+            self.directoryTabs.addTab( classDirectoryConsole, label )
+
+        directoryLayout.addWidget( self.directoryTabs, 10 )
         directoryLayout.addWidget(self.labelsConsole, 2)
 
         self.spectral_plot = SpectralPlot()

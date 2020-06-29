@@ -65,7 +65,7 @@ class LabelsManager(QObject,EventClient):
         console = QWidget()
         console_layout = QVBoxLayout()
         console.setLayout( console_layout )
-        radio_button_style = [ "border-style: outset", "border-width: 4px",  "border-color: beige",
+        radio_button_style = [ "border-style: outset", "border-width: 4px",
                                "padding: 6px", "border-radius: 10px" ]
         labels_frame = QFrame( console )
         frame_layout = QVBoxLayout()
@@ -80,13 +80,14 @@ class LabelsManager(QObject,EventClient):
         for index, label in enumerate(self._labels):
             radiobutton = QRadioButton( label, console )
             radiobutton.index = index
+            raw_color = [str(int(c * 155.99)) for c in self._colors[index]]
             qcolor = [ str(150+int(c*105.99)) for c in self._colors[index] ]
-            style_sheet = ";".join( radio_button_style + [ f"background-color:rgb({','.join(qcolor)})" ] )
+            style_sheet = ";".join( radio_button_style + [ f"background-color:rgb({','.join(qcolor)})", f"border-color: rgb({','.join(raw_color)})" ] )
             radiobutton.setStyleSheet( style_sheet )
             radiobutton.toggled.connect(self.onClicked)
             frame_layout.addWidget( radiobutton )
         buttonBox = QHBoxLayout()
-        for action in [ 'Explore', 'Clear' ]:
+        for action in [ 'Neighbors', 'Clear' ]:
             pybutton = QPushButton( action, console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttonBox.addWidget(pybutton)
