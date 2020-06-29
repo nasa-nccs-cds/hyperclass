@@ -46,14 +46,14 @@ class UMAPManager(QObject,EventClient):
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
         elif event.get('event') == 'pick':
-            if event.get('type') == 'directory':
+            if event.get('type') in [ 'directory', "vtkpoint" ]:
                 if self._current_mapper is not None:
                     try:
                         pid = event.get('pid')
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
                         colors = [ [1.0,1.0,0.0] ]
-                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors, reset = True )
+                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")
@@ -158,6 +158,7 @@ class UMAPManager(QObject,EventClient):
         if ndim == 3:
             self.point_cloud.setPoints( mapper.embedding_, labels_data )
         t2 = time.time()
+        self.update_signal.emit()
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = {mapper.embedding_.shape}")
         return self.wrap_embedding( point_data.coords['samples'], mapper.embedding_ )
 

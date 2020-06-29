@@ -57,7 +57,7 @@ class VTKWidget(QVTKRenderWindowInteractor):
         return 1
 
     def update(self):
-        self.point_cloud.createActor(self.iren.renderer)
+        self.point_cloud.createActors(self.iren.renderer)
         self.point_cloud.update()
         self.rw.Render()
 

@@ -55,7 +55,7 @@ class PointCloud():
     def process_event(self, event: Dict ):
         print( f" PointCloud.process_event: {event}")
 
-    def setPoints (self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
+    def setPoints(self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData(points)
         if labels is not None: self.set_point_colors( labels )
         self.initMarkers( **kwargs )
@@ -167,20 +167,24 @@ class PointCloud():
         self.marker_actor.Modified()
         self.marker_mapper.Modified()
 
-    def plotMarkers(self, points: List[List[float]], colors: List[List[float]], **kwargs  ):
-        reset = kwargs.get( 'reset', False )
-#        if reset: self.initMarkers( )
+    def plotMarkers(self, points: List[List[float]], colors: List[List[float]] = None, **kwargs  ):
+        reset = kwargs.get( 'reset', True )
+        if reset: self.initMarkers( )
         print(f"PointCloud-> Plot Markers: {points} {colors} " )
         for point_coords in points:
             id = self.marker_points.InsertNextPoint( *point_coords  )
             self.marker_verts.InsertNextCell(1)
             self.marker_verts.InsertCellPoint(id)
-        for color in colors:
-            vtk_color = [ math.floor(color[ic]*255.99) for ic in range(3) ]
+        for iC in range( len(points) ):
+            if colors is None:  vtk_color = [ 255, 255, 255 ]
+            else:
+                color = colors[iC]
+                vtk_color = [ int(color[ic]*255.99) for ic in range(3) ]
             self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.GetPointData().Modified()
         self.marker_points.Modified()
         self.marker_verts.Modified()
+        self.marker_colors.Modified()
         self.markers.Modified()
         self.marker_mapper.Modified()
         self.marker_actor.Modified()
@@ -238,7 +242,7 @@ class PointCloud():
 #            self.renderer.SetBackground(1.0, 1.0, 1.0)
 #            self.renderer.SetNearClippingPlaneTolerance( 0.0001 )
 
-    def createActor(self, renderer: vtk.vtkRenderer = None ):
+    def createActors(self, renderer: vtk.vtkRenderer = None):
         if self.actor is None:
             if renderer is not None:
                 self.renderer = renderer
@@ -250,10 +254,13 @@ class PointCloud():
             self.actor.GetProperty().SetPointSize(2)
             if self.renderer is not None:
                 self.renderer.AddActor( self.actor )
+        if self.marker_actor is None:
+            self.initMarkers()
+            if self.renderer is not None:
                 self.renderer.AddActor( self.marker_actor )
         return self.actor
 
     def show(self):
         self.createRenderWindow()
-        self.createActor()
+        self.createActors()
         self.renWin.GetInteractor().Start()
