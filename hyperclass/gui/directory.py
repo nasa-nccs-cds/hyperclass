@@ -104,7 +104,7 @@ class DirectoryWidget(QWidget,EventClient):
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'vtkpoint', 'directory' ]:
-                if (self.name == "catalog") and (etype == 'vtkpoint'):
+                if (self.name == "catalog"):
                     self.current_pid = event.get('pid')
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
                     self.selectRowByIndex( self.current_pid )
@@ -147,7 +147,7 @@ class DirectoryWidget(QWidget,EventClient):
             if pid == int( item.text() ):
                 self.table.scrollToItem( item )
                 self.table.selectRow( iRow )
-                if color is not None:
+                if self.pick_enabled and (color is not None):
                     qcolor = [int(color[ic] * 255.99) for ic in range(3)]
                     item.setBackground( QBrush( QColor(*qcolor) ) )
                 break
