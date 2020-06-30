@@ -51,6 +51,7 @@ class LabelsManager(QObject,EventClient):
         QObject.__init__( self )
         self._colors = None
         self._labels = None
+        self.buttons: List[QRadioButton] = []
         self.selectedClass = 0
         self.selectedColor = [1.0,1.0,1.0]
 
@@ -77,7 +78,8 @@ class LabelsManager(QObject,EventClient):
             labels_dict[ label ] = set_alpha( self._colors[index], alpha )
         return labels_dict
 
-    def gui(self):
+    def gui(self, **kwargs ):
+        self.show_unlabeled = kwargs.get( 'show_unlabeled', True )
         console = QWidget()
         console_layout = QVBoxLayout()
         console.setLayout( console_layout )
@@ -93,14 +95,16 @@ class LabelsManager(QObject,EventClient):
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         frame_layout.addWidget( title )
         for index, label in enumerate(self._labels):
-            radiobutton = QRadioButton( label, console )
-            radiobutton.index = index
-            raw_color = [str(int(c * 155.99)) for c in self._colors[index]]
-            qcolor = [ str(150+int(c*105.99)) for c in self._colors[index] ]
-            style_sheet = ";".join( radio_button_style + [ f"background-color:rgb({','.join(qcolor)})", f"border-color: rgb({','.join(raw_color)})" ] )
-            radiobutton.setStyleSheet( style_sheet )
-            radiobutton.toggled.connect(self.onClicked)
-            frame_layout.addWidget( radiobutton )
+            if (index > 0) or self.show_unlabeled:
+                radiobutton = QRadioButton( label, console )
+                radiobutton.index = index
+                raw_color = [str(int(c * 155.99)) for c in self._colors[index]]
+                qcolor = [ str(150+int(c*105.99)) for c in self._colors[index] ]
+                style_sheet = ";".join( radio_button_style + [ f"background-color:rgb({','.join(qcolor)})", f"border-color: rgb({','.join(raw_color)})" ] )
+                radiobutton.setStyleSheet( style_sheet )
+                radiobutton.toggled.connect(self.onClicked)
+                frame_layout.addWidget( radiobutton )
+                self.buttons.append( radiobutton )
         buttonBox = QHBoxLayout()
         for action in [ 'Neighbors', 'Clear' ]:
             pybutton = QPushButton( action, console )
@@ -108,6 +112,7 @@ class LabelsManager(QObject,EventClient):
             buttonBox.addWidget(pybutton)
         frame_layout.addLayout( buttonBox )
         console_layout.addStretch( 1 )
+        self.buttons[0].setChecked( True )
         return console
 
     def execute(self, action: str ):
