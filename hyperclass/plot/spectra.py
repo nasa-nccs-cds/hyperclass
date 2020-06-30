@@ -17,11 +17,20 @@ def isUnlabeled(color):
         if color[ix] < 1.0: return False
     return True
 
+class Spectrum:
+    def __init__(self, band_values: List[float], color: List[float] ):
+        self.bands = band_values
+        self.color = color
+
+    def isTransient(self):
+        return isUnlabeled( self.color )
+
 class SpectralCanvas( FigureCanvas ):
 
     def __init__(self, figure: Figure ):
         FigureCanvas.__init__( self, figure )
         self.figure = figure
+        self.figure.patch.set_facecolor('#e2e2e2')
 
 class SpectralPlot(QObject,EventClient):
     update_signal = pyqtSignal()
@@ -47,7 +56,6 @@ class SpectralPlot(QObject,EventClient):
         self.axes.title.set_fontsize(14)
         self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.axes.get_yaxis().set_visible(False)
-        self.figure.suptitle("Point Spectra")
         self.activate_event_listening()
 
     def configure(self, event: Dict ):

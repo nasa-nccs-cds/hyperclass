@@ -1,5 +1,6 @@
 import sys, os, traceback
 import numpy as np
+from hyperclass.gui.labels import labelsManager, Marker
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, threading
 import vtk.util.numpy_support as npsup
@@ -167,19 +168,14 @@ class PointCloud():
         self.marker_actor.Modified()
         self.marker_mapper.Modified()
 
-    def plotMarkers(self, points: List[List[float]], colors: List[List[float]] = None, **kwargs  ):
+    def plotMarkers(self, markers: List[Marker], **kwargs  ):
         reset = kwargs.get( 'reset', True )
         if reset: self.initMarkers( )
-        print(f"PointCloud-> Plot Markers: {points} {colors} " )
-        for point_coords in points:
-            id = self.marker_points.InsertNextPoint( *point_coords  )
+        for marker in markers:
+            id = self.marker_points.InsertNextPoint( *marker.location  )
             self.marker_verts.InsertNextCell(1)
             self.marker_verts.InsertCellPoint(id)
-        for iC in range( len(points) ):
-            if colors is None:  vtk_color = [ 255, 255, 255 ]
-            else:
-                color = colors[iC]
-                vtk_color = [ int(color[ic]*255.99) for ic in range(3) ]
+            vtk_color = [ int(marker.color[ic]*255.99) for ic in range(3) ]
             self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.GetPointData().Modified()
         self.marker_points.Modified()

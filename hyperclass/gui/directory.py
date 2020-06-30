@@ -17,8 +17,9 @@ class NumericTableWidgetItem(QTableWidgetItem):
 class DirectoryWidget(QWidget,EventClient):
     build_table = pyqtSignal()
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name: str, *args, **kwargs):
         QWidget.__init__(self)
+        self.name = name
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.table  = QTableWidget( self )
@@ -75,19 +76,21 @@ class DirectoryWidget(QWidget,EventClient):
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            plot_metadata = dataEventHandler.getMetadata( event )
-            targets = plot_metadata['targets']
-            obsids = plot_metadata['obsids']
-            self.col_data['index'] = range( targets.shape[0] )
-            self.col_data['targets'] = targets.values.tolist()
-            self.col_data['obsids'] = obsids.values.tolist()
-            self.build_table.emit()
+            if self.name == "catalog":
+                plot_metadata = dataEventHandler.getMetadata( event )
+                targets = plot_metadata['targets']
+                obsids = plot_metadata['obsids']
+                self.col_data['index'] = range( targets.shape[0] )
+                self.col_data['targets'] = targets.values.tolist()
+                self.col_data['obsids'] = obsids.values.tolist()
+                self.build_table.emit()
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':
-                self.current_pid = event.get('pid')
-                color = event.get( 'color', [1.0, 1.0, 1.0 ] )
-                print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
-                self.selectRowByIndex( self.current_pid )
+                if self.name == "catalog":
+                    self.current_pid = event.get('pid')
+                    color = event.get( 'color', [1.0, 1.0, 1.0 ] )
+                    print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
+                    self.selectRowByIndex( self.current_pid )
 
     @property
     def button_actions(self) -> Dict[str, Callable]:

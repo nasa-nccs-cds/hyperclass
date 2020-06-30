@@ -34,6 +34,16 @@ def set_alphas( colors, alpha ):
 def set_alpha( color, alpha ):
     return color[:3] + [alpha]
 
+class Marker:
+    def __init__(self, location: List[float], color: List[float] ):
+        self.location = location
+        self.color = color
+
+    def isTransient(self):
+        for ic in range(3):
+            if self.color[ic] < 1.0: return False
+        return True
+
 class LabelsManager(QObject,EventClient):
     update_signal = pyqtSignal()
 
@@ -63,12 +73,24 @@ class LabelsManager(QObject,EventClient):
             labels_dict[ label ] = set_alpha( self._colors[index], alpha )
         return labels_dict
 
+    def processEvent( self, event: Dict ):
+        if event.get('event') == 'pick':
+            if event.get('type') in [ 'directory', "vtkpoint" ]:
+                if self._current_mapper is not None:
+                    try:
+                        pid = event.get('pid')
+                        print( f"UMAPManager.processEvent-> pick: {pid}")
+                        transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
+                        colors = [ labelsManager.selectedColor ]
+                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
+                        self.update_signal.emit()
+                    except Exception as err:
+                        print( f"Point selection error: {err}")
     def gui(self):
         console = QWidget()
         console_layout = QVBoxLayout()
         console.setLayout( console_layout )
-        radio_button_style = [ "border-style: outset", "border-width: 4px",
-                               "padding: 6px", "border-radius: 10px" ]
+        radio_button_style = [ "border-style: outset", "border-width: 4px", "padding: 6px", "border-radius: 10px" ]
         labels_frame = QFrame( console )
         frame_layout = QVBoxLayout()
         labels_frame.setLayout( frame_layout )

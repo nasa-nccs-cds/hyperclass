@@ -67,27 +67,29 @@ class SwiftConsole(QObject,EventClient):
         framesLayout.addLayout( vizLayout, 8 )
 
         directoryLayout = QHBoxLayout()
-        self.directoryConsole = DirectoryWidget()
+        self.directoryConsole = DirectoryWidget('catalog')
         self.labelsConsole = labelsManager.gui()
 
         self.directoryTabs = QTabWidget()
         self.directoryTabs.addTab(  self.directoryConsole, "Catalog" )
         self.classDirecories = {}
         for label in labelsManager.labels[1:]:
-            classDirectoryConsole = DirectoryWidget()
+            classDirectoryConsole = DirectoryWidget(label)
             self.classDirecories[ label ] = classDirectoryConsole
             self.directoryTabs.addTab( classDirectoryConsole, label )
 
         directoryLayout.addWidget( self.directoryTabs, 10 )
         directoryLayout.addWidget(self.labelsConsole, 2)
-
-        self.spectral_plot = SpectralPlot()
         consoleLayout.addLayout(directoryLayout, 10 )
-        consoleLayout.addWidget( self.spectral_plot.gui(widget), 6 )
 
-        vizTabs = QTabWidget()
-        vizTabs.addTab(  self.umgr.gui(), "Embedding" )
-        vizLayout.addWidget( vizTabs )
+        self.spectraTabs = QTabWidget()
+        self.spectral_plot = SpectralPlot()
+        self.spectraTabs.addTab(self.spectral_plot.gui(widget), "Spectra")
+        consoleLayout.addWidget( self.spectraTabs, 6 )
+
+        self.vizTabs = QTabWidget()
+        self.vizTabs.addTab(  self.umgr.gui(), "Embedding" )
+        vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()
 

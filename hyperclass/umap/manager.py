@@ -1,7 +1,7 @@
 import xarray as xa
 import time, pickle
 import numpy as np
-from hyperclass.gui.labels import labelsManager
+from hyperclass.gui.labels import labelsManager, Marker
 from hyperclass.data.events import dataEventHandler
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.graph.flow import activationFlowManager
@@ -31,6 +31,7 @@ class UMAPManager(QObject,EventClient):
         self._current_mapper = None
         self.setClassColors()
         self.update_signal.connect( self.update )
+        self._markers: List[Marker] = []
 
     def gui( self ):
         if self._gui is None:
@@ -52,11 +53,16 @@ class UMAPManager(QObject,EventClient):
                         pid = event.get('pid')
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
-                        colors = [ labelsManager.selectedColor ]
-                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
+                        self.clearTransient()
+                        self._markers.append( Marker( transformed_data.tolist(), labelsManager.selectedColor ) )
+                        self.point_cloud.plotMarkers(  self._markers )
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")
+
+    def clearTransient(self):
+        if len(self._markers) > 0 and self._markers[-1].isTransient():
+            self._markers.pop(-1)
 
     def setClassColors(self ):
         self.class_labels: List[str] = labelsManager.labels
@@ -66,6 +72,7 @@ class UMAPManager(QObject,EventClient):
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
         mid = f"{ndim}-{point_data.attrs['dsid']}"
         mapper: UMAP = self.getMapper( mid, ndim )
+        self._markers = []
         if mapper.embedding_ is not None:
             return self.wrap_embedding( point_data.coords[ point_data.dims[0] ], mapper.embedding_ )
         return self.embed( point_data, ndim = ndim )
