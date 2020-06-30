@@ -47,14 +47,17 @@ class UMAPManager(QObject,EventClient):
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
         elif event.get('event') == 'pick':
-            if event.get('type') in [ 'directory', "vtkpoint" ]:
+            etype = event.get('type')
+            if etype in [ 'directory', "vtkpoint" ]:
                 if self._current_mapper is not None:
                     try:
                         pid = event.get('pid')
+                        cid = event.get('cid',0)
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
                         self.clearTransient()
-                        self._markers.append( Marker( transformed_data.tolist(), labelsManager.selectedColor ) )
+                        color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
+                        self._markers.append( Marker( transformed_data.tolist(), color ) )
                         self.point_cloud.plotMarkers(  self._markers )
                         self.update_signal.emit()
                     except Exception as err:

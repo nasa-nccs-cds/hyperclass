@@ -49,7 +49,8 @@ class DirectoryWidget(QWidget,EventClient):
 
     def selectRow( self, row ):
         table_item: QTableWidgetItem = self.table.item( row, 0 )
-        event = dict( event="pick", type="directory", pid=int( table_item.text() ) )
+        iclass = labelsManager.selectedClass if self.pick_enabled else 0
+        event = dict( event="pick", type="directory", pid=int( table_item.text() ), cid = iclass )
         self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
@@ -101,12 +102,13 @@ class DirectoryWidget(QWidget,EventClient):
             self.col_data['distance'] = []
             self.build_table.emit()
         elif event.get('event') == 'pick':
-            if event.get('type') == 'vtkpoint':
-                if self.name == "catalog":
+            etype = event.get('type')
+            if etype in [ 'vtkpoint', 'directory' ]:
+                if (self.name == "catalog") and (etype == 'vtkpoint'):
                     self.current_pid = event.get('pid')
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
                     self.selectRowByIndex( self.current_pid )
-                elif self.name == labelsManager.selectedLabel:
+                elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     self.current_pid = event.get('pid')
                     plot_metadata = dataEventHandler.getMetadata(event)
                     row_data = [ self.current_pid, plot_metadata['targets'].values[self.current_pid], plot_metadata['obsids'].values[self.current_pid], 0.0 ]
