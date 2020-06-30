@@ -55,6 +55,10 @@ class LabelsManager(QObject,EventClient):
         self.selectedColor = [1.0,1.0,1.0]
 
     @property
+    def selectedLabel(self):
+        return self._labels[ self.selectedClass ]
+
+    @property
     def colors(self):
         return self._colors
 

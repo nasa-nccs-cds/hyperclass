@@ -32,6 +32,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.layout.addWidget( self.table )
         self.col_data = OrderedDict()
         self.current_pid = None
+        self._current_row = 0
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
@@ -78,26 +79,42 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.sortItems(1)
         self.update()
 
+    def setRowData(self, row_data: List ):
+        for column, value in enumerate(row_data):
+            if isinstance(value, str):
+                table_item = QTableWidgetItem(value)
+            else:
+                table_item = NumericTableWidgetItem(str(value))
+            self.table.setItem( self._current_row , column, table_item)
+        self._current_row = self._current_row + 1
+
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata = dataEventHandler.getMetadata( event )
             targets = plot_metadata['targets']
             obsids = plot_metadata['obsids']
             self.nRows = targets.shape[0]
-            if self.name == "catalog":
-                self.col_data['index'] = range( self.nRows )
-                self.col_data['targets'] = targets.values.tolist()
-                self.col_data['obsids'] = obsids.values.tolist()
+            self.col_data['index'] = range( self.nRows ) if self.name == "catalog" else []
+            self.col_data['targets'] = targets.values.tolist() if self.name == "catalog" else []
+            self.col_data['obsids'] = obsids.values.tolist() if self.name == "catalog" else []
+            self.col_data['distance'] = []
             self.build_table.emit()
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':
-                current_class = labelsManager.selectedClass
                 if self.name == "catalog":
                     self.current_pid = event.get('pid')
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
                     self.selectRowByIndex( self.current_pid )
-                if self.name == current_class:
+                elif self.name == labelsManager.selectedLabel:
                     self.current_pid = event.get('pid')
+                    plot_metadata = dataEventHandler.getMetadata(event)
+                    row_data = [ self.current_pid, plot_metadata['targets'].values[self.current_pid], plot_metadata['obsids'].values[self.current_pid], 0.0 ]
+                    self.col_data['index'].append( row_data[0] )
+                    self.col_data['targets'].append( row_data[1] )
+                    self.col_data['obsids'].append( row_data[2] )
+                    self.col_data['distance'].append( row_data[3] )
+                    self.setRowData( row_data )
+                    self.update()
 
     @property
     def button_actions(self) -> Dict[str, Callable]:
