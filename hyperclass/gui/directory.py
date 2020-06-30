@@ -3,9 +3,11 @@ import numpy as np
 from PyQt5.QtCore import *
 from collections import OrderedDict
 from PyQt5.QtWidgets import QWidget, QTableWidgetItem, QAction, QVBoxLayout, QTableWidget
+from PyQt5.QtGui import QBrush, QColor
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
+from hyperclass.gui.labels import labelsManager
 
 
 class NumericTableWidgetItem(QTableWidgetItem):
@@ -20,6 +22,7 @@ class DirectoryWidget(QWidget,EventClient):
     def __init__(self, name: str, *args, **kwargs):
         QWidget.__init__(self)
         self.name = name
+        self.nRows = 0
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
         self.table  = QTableWidget( self )
@@ -60,13 +63,14 @@ class DirectoryWidget(QWidget,EventClient):
 
     @pyqtSlot()
     def build_table_slot(self):
-        cols = list(self.col_data.values())
-        self.table.setRowCount( len(cols[0]) )
-        self.table.setColumnCount( len( self.col_data.keys() ) )
-        for column, (cid, row_data) in enumerate(self.col_data.items()):
-            self.table.setColumnWidth( column, 200 )
+        self.table.setRowCount( self.nRows )
+        self.table.setColumnCount( 4 )
+        col_headers = [ 'index', 'targets', 'obsids', 'distance']
+        for column, cid in enumerate( col_headers ):
+            self.table.setColumnWidth( column, 150 )
             column_header: QTableWidgetItem = QTableWidgetItem(cid)
             self.table.setHorizontalHeaderItem( column, column_header )
+        for column, (cid, row_data) in enumerate(self.col_data.items()):
             for row, value in enumerate(row_data):
                 if isinstance(value,str):   table_item = QTableWidgetItem( value )
                 else:                       table_item = NumericTableWidgetItem( str(value) )
@@ -76,21 +80,24 @@ class DirectoryWidget(QWidget,EventClient):
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
+            plot_metadata = dataEventHandler.getMetadata( event )
+            targets = plot_metadata['targets']
+            obsids = plot_metadata['obsids']
+            self.nRows = targets.shape[0]
             if self.name == "catalog":
-                plot_metadata = dataEventHandler.getMetadata( event )
-                targets = plot_metadata['targets']
-                obsids = plot_metadata['obsids']
-                self.col_data['index'] = range( targets.shape[0] )
+                self.col_data['index'] = range( self.nRows )
                 self.col_data['targets'] = targets.values.tolist()
                 self.col_data['obsids'] = obsids.values.tolist()
-                self.build_table.emit()
+            self.build_table.emit()
         elif event.get('event') == 'pick':
             if event.get('type') == 'vtkpoint':
+                current_class = labelsManager.selectedClass
                 if self.name == "catalog":
                     self.current_pid = event.get('pid')
-                    color = event.get( 'color', [1.0, 1.0, 1.0 ] )
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
                     self.selectRowByIndex( self.current_pid )
+                if self.name == current_class:
+                    self.current_pid = event.get('pid')
 
     @property
     def button_actions(self) -> Dict[str, Callable]:
@@ -100,13 +107,17 @@ class DirectoryWidget(QWidget,EventClient):
     def menu_actions(self) -> Dict:
         return self.canvas.menu_actions
 
-    def selectRowByIndex(self, pid: int, col: int = 0 ):
+    def selectRowByIndex( self, pid: int, col: int = 0 ):
         rows = self.table.rowCount()
+        color = labelsManager.selectedColor
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, col )
             if pid == int( item.text() ):
                 self.table.scrollToItem( item )
                 self.table.selectRow( iRow )
+                if color is not None:
+                    qcolor = [int(color[ic] * 255.99) for ic in range(3)]
+                    item.setBackground( QBrush( QColor(*qcolor) ) )
                 break
         self.update()
 
