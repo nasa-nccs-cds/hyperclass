@@ -106,7 +106,12 @@ class VTKFrame(QtWidgets.QFrame):
 
     def setKeyState(self, event ):
         self._key_state = event.get('key')
-        if self._key_state == Qt.Key_Alt:
+        k = self._key_state
+        k0 = Qt.Key_Control
+        k1 = Qt.Key_Meta
+        k2 = Qt.Key_Alt
+        k3 = Qt.Key_Option
+        if self._key_state == Qt.Key_Control:
             self.vtkWidget.iren.pick_enabled = True
 
     def releaseKeyState(self, event ):

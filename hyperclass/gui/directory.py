@@ -33,6 +33,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.col_data = OrderedDict()
         self.current_pid = None
         self._current_row = 0
+        self.pick_enabled = False
+        self._key_state = None
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
@@ -46,7 +48,6 @@ class DirectoryWidget(QWidget,EventClient):
         self.update()
 
     def selectRow( self, row ):
-        print(f"DirectoryWidget:onRowSelection: {row} ")
         table_item: QTableWidgetItem = self.table.item( row, 0 )
         event = dict( event="pick", type="directory", pid=int( table_item.text() ) )
         self.submitEvent( event, EventMode.Gui )
@@ -115,6 +116,18 @@ class DirectoryWidget(QWidget,EventClient):
                     self.col_data['distance'].append( row_data[3] )
                     self.setRowData( row_data )
                     self.update()
+        elif event.get('event') == 'gui':
+            if event.get('type') == 'keyPress':      self.setKeyState( event )
+            elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
+
+    def setKeyState(self, event ):
+        self._key_state = event.get('key')
+        if self._key_state == Qt.Key_Control:
+            self.pick_enabled = True
+
+    def releaseKeyState(self, event ):
+        self._key_state = None
+        self.pick_enabled = False
 
     @property
     def button_actions(self) -> Dict[str, Callable]:

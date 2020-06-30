@@ -77,19 +77,6 @@ class LabelsManager(QObject,EventClient):
             labels_dict[ label ] = set_alpha( self._colors[index], alpha )
         return labels_dict
 
-    def processEvent( self, event: Dict ):
-        if event.get('event') == 'pick':
-            if event.get('type') in [ 'directory', "vtkpoint" ]:
-                if self._current_mapper is not None:
-                    try:
-                        pid = event.get('pid')
-                        print( f"UMAPManager.processEvent-> pick: {pid}")
-                        transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
-                        colors = [ labelsManager.selectedColor ]
-                        self.point_cloud.plotMarkers( transformed_data.tolist(), colors )
-                        self.update_signal.emit()
-                    except Exception as err:
-                        print( f"Point selection error: {err}")
     def gui(self):
         console = QWidget()
         console_layout = QVBoxLayout()
