@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from collections import OrderedDict
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
+from hyperclass.gui.labels import labelsManager
 import xarray as xa
 
 def isUnlabeled(color):
@@ -35,9 +36,11 @@ class SpectralCanvas( FigureCanvas ):
 class SpectralPlot(QObject,EventClient):
     update_signal = pyqtSignal()
 
-    def __init__( self, **kwargs ):
+    def __init__( self, active: bool, **kwargs ):
         QObject.__init__(self)
         self.figure: Optional[Figure] = None
+        self._active = active
+        self.overlay = kwargs.get('overlay', False )
         self.axes: Optional[Axes] = None
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
@@ -49,6 +52,9 @@ class SpectralPlot(QObject,EventClient):
         self._titles = None
         self.parms = kwargs
         self.update_signal.connect( self.update )
+
+    def activate( self, active: bool  ):
+        self._active = active
 
     def init( self ):
         self.figure = Figure(constrained_layout=True)
@@ -103,17 +109,12 @@ class SpectralPlot(QObject,EventClient):
             self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData(event, scaled = False)
             self.configure( event )
         elif event.get('event') == 'pick':
-            if event.get('type') in [ 'vtkpoint', 'directory' ]:
+            if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 self.current_pid = event.get('pid')
-                color = event.get('color')
-                linewidth = 3
-                if color is None:
-                    self.clear_current_line()
-                    color = [1.0, 1.0, 1.0 ]
-                    linewidth = 1
+                self.clear_transients()
                 print( f"SpectralPlot: pick event, pid = {self.current_pid}")
                 scaled_values = self.scaled_spectra[self.current_pid]
-                self.plot_spectrum( scaled_values, color, linewidth)
+                self.plot_spectrum( scaled_values, labelsManager.selectedColor )
                 if self._titles is not None:
                     self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
                 self.update_marker()
@@ -127,13 +128,13 @@ class SpectralPlot(QObject,EventClient):
         if new_xval is not None:
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
-    def plot_spectrum(self, data: xa.DataArray, color: List[float], linewidth ):
+    def plot_spectrum(self, data: xa.DataArray, color: List[float] ):
         x = range( data.size )
+        linewidth = 2 if self.overlay else 1
         if len(color) == 4: color[3] = 1.0
         spectrum = data.values
-        if self.current_line is not None:
-            self.current_line.set_linewidth(1)
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
+        self.current_line.color = color
         self.lines[ self.current_pid ] = self.current_line
 
     def clear(self):
@@ -141,11 +142,14 @@ class SpectralPlot(QObject,EventClient):
         self.current_line = None
         self.axes.clear()
 
-    def clear_current_line(self):
-        if self.current_line is not None:
-            index, line = self.lines.popitem()
-            line.remove()
-            self.current_line = None
+    def clear_transients(self):
+        if (self.current_line is not None):
+            if isUnlabeled(self.current_line.color) or not self.overlay:
+                index, line = self.lines.popitem()
+                line.remove()
+                self.current_line = None
+            else:
+                self.current_line.set_linewidth(1)
 
     def remove_spectrum(self, index: int ):
         line: Line2D = self.lines[ index ]

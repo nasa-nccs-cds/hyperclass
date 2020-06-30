@@ -40,6 +40,8 @@ class SwiftConsole(QObject,EventClient):
         self.top = 10
         self.width = 1920
         self.height = 1080
+        self.nSpectra = 5
+        self.spectral_plots = []
         self.NFunctionButtons = 0
         self.directoryConsole = None
         self.message_stack = []
@@ -83,8 +85,13 @@ class SwiftConsole(QObject,EventClient):
         consoleLayout.addLayout(directoryLayout, 10 )
 
         self.spectraTabs = QTabWidget()
-        self.spectral_plot = SpectralPlot()
-        self.spectraTabs.addTab(self.spectral_plot.gui(widget), "Spectra")
+        for iS in range( self.nSpectra ):
+            spectral_plot = SpectralPlot( iS == 0 )
+            self.spectral_plots.append(spectral_plot)
+            tabId = "Spectra" if iS == 0 else str(iS)
+            self.spectraTabs.addTab( spectral_plot.gui(widget), tabId )
+        self.spectraTabs.currentChanged.connect( self.activate_spectral_plot )
+        self.spectraTabs.setTabEnabled( 0, True )
         consoleLayout.addWidget( self.spectraTabs, 6 )
 
         self.vizTabs = QTabWidget()
@@ -93,7 +100,9 @@ class SwiftConsole(QObject,EventClient):
 
         self.populate_load_menues()
 
-
+    def activate_spectral_plot( self, index: int ):
+        for iS, plot in enumerate(self.spectral_plots):
+            plot.activate( iS == index )
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
