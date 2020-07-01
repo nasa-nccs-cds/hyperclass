@@ -13,18 +13,14 @@ from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.labels import labelsManager
 import xarray as xa
 
-def isUnlabeled(color):
-    for ix in range(3):
-        if color[ix] < 1.0: return False
-    return True
-
 class Spectrum:
-    def __init__(self, band_values: List[float], color: List[float] ):
+    def __init__(self, band_values: List[float], color: List[float], cid: int ):
         self.bands = band_values
         self.color = color
+        self.cid = cid
 
     def isTransient(self):
-        return isUnlabeled( self.color )
+        return self.cid == 0
 
 class SpectralCanvas( FigureCanvas ):
 
@@ -111,10 +107,11 @@ class SpectralPlot(QObject,EventClient):
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 self.current_pid = event.get('pid')
+                cid = labelsManager.selectedClass
                 self.clear_transients()
                 print( f"SpectralPlot: pick event, pid = {self.current_pid}")
                 scaled_values = self.scaled_spectra[self.current_pid]
-                self.plot_spectrum( scaled_values, labelsManager.selectedColor )
+                self.plot_spectrum( self.current_pid, cid, scaled_values, labelsManager.selectedColor )
                 if self._titles is not None:
                     self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
                 self.update_marker()
@@ -128,13 +125,14 @@ class SpectralPlot(QObject,EventClient):
         if new_xval is not None:
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
-    def plot_spectrum(self, data: xa.DataArray, color: List[float] ):
+    def plot_spectrum(self, pid: int, cid: int, data: xa.DataArray, color: List[float] ):
         x = range( data.size )
         linewidth = 2 if self.overlay else 1
         if len(color) == 4: color[3] = 1.0
         spectrum = data.values
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
         self.current_line.color = color
+        self.current_line.cid = cid
         self.lines[ self.current_pid ] = self.current_line
 
     def clear(self):
@@ -144,7 +142,7 @@ class SpectralPlot(QObject,EventClient):
 
     def clear_transients(self):
         if (self.current_line is not None):
-            if isUnlabeled(self.current_line.color) or not self.overlay:
+            if (self.current_line.cid == 0) or not self.overlay:
                 index, line = self.lines.popitem()
                 line.remove()
                 self.current_line = None

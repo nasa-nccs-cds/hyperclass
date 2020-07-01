@@ -66,8 +66,8 @@ class PointCloud():
 
     def set_colormap(self, label_colors: OrderedDict ):
         colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
+        colors[0] = [ 255, 255, 255, 255 ]
         self.colormap = np.vstack( colors )
-        print(".")
 
     def update_point_sizes(self, increase: bool):
         psize = self.actor.GetProperty().GetPointSize()

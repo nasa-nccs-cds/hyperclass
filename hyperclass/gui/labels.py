@@ -35,14 +35,13 @@ def set_alpha( color, alpha ):
     return color[:3] + [alpha]
 
 class Marker:
-    def __init__(self, location: List[float], color: List[float] ):
+    def __init__(self, location: List[float], color: List[float], cid: int ):
         self.location = location
         self.color = color
+        self.cid = cid
 
     def isTransient(self):
-        for ic in range(3):
-            if self.color[ic] < 1.0: return False
-        return True
+        return self.cid == 0
 
 class LabelsManager(QObject,EventClient):
     update_signal = pyqtSignal()
@@ -67,8 +66,9 @@ class LabelsManager(QObject,EventClient):
     def labels(self):
         return self._labels
 
-    def setLabels(self, labels: List[Tuple[str, List[float]]]):
-        label_list = [('Unlabeled', [1.0, 1.0, 1.0, 0.5])] + labels
+    def setLabels(self, labels: List[Tuple[str, List[float]]], **kwargs):
+        unlabeled_color = kwargs.get( 'unlabeled', [1.0, 1.0, 0.0, 1.0] )
+        label_list = [ ('Unlabeled', unlabeled_color ) ] + labels
         self._colors = format_colors( label_list )
         self._labels = [ item[0] for item in label_list ]
 

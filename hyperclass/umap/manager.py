@@ -52,19 +52,19 @@ class UMAPManager(QObject,EventClient):
                 if self._current_mapper is not None:
                     try:
                         pid = event.get('pid')
-                        cid = event.get('cid',0)
+                        cid = event.get('cid', labelsManager.selectedClass )
+                        color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
                         self.clearTransient()
-                        color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
-                        self._markers.append( Marker( transformed_data.tolist(), color ) )
+                        self._markers.append( Marker( transformed_data.tolist(), color, cid ) )
                         self.point_cloud.plotMarkers(  self._markers )
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")
 
     def clearTransient(self):
-        if len(self._markers) > 0 and self._markers[-1].isTransient():
+        if len(self._markers) > 0 and self._markers[-1].cid == 0:
             self._markers.pop(-1)
 
     def setClassColors(self ):

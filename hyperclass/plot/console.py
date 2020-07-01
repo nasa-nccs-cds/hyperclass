@@ -460,7 +460,7 @@ class LabelingConsole:
         pindex = self.block.coords2pindex( y, x )
         if pindex >= 0:
             pdata = self.block.getPointData( )
-            self.spectral_plot.plot_spectrum( pindex, pdata[pindex], color )
+            self.spectral_plot.plot_spectrum( pindex, marker.cid, pdata[pindex], color )
 
     def undo_marker_selection(self, **kwargs ):
         if len( self.marker_list ):
