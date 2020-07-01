@@ -54,6 +54,21 @@ class LabelsManager(QObject,EventClient):
         self.buttons: List[QRadioButton] = []
         self.selectedClass = 0
         self.selectedColor = [1.0,1.0,1.0]
+        self._markers: List[Marker] = []
+
+    def clearTransient(self):
+        if len(self._markers) > 0 and self._markers[-1].cid == 0:
+            self._markers.pop(-1)
+
+    def clearMarkers(self):
+        self._markers = []
+
+    def addMarker(self, marker: Marker ):
+        self.clearTransient()
+        self._markers.append(marker)
+
+    def getMarkers( self ) -> List[Marker]:
+        return self._markers
 
     @property
     def selectedLabel(self):

@@ -168,10 +168,10 @@ class PointCloud():
         self.marker_actor.Modified()
         self.marker_mapper.Modified()
 
-    def plotMarkers(self, markers: List[Marker], **kwargs  ):
+    def plotMarkers(self, **kwargs  ):
         reset = kwargs.get( 'reset', True )
         if reset: self.initMarkers( )
-        for marker in markers:
+        for marker in labelsManager.getMarkers():
             id = self.marker_points.InsertNextPoint( *marker.location  )
             self.marker_verts.InsertNextCell(1)
             self.marker_verts.InsertCellPoint(id)

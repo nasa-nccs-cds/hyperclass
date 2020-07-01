@@ -147,6 +147,7 @@ class SwiftConsole(QObject,EventClient):
         print( f"Opened Dataset {dsid} from file {data_file}")
         dataset.attrs['dsid'] = dsid
         dataset.attrs['type'] = 'spectra'
+        labelsManager.clearMarkers()
         return dataset
 
     def loadCurrentDataset(self):
