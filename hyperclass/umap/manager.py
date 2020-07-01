@@ -46,6 +46,8 @@ class UMAPManager(QObject,EventClient):
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
+            elif event.get('type') == 'clear':       self.clearMarkers()
+
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'directory', "vtkpoint" ]:
@@ -62,6 +64,11 @@ class UMAPManager(QObject,EventClient):
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")
+
+    def clearMarkers(self):
+        self.point_cloud.initMarkers()
+        self._markers = []
+        self.update()
 
     def clearTransient(self):
         if len(self._markers) > 0 and self._markers[-1].cid == 0:

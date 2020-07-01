@@ -2,6 +2,7 @@ from PyQt5.QtWidgets import QWidget, QAction, QVBoxLayout,  QHBoxLayout, QRadioB
 from hyperclass.gui.events import EventClient
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import OrderedDict
+from hyperclass.gui.events import EventClient, EventMode
 from PyQt5.QtCore import Qt
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import collections.abc
@@ -84,16 +85,17 @@ class LabelsManager(QObject,EventClient):
         console_layout = QVBoxLayout()
         console.setLayout( console_layout )
         radio_button_style = [ "border-style: outset", "border-width: 4px", "padding: 6px", "border-radius: 10px" ]
+
         labels_frame = QFrame( console )
-        frame_layout = QVBoxLayout()
-        labels_frame.setLayout( frame_layout )
+        buttons_frame_layout = QVBoxLayout()
+        labels_frame.setLayout( buttons_frame_layout )
         labels_frame.setFrameStyle( QFrame.StyledPanel | QFrame.Raised )
         labels_frame.setLineWidth( 3 )
         console_layout.addWidget( labels_frame )
-
         title = QLabel( "Classes" )
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
-        frame_layout.addWidget( title )
+        buttons_frame_layout.addWidget( title )
+
         for index, label in enumerate(self._labels):
             if (index > 0) or self.show_unlabeled:
                 radiobutton = QRadioButton( label, console )
@@ -103,20 +105,32 @@ class LabelsManager(QObject,EventClient):
                 style_sheet = ";".join( radio_button_style + [ f"background-color:rgb({','.join(qcolor)})", f"border-color: rgb({','.join(raw_color)})" ] )
                 radiobutton.setStyleSheet( style_sheet )
                 radiobutton.toggled.connect(self.onClicked)
-                frame_layout.addWidget( radiobutton )
+                buttons_frame_layout.addWidget( radiobutton )
                 self.buttons.append( radiobutton )
-        buttonBox = QHBoxLayout()
-        for action in [ 'Neighbors', 'Clear' ]:
+
+        buttons_frame = QFrame( console )
+        buttons_frame_layout = QVBoxLayout()
+        buttons_frame.setLayout( buttons_frame_layout )
+        buttons_frame.setFrameStyle( QFrame.StyledPanel | QFrame.Raised )
+        buttons_frame.setLineWidth( 3 )
+        console_layout.addWidget( buttons_frame )
+        title = QLabel( "Actions" )
+        title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
+        buttons_frame_layout.addWidget( title )
+
+        for action in [ 'Mark', 'Neighbors', 'Undo', 'Clear' ]:
             pybutton = QPushButton( action, console )
             pybutton.clicked.connect( partial( self.execute,action)  )
-            buttonBox.addWidget(pybutton)
-        frame_layout.addLayout( buttonBox )
+            buttons_frame_layout.addWidget(pybutton)
+
         console_layout.addStretch( 1 )
         self.buttons[0].setChecked( True )
         return console
 
     def execute(self, action: str ):
         print( f"Executing action {action}" )
+        event = dict( event='gui', type=action.lower() )
+        self.submitEvent( event, EventMode.Gui )
 
     def onClicked(self):
         radioButton = self.sender()

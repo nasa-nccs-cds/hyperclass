@@ -27,31 +27,41 @@ class DirectoryWidget(QWidget,EventClient):
         self.setLayout(self.layout)
         self.table  = QTableWidget( self )
         self.table.cellClicked.connect( self.onCellClicked )
+        self.table.cellPressed.connect(self.onCellPressed)
         self.table.verticalHeader().sectionClicked.connect( self.onRowSelection )
         self.table.horizontalHeader().sectionClicked.connect( self.onColumnSelection )
         self.layout.addWidget( self.table )
         self.col_data = OrderedDict()
         self.current_pid = None
         self._current_row = 0
+        self._selected_row = -1
         self.pick_enabled = False
         self._key_state = None
+        self._marked_rows = []
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
     def onCellClicked(self, row, col ):
-        self.table.selectRow(row)
-        self.selectRow(row)
+        print( "dir on cell clicked")
+        self.selectRow( row, False )
         self.update()
+
+    def onCellPressed(self, row, col ):
+        print( "dir on cell pressed")
+        self.selectRow( row, True )
 
     def onColumnSelection( self, col  ):
         self.table.sortItems(col)
         self.update()
 
-    def selectRow( self, row ):
-        table_item: QTableWidgetItem = self.table.item( row, 0 )
-        iclass = labelsManager.selectedClass if self.pick_enabled else 0
-        event = dict( event="pick", type="directory", pid=int( table_item.text() ), cid = iclass )
-        self.submitEvent( event, EventMode.Gui )
+    def selectRow( self, row: int, rightClick: bool ):
+        if row >= 0:
+            table_item: QTableWidgetItem = self.table.item( row, 0 )
+            iclass = labelsManager.selectedClass if ( self.pick_enabled ) else 0
+            self._selected_row = row
+            if rightClick or (iclass == 0):
+                event = dict( event="pick", type="directory", pid=int( table_item.text() ), cid = iclass )
+                self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
         self.selectRow(row)
@@ -79,6 +89,23 @@ class DirectoryWidget(QWidget,EventClient):
                 else:                       table_item = NumericTableWidgetItem( str(value) )
                 self.table.setItem(row, column, table_item)
         self.table.sortItems(1)
+        self.update()
+
+    def clear_table(self):
+        self.table.clearSelection()
+        self._selected_row = -1
+        if (self.name == "catalog"):
+            brush = QBrush( QColor(255, 255, 255) )
+            for row in self._marked_rows:
+                item: QTableWidgetItem = self.table.item(row, 0)
+                item.setBackground( brush )
+            self._marked_rows = []
+        else:
+            for column, (cid, row_data) in enumerate(self.col_data.items()):
+                for row, value in enumerate(row_data):
+                    self.table.setItem( row, column, QTableWidgetItem( "" ) )
+            for key in self.col_data.keys():
+                self.col_data[key] = []
         self.update()
 
     def setRowData(self, row_data: List ):
@@ -121,11 +148,29 @@ class DirectoryWidget(QWidget,EventClient):
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
+            elif event.get('type') == 'clear':       self.clear_table()
+            elif event.get('type') == 'mark':        self.markCurrentRow()
+
+    def markCurrentRow(self):
+        self.enablePick()
+        self.selectRow(self._selected_row, True)
+        self.releasePick()
+
+    def enablePick(self):
+        self.pick_enabled = True
+        event = dict(event="gui", type="keyPress", key=Qt.Key_Control )
+        self.submitEvent(event, EventMode.Foreground)
+
+    def releasePick(self):
+        self.pick_enabled = False
+        event = dict(event="gui", type="keyRelease", key=Qt.Key_Control )
+        self.submitEvent(event, EventMode.Foreground)
 
     def setKeyState(self, event ):
         self._key_state = event.get('key')
         if self._key_state == Qt.Key_Control:
             self.pick_enabled = True
+            print( "directory pick enabled" )
 
     def releaseKeyState(self, event ):
         self._key_state = None
@@ -139,17 +184,21 @@ class DirectoryWidget(QWidget,EventClient):
     def menu_actions(self) -> Dict:
         return self.canvas.menu_actions
 
-    def selectRowByIndex( self, pid: int, col: int = 0 ):
+    def selectRowByIndex( self, pid: int ):
         rows = self.table.rowCount()
         color = labelsManager.selectedColor
+        cid = labelsManager.selectedClass
         for iRow in range( rows ):
-            item: QTableWidgetItem = self.table.item( iRow, col )
+            item: QTableWidgetItem = self.table.item( iRow, 0 )
             if pid == int( item.text() ):
                 self.table.scrollToItem( item )
-                self.table.selectRow( iRow )
-                if self.pick_enabled and (color is not None):
+                if self.pick_enabled and (cid > 0) and (color is not None):
+                    self.table.clearSelection()
                     qcolor = [int(color[ic] * 255.99) for ic in range(3)]
                     item.setBackground( QBrush( QColor(*qcolor) ) )
+                    self._marked_rows.append( iRow )
+                else:
+                    self.table.selectRow(iRow)
                 break
         self.update()
 
