@@ -33,7 +33,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.layout.addWidget( self.table )
         self.col_data = OrderedDict()
         self.current_pid = None
-        self._current_row = 0
+        self._head_row = 0
         self._selected_row = -1
         self.pick_enabled = False
         self._key_state = None
@@ -114,8 +114,8 @@ class DirectoryWidget(QWidget,EventClient):
                 table_item = QTableWidgetItem(value)
             else:
                 table_item = NumericTableWidgetItem(str(value))
-            self.table.setItem( self._current_row , column, table_item)
-        self._current_row = self._current_row + 1
+            self.table.setItem(self._head_row, column, table_item)
+        self._head_row = self._head_row + 1
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
@@ -191,6 +191,7 @@ class DirectoryWidget(QWidget,EventClient):
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, 0 )
             if pid == int( item.text() ):
+                self._selected_row = iRow
                 self.table.scrollToItem( item )
                 if self.pick_enabled and (cid > 0) and (color is not None):
                     self.table.clearSelection()
