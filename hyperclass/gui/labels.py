@@ -36,10 +36,11 @@ def set_alpha( color, alpha ):
     return color[:3] + [alpha]
 
 class Marker:
-    def __init__(self, location: List[float], color: List[float], cid: int ):
+    def __init__(self, location: List[float], color: List[float], pid: int, cid: int ):
         self.location = location
         self.color = color
         self.cid = cid
+        self.pid = pid
 
     def isTransient(self):
         return self.cid == 0
@@ -62,10 +63,18 @@ class LabelsManager(QObject,EventClient):
 
     def clearMarkers(self):
         self._markers = []
+        event = dict( event="gui", type="clear" )
+        self.submitEvent( event, EventMode.Gui )
 
     def addMarker(self, marker: Marker ):
         self.clearTransient()
         self._markers.append(marker)
+
+    def popMarker(self) -> Marker:
+        marker = self._markers.pop( -1 )
+        event = dict( event="gui", type="undo", marker=marker )
+        self.submitEvent( event, EventMode.Gui )
+        return marker
 
     def getMarkers( self ) -> List[Marker]:
         return self._markers
@@ -144,8 +153,12 @@ class LabelsManager(QObject,EventClient):
 
     def execute(self, action: str ):
         print( f"Executing action {action}" )
-        event = dict( event='gui', type=action.lower() )
-        self.submitEvent( event, EventMode.Gui )
+        etype = action.lower()
+        if etype == "undo":     self.popMarker()
+        elif etype == "clear":  self.clearMarkers()
+        else:
+            event = dict( event='gui', type=action.lower() )
+            self.submitEvent( event, EventMode.Gui )
 
     def onClicked(self):
         radioButton = self.sender()

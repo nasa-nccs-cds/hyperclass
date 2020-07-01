@@ -39,9 +39,9 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
 
 
 class VTKWidget(QVTKRenderWindowInteractor):
-    def __init__(self, parent, point_cloud ):
+    def __init__(self, parent, point_cloud: PointCloud ):
         self.rw: vtk.vtkRenderWindow = vtk.vtkRenderWindow()
-        self.point_cloud = point_cloud
+        self.point_cloud: PointCloud = point_cloud
         self.iren = HCRenderWindowInteractor()
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )

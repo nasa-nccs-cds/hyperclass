@@ -45,8 +45,8 @@ class UMAPManager(QObject,EventClient):
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
-            elif event.get('type') == 'clear':       self.clearMarkers()
-
+            elif event.get('type') == 'clear':       self.point_cloud.plotMarkers(); self.update_signal.emit()
+            elif event.get('type') == 'undo':        self.point_cloud.plotMarkers(); self.update_signal.emit()
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'directory', "vtkpoint" ]:
@@ -57,16 +57,11 @@ class UMAPManager(QObject,EventClient):
                         color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
                         print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
-                        labelsManager.addMarker( Marker( transformed_data.tolist(), color, cid ) )
+                        labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
                         self.point_cloud.plotMarkers()
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")
-
-    def clearMarkers(self):
-        self.point_cloud.initMarkers()
-        labelsManager.clearMarkers()
-        self.update()
 
     def setClassColors(self ):
         self.class_labels: List[str] = labelsManager.labels
@@ -187,6 +182,7 @@ class UMAPManager(QObject,EventClient):
         if mapper.embedding_ is not None:
             transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
+            self.update_signal.emit()
 
     def reset_markers(self):
         self.point_cloud.initMarkers( )

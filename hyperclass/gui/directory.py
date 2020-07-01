@@ -7,7 +7,7 @@ from PyQt5.QtGui import QBrush, QColor
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
-from hyperclass.gui.labels import labelsManager
+from hyperclass.gui.labels import labelsManager, Marker
 
 
 class NumericTableWidgetItem(QTableWidgetItem):
@@ -94,6 +94,7 @@ class DirectoryWidget(QWidget,EventClient):
     def clear_table(self):
         self.table.clearSelection()
         self._selected_row = -1
+        self._head_row = 0
         if (self.name == "catalog"):
             brush = QBrush( QColor(255, 255, 255) )
             for row in self._marked_rows:
@@ -150,11 +151,16 @@ class DirectoryWidget(QWidget,EventClient):
             elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
             elif event.get('type') == 'clear':       self.clear_table()
             elif event.get('type') == 'mark':        self.markCurrentRow()
+            elif event.get('type') == 'undo':        self.clearMarker( event.get('marker') )
 
     def markCurrentRow(self):
         self.enablePick()
         self.selectRow(self._selected_row, True)
         self.releasePick()
+
+    def clearMarker(self, marker: Marker ):
+        if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
+        else:                           self.clearRowByIndex( marker.pid )
 
     def enablePick(self):
         self.pick_enabled = True
@@ -190,6 +196,7 @@ class DirectoryWidget(QWidget,EventClient):
         cid = labelsManager.selectedClass
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, 0 )
+            if item == None: break
             if pid == int( item.text() ):
                 self._selected_row = iRow
                 self.table.scrollToItem( item )
@@ -202,6 +209,35 @@ class DirectoryWidget(QWidget,EventClient):
                     self.table.selectRow(iRow)
                 break
         self.update()
+
+    def unselectRowByIndex(self, pid: int):
+        rows = self.table.rowCount()
+        self.table.clearSelection()
+        for iRow in range(rows):
+            item: QTableWidgetItem = self.table.item(iRow, 0)
+            if item == None: break
+            if pid == int(item.text()):
+                if iRow in self._marked_rows:
+                    if self._selected_row == iRow: self._selected_row = -1
+                    item.setBackground( QBrush( QColor( 255, 255, 255 ) ) )
+                    self._marked_rows.remove(iRow)
+                break
+        self.update()
+
+    def clearRowByIndex(self, pid: int):
+        rows = self.table.rowCount()
+        self.table.clearSelection()
+        self._selected_row = -1
+        for iRow in range(rows):
+            item: QTableWidgetItem = self.table.item(iRow, 0)
+            if item == None: break
+            if item.text() and (pid == int(item.text())):
+                for column in range(self.table.columnCount()):
+                    self.table.setItem( iRow, column, QTableWidgetItem( "" ) )
+                self._head_row = iRow
+                break
+        self.update()
+
 
 
 
