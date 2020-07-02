@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QAction, QVBoxLayout,  QHBoxLayout, QRadioButton, QLabel, QPushButton, QFrame
-from hyperclass.gui.events import EventClient
+from hyperclass.data.events import dataEventHandler
+from hyperclass.graph.flow import activationFlowManager, ActivationFlow
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import OrderedDict
 from hyperclass.gui.events import EventClient, EventMode
@@ -7,6 +8,7 @@ from PyQt5.QtCore import Qt
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import collections.abc
 from functools import partial
+import xarray as xa
 import numpy as np
 
 def h2c( hexColor: str ) -> List[float]:
@@ -56,6 +58,35 @@ class LabelsManager(QObject,EventClient):
         self.selectedClass = 0
         self.selectedColor = [1.0,1.0,1.0]
         self._markers: List[Marker] = []
+        self._flow: ActivationFlow = None
+        self._labels_data: xa.DataArray = None
+        self.n_spread_iters = 2
+
+    def initLabelsData( self, point_data: xa.DataArray ):
+        nodata_value = -2
+        template = point_data[:,0].squeeze( drop=True )
+        self._labels_data: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
+        self._labels_data.attrs['_FillValue'] = nodata_value
+        self._labels_data.name = point_data.attrs['dsid'] + "_labels"
+        self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
+
+    def processEvent( self, event: Dict ):
+        if dataEventHandler.isDataLoadEvent(event):
+            point_data = dataEventHandler.getPointData( event )
+            self.initLabelsData( point_data )
+            self._flow = activationFlowManager.getActivationFlow( point_data )
+
+    def updateLabels(self):
+        for marker in self._markers:
+            self._labels_data[ marker.pid ] = marker.cid
+
+    def spread(self) -> Optional[xa.DataArray]:
+        if self._flow is None:
+            event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )
+            self.submitEvent( event, EventMode.Gui )
+            return None
+        self.updateLabels()
+        return self._flow.spread( self._labels_data, self.n_spread_iters )
 
     def clearTransient(self):
         if len(self._markers) > 0 and self._markers[-1].cid == 0:
@@ -63,7 +94,7 @@ class LabelsManager(QObject,EventClient):
 
     def clearMarkers(self):
         self._markers = []
-        event = dict( event="gui", type="clear" )
+        event = dict( event="labels", type="clear" )
         self.submitEvent( event, EventMode.Gui )
 
     def addMarker(self, marker: Marker ):
@@ -72,7 +103,7 @@ class LabelsManager(QObject,EventClient):
 
     def popMarker(self) -> Marker:
         marker = self._markers.pop( -1 )
-        event = dict( event="gui", type="undo", marker=marker )
+        event = dict( event="labels", type="undo", marker=marker )
         self.submitEvent( event, EventMode.Gui )
         return marker
 
@@ -149,6 +180,7 @@ class LabelsManager(QObject,EventClient):
 
         console_layout.addStretch( 1 )
         self.buttons[0].setChecked( True )
+        self.activate_event_listening()
         return console
 
     def execute(self, action: str ):
@@ -156,8 +188,13 @@ class LabelsManager(QObject,EventClient):
         etype = action.lower()
         if etype == "undo":     self.popMarker()
         elif etype == "clear":  self.clearMarkers()
-        else:
-            event = dict( event='gui', type=action.lower() )
+        elif etype == "neighbors":
+            new_classes: Optional[xa.DataArray] = self.spread()
+            if new_classes is not None:
+                event = dict( event="labels", type="spread", labels=new_classes )
+                self.submitEvent( event, EventMode.Gui )
+        elif etype == "mark":
+            event = dict( event='gui', type="mark" )
             self.submitEvent( event, EventMode.Gui )
 
     def onClicked(self):

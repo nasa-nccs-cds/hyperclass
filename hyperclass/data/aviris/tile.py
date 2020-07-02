@@ -95,8 +95,9 @@ class Block:
         self._ylim = [ tr[5] + tr[4] * (self.data.shape[1]), tr[5] ]
         self._point_data = None
 
-    def mid( self,  ndim: int = 3 ):
-        return "-".join( [ str(i) for i in [ ndim, *self.block_coords ]] )
+    @property
+    def dsid( self ):
+        return "-".join( [ self.tile.name ] + [ str(i) for i in self.block_coords ] )
 
     def _getData( self ) -> Optional[xa.DataArray]:
         if self.tile.data is None: return None

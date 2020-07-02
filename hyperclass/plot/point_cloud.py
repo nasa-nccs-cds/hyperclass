@@ -80,6 +80,7 @@ class PointCloud():
         if self.polydata is None:
             print( "Points are not yet available" )
         else:
+            print(f"PointCloud.set_point_colors, #labels: {np.count_nonzero(sample_labels)}")
             labels = np.where( sample_labels >= 0, sample_labels, 0 )
             colors = self.colormap[ labels ]
             vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )

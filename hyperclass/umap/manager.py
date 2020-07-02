@@ -38,15 +38,25 @@ class UMAPManager(QObject,EventClient):
             self.activate_event_listening()
         return self._gui
 
+    def plotMarkers(self):
+        self.point_cloud.plotMarkers()
+        self.update_signal.emit()
+
     def processEvent( self, event: Dict ):
+        print(f"UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, scaled = True )
             self.embedding( point_data )
+        elif event.get('event') == 'labels':
+            if event.get('type') == 'clear':       self.plotMarkers()
+            elif event.get('type') == 'undo':      self.plotMarkers()
+            elif event.get('type') == 'spread':
+                labels = event.get('labels')
+                self.point_cloud.set_point_colors( labels )
+                self.update_signal.emit()
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
-            elif event.get('type') == 'clear':       self.point_cloud.plotMarkers(); self.update_signal.emit()
-            elif event.get('type') == 'undo':        self.point_cloud.plotMarkers(); self.update_signal.emit()
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'directory', "vtkpoint" ]:
@@ -55,7 +65,6 @@ class UMAPManager(QObject,EventClient):
                         pid = event.get('pid')
                         cid = event.get('cid', labelsManager.selectedClass )
                         color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
-                        print( f"UMAPManager.processEvent-> pick: {pid}")
                         transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
                         labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
                         self.point_cloud.plotMarkers()
@@ -69,8 +78,7 @@ class UMAPManager(QObject,EventClient):
         self.point_cloud.set_colormap( self.class_colors )
 
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
-        mid = f"{ndim}-{point_data.attrs['dsid']}"
-        mapper: UMAP = self.getMapper( mid, ndim )
+        mapper: UMAP = self.getMapper( point_data.attrs['dsid'], ndim )
         if mapper.embedding_ is not None:
             return self.wrap_embedding( point_data.coords[ point_data.dims[0] ], mapper.embedding_ )
         return self.embed( point_data, ndim = ndim )
@@ -79,7 +87,8 @@ class UMAPManager(QObject,EventClient):
         ax_model = np.arange( embedding.shape[1] )
         return xa.DataArray( embedding, dims=['samples','model'], coords=dict( samples=ax_samples, model=ax_model ) )
 
-    def getMapper(self, mid: str, ndim: int ) -> UMAP:
+    def getMapper(self, dsid: str, ndim: int ) -> UMAP:
+        mid = f"{ndim}-{dsid}"
         mapper = self._mapper.get( mid )
         if ( mapper is None ):
             n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
@@ -108,7 +117,7 @@ class UMAPManager(QObject,EventClient):
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
             self.submitEvent( event, EventMode.Gui )
             return None, None
-        self.learned_mapping = self.getMapper( self.mid( block, ndim ), ndim )
+        self.learned_mapping = self.getMapper( block.dsid, ndim )
         point_data: xa.DataArray = block.getPointData( **kwargs )
         labels_mask = ( labels > 0 )
         filtered_labels: xa.DataArray = labels.where( labels_mask, drop = True )
@@ -145,6 +154,7 @@ class UMAPManager(QObject,EventClient):
         ndim = kwargs.get( "ndim", 3 )
         t0 = time.time()
         mapper = self.getMapper( point_data.attrs['dsid'], ndim )
+        mapper.flow = flow
         t1 = time.time()
         print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
@@ -178,7 +188,7 @@ class UMAPManager(QObject,EventClient):
 
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         pindices: np.ndarray  = block.multi_coords2pindex( ycoords, xcoords )
-        mapper = self.getMapper( self.mid( block, 3 ), 3 )
+        mapper = self.getMapper( block.dsid, 3 )
         if mapper.embedding_ is not None:
             transformed_data: np.ndarray = mapper.embedding_[ pindices ]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
@@ -194,7 +204,7 @@ class UMAPManager(QObject,EventClient):
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()
         ndim = kwargs.get( 'ndim', 3 )
-        mapper = self.getMapper( self.mid( block, ndim ), ndim )
+        mapper = self.getMapper( block.dsid, ndim )
         point_data: xa.DataArray = block.getPointData()
         transformed_data: np.ndarray = mapper.transform(point_data)
         t1 = time.time()
