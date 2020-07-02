@@ -110,14 +110,17 @@ class DirectoryWidget(QWidget,EventClient):
                 self.col_data[key] = []
         self.update()
 
-    def setRowData(self, row_data: List ):
+    def setRowData(self, row_data: List ) -> QTableWidgetItem:
+        rv = None
         for column, value in enumerate(row_data):
             if isinstance(value, str):
                 table_item = QTableWidgetItem(value)
             else:
                 table_item = NumericTableWidgetItem(str(value))
             self.table.setItem(self._head_row, column, table_item)
+            if column == 0: rv = table_item
         self._head_row = self._head_row + 1
+        return rv
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
@@ -139,16 +142,7 @@ class DirectoryWidget(QWidget,EventClient):
                     self.selectRowByIndex( self.current_pid )
                 elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     self.current_pid = event.get('pid')
-                    item = self.getItemByIndex( self.current_pid )
-                    if item is None:
-                        plot_metadata = dataEventHandler.getMetadata(event)
-                        row_data = [ self.current_pid, plot_metadata['targets'].values[self.current_pid], plot_metadata['obsids'].values[self.current_pid], 0.0 ]
-                        self.col_data['index'].append( row_data[0] )
-                        self.col_data['targets'].append( row_data[1] )
-                        self.col_data['obsids'].append( row_data[2] )
-                        self.col_data['distance'].append( row_data[3] )
-                        self.setRowData( row_data )
-                        self.update()
+                    self.addRow( self.current_pid )
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
@@ -161,13 +155,32 @@ class DirectoryWidget(QWidget,EventClient):
                 self.addExtendedLabels( labels )
                 self.build_table.emit()
 
+    def addRow( self, pid: int ):
+        item = self.getItemByIndex(pid)
+        if item is None:
+            plot_metadata = dataEventHandler.getMetadata()
+            row_data = [self.current_pid, plot_metadata['targets'].values[self.current_pid],
+                        plot_metadata['obsids'].values[self.current_pid], 0.0]
+            self.col_data['index'].append(row_data[0])
+            self.col_data['targets'].append(row_data[1])
+            self.col_data['obsids'].append(row_data[2])
+            self.col_data['distance'].append(row_data[3])
+            self.setRowData(row_data)
+            self.update()
+
     def markCurrentRow(self):
         self.enablePick()
         self.selectRow(self._selected_row, True)
         self.releasePick()
 
     def addExtendedLabels(self, labels: xa.DataArray ):
-        pass
+        indices = np.arange( labels.shape[0] )
+        indexed_labels = np.vstack( [ indices, labels.values ] ).transpose()
+        filtered_labels = indexed_labels[ labels > 0 ]
+        for itemRef in filtered_labels:
+            label = labelsManager.labels[ itemRef[1] ]
+            if label == self.name:
+                item = self.addRow( itemRef[0] )
 
     def clearMarker(self, marker: Marker ):
         if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )

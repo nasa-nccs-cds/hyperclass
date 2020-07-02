@@ -49,7 +49,7 @@ class DataEventHandler:
                 point_data.attrs['type'] = dset_type
                 return point_data
 
-    def getMetadata(self, event: Dict ) -> Dict[str,xa.DataArray]:
+    def getMetadata(self, event: Dict = {} ) -> Dict[str,xa.DataArray]:
         self.getLoadedData( event )
         dset_type = self._loaded_data.attrs.get('type')
         if dset_type == 'spectra':
