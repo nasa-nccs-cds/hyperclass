@@ -86,12 +86,13 @@ class ActivationFlow(QObject,EventClient):
         if self.D is None:
             Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
             return None
+        sample_data = sample_labels.values
         debug = kwargs.get( 'debug', False )
-        sample_mask = sample_labels == 0
+        sample_mask = sample_data == 0
         if self.C is None or self.reset:
-            self.C = np.ma.masked_equal( sample_labels, -1 )
+            self.C = sample_data
         else:
-            self.C = np.ma.where( sample_mask, self.C, sample_labels )
+            self.C = np.where( sample_mask, self.C, sample_data )
 
         filtered_labels = labelsManager.getFilteredLabels( sample_labels.values )
         test_label = filtered_labels[0]
@@ -99,7 +100,7 @@ class ActivationFlow(QObject,EventClient):
         n_I = self.I[ ic0 ]
         n_D = self.D[ ic0 ]
 
-        label_count = np.count_nonzero(self.C.filled(0))
+        label_count = np.count_nonzero(self.C)
         if label_count == 0:
             Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
             return None
@@ -131,7 +132,7 @@ class ActivationFlow(QObject,EventClient):
             assigned_PN_count1 = np.count_nonzero(PN < 1.0e100)
             best_neighbors: ma.MaskedArray = PN.argmin(axis=1)
             self.P = PN[index0, best_neighbors]
-            self.C = np.ma.array( CN[index0, best_neighbors], mask = self.C.mask )
+            self.C = CN[index0, best_neighbors]
             assigned_P_count1 = np.count_nonzero(self.P < 1.0e100)
             assigned_C_count1 = np.count_nonzero(self.C)
 
@@ -143,7 +144,7 @@ class ActivationFlow(QObject,EventClient):
             filtered_P = labelsManager.getFilteredLabels(self.P)
             filtered_best_neighbors = labelsManager.getFilteredLabels(best_neighbors)
 
-            new_label_count = np.count_nonzero(self.C.filled(0))
+            new_label_count = np.count_nonzero(self.C)
             if new_label_count == label_count:
                 print( "Converged!" )
                 converged = True
@@ -156,7 +157,7 @@ class ActivationFlow(QObject,EventClient):
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs )
         result_attrs[ '_FillValue']=-2
-        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        result: xa.DataArray =  xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ], #marked = {np.count_nonzero(result.values)}")
         self.reset = False
         return result
