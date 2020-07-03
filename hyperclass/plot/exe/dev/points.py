@@ -229,12 +229,12 @@ def datashade_points(
                 min_val, max_val = np.min(values), np.max(values)
                 bin_size = (max_val - min_val) / 255.0
                 data["val_cat"] = pd.Categorical(
-                    np.round((values - min_val) / bin_size).astype(np.int16)
+                    np.round((values - min_val) / bin_size).astype(np.int)
                 )
             else:
                 (min_val, max_val) = vrange
                 bin_size = (max_val - min_val) / 255.0
-                scaled = np.round((values - min_val) / bin_size).astype(np.int16)
+                scaled = np.round((values - min_val) / bin_size).astype(np.int)
                 scaled[ scaled < 0   ] = 0
                 scaled[ scaled > 255 ] = 255
                 data["val_cat"] = pd.Categorical(scaled)

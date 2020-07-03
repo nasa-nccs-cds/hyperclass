@@ -80,7 +80,88 @@ class ActivationFlow(QObject,EventClient):
 #        nnd._init_search_graph()
         return nnd
 
+
     def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
+        from hyperclass.gui.labels import labelsManager
+        if self.D is None:
+            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+            return None
+        debug = kwargs.get( 'debug', False )
+        sample_mask = sample_labels == 0
+        if self.C is None or self.reset:
+            self.C = np.ma.masked_equal( sample_labels, -1 )
+        else:
+            self.C = np.ma.where( sample_mask, self.C, sample_labels )
+
+        filtered_labels = labelsManager.getFilteredLabels( sample_labels.values )
+        test_label = filtered_labels[0]
+        ic0 = test_label[0]
+        n_I = self.I[ ic0 ]
+        n_D = self.D[ ic0 ]
+
+        label_count = np.count_nonzero(self.C.filled(0))
+        if label_count == 0:
+            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
+            return None
+        if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf') )
+        self.P = np.ma.where( sample_mask, self.P, 0.0 )
+        index0 = np.arange( self.I.shape[0] )
+        print(f"Beginning graph flow iterations, #C = {label_count}")
+        if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
+        t0 = time.time()
+        converged = False
+        NN = self.I.shape[1]
+        PN: np.ndarray = np.full( self.I.shape, float('inf'), self.P.dtype )
+        CN: np.ndarray = np.full( self.I.shape, 0, np.int )
+        for iter in range(nIter):
+            assigned_CN_count0 = np.count_nonzero(CN)
+            assigned_PN_count0 = np.count_nonzero( PN < 1.0e100 )
+            assigned_P_count0 = np.count_nonzero( self.P < 1.0e100)
+            assigned_C_count0 = np.count_nonzero( self.C )
+            for iN in range(NN):
+                IN = self.I[:,iN]
+                PN[ IN, iN ] = self.P + self.D[:,iN]
+                CN[ IN, iN ] = self.C
+                tCN = CN[ IN[ic0] ]
+                tC = self.C[ ic0 ]
+                assigned_CN_count1 = np.count_nonzero(CN)
+                assigned_PN_count1 = np.count_nonzero(PN < 1.0e100)
+                print( '.')
+            assigned_CN_count1 = np.count_nonzero(CN)
+            assigned_PN_count1 = np.count_nonzero(PN < 1.0e100)
+            best_neighbors: ma.MaskedArray = PN.argmin(axis=1)
+            self.P = PN[index0, best_neighbors]
+            self.C = np.ma.array( CN[index0, best_neighbors], mask = self.C.mask )
+            assigned_P_count1 = np.count_nonzero(self.P < 1.0e100)
+            assigned_C_count1 = np.count_nonzero(self.C)
+
+            PN0 = PN[test_label[0]]
+            CN0 = CN[test_label[0]]
+            PNN = { iN: PN[iN] for iN in n_I }
+            CNN = { iN: CN[iN] for iN in n_I }
+            filtered_C = labelsManager.getFilteredLabels( self.C )
+            filtered_P = labelsManager.getFilteredLabels(self.P)
+            filtered_best_neighbors = labelsManager.getFilteredLabels(best_neighbors)
+
+            new_label_count = np.count_nonzero(self.C.filled(0))
+            if new_label_count == label_count:
+                print( "Converged!" )
+                converged = True
+                break
+            else:
+                label_count = new_label_count
+                print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
+                if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
+
+        t1 = time.time()
+        result_attrs = dict( converged=converged, **sample_labels.attrs )
+        result_attrs[ '_FillValue']=-2
+        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ], #marked = {np.count_nonzero(result.values)}")
+        self.reset = False
+        return result
+
+    def spread1( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
         if self.D is None:
             Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
             return None

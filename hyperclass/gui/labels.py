@@ -1,6 +1,4 @@
 from PyQt5.QtWidgets import QWidget, QAction, QVBoxLayout,  QHBoxLayout, QRadioButton, QLabel, QPushButton, QFrame
-from hyperclass.data.events import dataEventHandler
-from hyperclass.graph.flow import activationFlowManager, ActivationFlow
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import OrderedDict
 from hyperclass.gui.events import EventClient, EventMode
@@ -51,6 +49,7 @@ class LabelsManager(QObject,EventClient):
     update_signal = pyqtSignal()
 
     def __init__( self ):
+        from hyperclass.graph.flow import ActivationFlow
         QObject.__init__( self )
         self._colors = None
         self._labels = None
@@ -63,14 +62,16 @@ class LabelsManager(QObject,EventClient):
         self.n_spread_iters = 2
 
     def initLabelsData( self, point_data: xa.DataArray ):
-        nodata_value = -2
+        nodata_value = -1
         template = point_data[:,0].squeeze( drop=True )
-        self._labels_data: xa.DataArray = xa.full_like( template, -1, dtype=np.int16 ).where( template.notnull(), nodata_value )
+        self._labels_data: xa.DataArray = xa.full_like( template, 0, dtype=np.int ).where( template.notnull(), nodata_value )
         self._labels_data.attrs['_FillValue'] = nodata_value
         self._labels_data.name = point_data.attrs['dsid'] + "_labels"
         self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
 
     def processEvent( self, event: Dict ):
+        from hyperclass.data.events import dataEventHandler
+        from hyperclass.graph.flow import activationFlowManager
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event )
             self.initLabelsData( point_data )
@@ -79,6 +80,12 @@ class LabelsManager(QObject,EventClient):
     def updateLabels(self):
         for marker in self._markers:
             self._labels_data[ marker.pid ] = marker.cid
+
+    @classmethod
+    def getFilteredLabels(self, labels: np.ndarray ) -> np.ndarray:
+        indices = np.arange(labels.shape[0])
+        indexed_labels = np.vstack( [indices, labels] ).transpose()
+        return indexed_labels[labels > 0]
 
     def spread(self) -> Optional[xa.DataArray]:
         if self._flow is None:

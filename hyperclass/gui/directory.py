@@ -159,8 +159,7 @@ class DirectoryWidget(QWidget,EventClient):
         item = self.getItemByIndex(pid)
         if item is None:
             plot_metadata = dataEventHandler.getMetadata()
-            row_data = [self.current_pid, plot_metadata['targets'].values[self.current_pid],
-                        plot_metadata['obsids'].values[self.current_pid], 0.0]
+            row_data = [ pid, plot_metadata['targets'].values[pid], plot_metadata['obsids'].values[pid], 0.0]
             self.col_data['index'].append(row_data[0])
             self.col_data['targets'].append(row_data[1])
             self.col_data['obsids'].append(row_data[2])
@@ -174,13 +173,9 @@ class DirectoryWidget(QWidget,EventClient):
         self.releasePick()
 
     def addExtendedLabels(self, labels: xa.DataArray ):
-        indices = np.arange( labels.shape[0] )
-        indexed_labels = np.vstack( [ indices, labels.values ] ).transpose()
-        filtered_labels = indexed_labels[ labels > 0 ]
-        for itemRef in filtered_labels:
+        for itemRef in labelsManager.getFilteredLabels(labels):
             label = labelsManager.labels[ itemRef[1] ]
-            if label == self.name:
-                item = self.addRow( itemRef[0] )
+            if label == self.name: self.addRow( itemRef[0] )
 
     def clearMarker(self, marker: Marker ):
         if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
