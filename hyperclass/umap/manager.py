@@ -51,8 +51,8 @@ class UMAPManager(QObject,EventClient):
             if event.get('type') == 'clear':       self.plotMarkers()
             elif event.get('type') == 'undo':      self.plotMarkers()
             elif event.get('type') == 'spread':
-                labels = event.get('labels')
-                self.point_cloud.set_point_colors( labels )
+                labels: xa.Dataset = event.get('labels')
+                self.point_cloud.set_point_colors( labels['C'] )
                 self.update_signal.emit()
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )

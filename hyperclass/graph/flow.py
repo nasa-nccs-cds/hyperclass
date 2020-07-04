@@ -77,7 +77,7 @@ class ActivationFlow(QObject,EventClient):
         return nnd
 
 
-    def spread( self, sample_labels: xa.DataArray, nIter: int = 1, **kwargs ) -> Optional[xa.DataArray]:
+    def spread( self, sample_labels: xa.DataArray, nIter: int = 1, **kwargs ) -> Optional[xa.Dataset]:
         from hyperclass.gui.labels import labelsManager
         if self.D is None:
             Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
@@ -102,11 +102,10 @@ class ActivationFlow(QObject,EventClient):
         t0 = time.time()
         converged = False
         for iter in range(nIter):
+            FCN = { iN: labelsManager.getFilteredLabels( self.C[ self.I[:,iN] ] ) for iN in range( 1, self.I.shape[1] ) }
+            FC = labelsManager.getFilteredLabels(self.C)
             for iN in range( 1, self.I.shape[1] ):
-                IN = self.I[:,iN]
-                CN = self.C[IN]
-                FC = labelsManager.getFilteredLabels( CN )
-                for label_spec in FC:
+                for label_spec in FCN[iN]:
                     pid0 = label_spec[0]
                     pid1 = self.I[pid0,iN]
                     PN = self.P[pid1] + self.D[pid1, iN]
@@ -116,7 +115,6 @@ class ActivationFlow(QObject,EventClient):
                         self.C[pid0] = label_spec[1]
                         self.P[pid0] = PN
             for iN in range(1, self.I.shape[1]):
-                FC = labelsManager.getFilteredLabels( self.C )
                 for label_spec in FC:
                     pid = label_spec[0]
                     pid1 = self.I[pid,iN]
@@ -138,10 +136,11 @@ class ActivationFlow(QObject,EventClient):
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs )
         result_attrs[ '_FillValue']=-2
-        result: xa.DataArray =  xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
-        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ], #marked = {np.count_nonzero(result.values)}")
+        xC: xa.DataArray =  xa.DataArray( self.C, dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+        xP: xa.DataArray = xa.DataArray( self.P, dims=sample_labels.dims, coords=sample_labels.coords,  attrs=result_attrs )
+        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {xC.min().values} -> {xC.max().values} ], #marked = {np.count_nonzero(xC.values)}")
         self.reset = False
-        return result
+        return xa.Dataset( dict( C=xC, D=xP ) )
 
     def spread1( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
         if self.D is None:

@@ -151,7 +151,7 @@ class DirectoryWidget(QWidget,EventClient):
             elif event.get('type') == 'undo':        self.clearMarker( event.get('marker') )
         elif event.get('event') == 'labels':
             if event.get('type') == 'spread':
-                labels = event.get('labels')
+                labels: xa.Dataset = event.get('labels')
                 self.addExtendedLabels( labels )
                 self.build_table.emit()
 
@@ -172,7 +172,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.selectRow(self._selected_row, True)
         self.releasePick()
 
-    def addExtendedLabels(self, labels: xa.DataArray ):
+    def addExtendedLabels(self, labels_spec: xa.Dataset ):
+        labels: xa.DataArray = labels_spec['C']
         for itemRef in labelsManager.getFilteredLabels(labels):
             label = labelsManager.labels[ itemRef[1] ]
             if label == self.name: self.addRow( itemRef[0] )

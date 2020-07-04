@@ -88,7 +88,7 @@ class LabelsManager(QObject,EventClient):
         selection = mask if mask is not None else (labels > 0)
         return indexed_labels[selection]
 
-    def spread(self) -> Optional[xa.DataArray]:
+    def spread(self) -> Optional[xa.Dataset]:
         if self._flow is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )
             self.submitEvent( event, EventMode.Gui )
