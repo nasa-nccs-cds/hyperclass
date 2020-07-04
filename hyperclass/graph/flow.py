@@ -22,9 +22,7 @@ class ActivationFlowManager:
         return self.instances.setdefault( dsid, self.create_flow( point_data, **kwargs ) )
 
     def create_flow(self, point_data: xa.DataArray, **kwargs):
-        n_neighbors = kwargs.pop('n_neighbors', dataManager.iparm('umap/nneighbors'))
-        print(f"Computing NN graph using {n_neighbors} neighbors")
-        return ActivationFlow( point_data, n_neighbors=n_neighbors, **kwargs )
+        return ActivationFlow( point_data, **kwargs )
 
 class ActivationFlow(QObject,EventClient):
 
@@ -33,12 +31,11 @@ class ActivationFlow(QObject,EventClient):
         self.nodes: xa.DataArray = None
         self.nnd: NNDescent = None
         self.I: np.ndarray = None
-        self.D: ma.MaskedArray = None
-        self.P: ma.MaskedArray = None
-        self.C: ma.MaskedArray = None
+        self.D: np.ndarray = None
+        self.P: np.ndarray = None
+        self.C: np.ndarray = None
         self.reset = True
         self.condition = threading.Condition()
-        self.n_neighbors: int = kwargs.get( 'n_neighbors', 10 )
         background = kwargs.get( 'background', False )
         if background:
             self.init_task = Task( f"Compute NN graph", self.setNodeData, nodes_data, **kwargs )
@@ -59,12 +56,11 @@ class ActivationFlow(QObject,EventClient):
             try:
                 t0 = time.time()
                 self.nodes = nodes_data
-                n_neighbors: int = kwargs.pop('n_neighbors', self.n_neighbors )
-                self.nnd = self.getNNGraph( nodes_data, n_neighbors=n_neighbors, **kwargs )
+                self.nnd = self.getNNGraph( nodes_data, **kwargs )
                 self.I = self.nnd.neighbor_graph[0]
-                self.D = ma.MaskedArray(self.nnd.neighbor_graph[1])
+                self.D = self.nnd.neighbor_graph[1]
                 dt = (time.time()-t0)
-                print( f"Computed NN[{self.n_neighbors}] Graph in {dt} sec ({dt/60} min)")
+                print( f"Computed NN Graph in {dt} sec ({dt/60} min)")
                 self.condition.notifyAll()
             finally:
                 self.condition.release()
@@ -73,7 +69,7 @@ class ActivationFlow(QObject,EventClient):
 
     @classmethod
     def getNNGraph(cls, nodes: xa.DataArray, **kwargs ):
-        n_neighbors: int = kwargs.get('n_neighbors', 10)
+        n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
         n_trees = kwargs.get('ntree', 5 + int(round((nodes.shape[0]) ** 0.5 / 20.0)))
         n_iters = kwargs.get('niter', max(5, 2 * int(round(np.log2(nodes.shape[0])))))
         nnd = NNDescent(nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=n_neighbors, max_candidates=60, verbose=True)
@@ -93,57 +89,28 @@ class ActivationFlow(QObject,EventClient):
             self.C = sample_data
         else:
             self.C = np.where( sample_mask, self.C, sample_data )
-
-        filtered_labels = labelsManager.getFilteredLabels( sample_labels.values )
-        test_label = filtered_labels[0]
-        ic0 = test_label[0]
-        n_I = self.I[ ic0 ]
-        n_D = self.D[ ic0 ]
-
         label_count = np.count_nonzero(self.C)
         if label_count == 0:
             Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
             return None
         if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf') )
-        self.P = np.ma.where( sample_mask, self.P, 0.0 )
-        index0 = np.arange( self.I.shape[0] )
+        self.P = np.where( sample_mask, self.P, 0.0 )
         print(f"Beginning graph flow iterations, #C = {label_count}")
-        if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
+
         t0 = time.time()
         converged = False
-        NN = self.I.shape[1]
-        PN: np.ndarray = np.full( self.I.shape, float('inf'), self.P.dtype )
-        CN: np.ndarray = np.full( self.I.shape, 0, np.int )
         for iter in range(nIter):
-            assigned_CN_count0 = np.count_nonzero(CN)
-            assigned_PN_count0 = np.count_nonzero( PN < 1.0e100 )
-            assigned_P_count0 = np.count_nonzero( self.P < 1.0e100)
-            assigned_C_count0 = np.count_nonzero( self.C )
-            for iN in range(NN):
-                IN = self.I[:,iN]
-                PN[ IN, iN ] = self.P + self.D[:,iN]
-                CN[ IN, iN ] = self.C
-                tCN = CN[ IN[ic0] ]
-                tC = self.C[ ic0 ]
-                assigned_CN_count1 = np.count_nonzero(CN)
-                assigned_PN_count1 = np.count_nonzero(PN < 1.0e100)
-                print( '.')
-            assigned_CN_count1 = np.count_nonzero(CN)
-            assigned_PN_count1 = np.count_nonzero(PN < 1.0e100)
-            best_neighbors: ma.MaskedArray = PN.argmin(axis=1)
-            self.P = PN[index0, best_neighbors]
-            self.C = CN[index0, best_neighbors]
-            assigned_P_count1 = np.count_nonzero(self.P < 1.0e100)
-            assigned_C_count1 = np.count_nonzero(self.C)
-
-            PN0 = PN[test_label[0]]
-            CN0 = CN[test_label[0]]
-            PNN = { iN: PN[iN] for iN in n_I }
-            CNN = { iN: CN[iN] for iN in n_I }
-            filtered_C = labelsManager.getFilteredLabels( self.C )
-            filtered_P = labelsManager.getFilteredLabels(self.P)
-            filtered_best_neighbors = labelsManager.getFilteredLabels(best_neighbors)
-
+            for iN in range( self.I.shape[1] ):
+                FC = labelsManager.getFilteredLabels( self.C )
+                for label_spec in FC:
+                    pid = label_spec[0]
+                    pid1 = self.I[pid,iN]
+                    PN = self.P[pid] + self.D[pid,iN]
+                    if ( self.C[pid1] == 0 ) or (PN < self.P[pid1]):
+                        marker = "***" if ( self.C[pid1] == 0 ) else ""
+                        print( f"P[{iter},{iN}]: {pid} -> {pid1}  {marker}")
+                        self.C[pid1] = label_spec[1]
+                        self.P[pid1] = PN
             new_label_count = np.count_nonzero(self.C)
             if new_label_count == label_count:
                 print( "Converged!" )
@@ -152,7 +119,6 @@ class ActivationFlow(QObject,EventClient):
             else:
                 label_count = new_label_count
                 print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
-                if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
 
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs )

@@ -302,7 +302,7 @@ class LabelingConsole:
     def initLabels(self):
         nodata_value = -2
         template = self.block.data[0].squeeze( drop=True )
-        self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int ).where( template.notnull(), nodata_value )
+        self.labels: xa.DataArray = xa.full_like( template, -1, dtype=np.int32 ).where( template.notnull(), nodata_value )
         self.labels.attrs['_FillValue'] = nodata_value
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
@@ -482,7 +482,7 @@ class LabelingConsole:
                 self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
-        self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int)
+        self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int32)
         extent = dataManager.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
         class_alpha = kwargs.get( 'alpha', 0.7 )

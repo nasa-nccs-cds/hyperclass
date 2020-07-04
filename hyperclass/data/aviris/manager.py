@@ -333,7 +333,7 @@ class DataManager:
         stacked_raster = raster.stack(samples=raster.dims[-2:]).transpose()
         if np.issubdtype( raster.dtype, np.integer ):
             nodata = stacked_raster.attrs.get('_FillValue',-2)
-            point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int)
+            point_data = stacked_raster.where( stacked_raster != nodata, drop=True ).astype(np.int32)
         else:
             point_data = stacked_raster.dropna(dim='samples', how='any')
         print(f" raster2points -> [{raster.name}]: Using {point_data.shape[0]} valid samples out of {stacked_raster.shape[0]} pixels")

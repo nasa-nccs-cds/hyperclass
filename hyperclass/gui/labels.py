@@ -64,7 +64,7 @@ class LabelsManager(QObject,EventClient):
     def initLabelsData( self, point_data: xa.DataArray ):
         nodata_value = -1
         template = point_data[:,0].squeeze( drop=True )
-        self._labels_data: xa.DataArray = xa.full_like( template, 0, dtype=np.int ).where( template.notnull(), nodata_value )
+        self._labels_data: xa.DataArray = xa.full_like( template, 0, dtype=np.int32 ).where( template.notnull(), nodata_value )
         self._labels_data.attrs['_FillValue'] = nodata_value
         self._labels_data.name = point_data.attrs['dsid'] + "_labels"
         self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
@@ -82,10 +82,11 @@ class LabelsManager(QObject,EventClient):
             self._labels_data[ marker.pid ] = marker.cid
 
     @classmethod
-    def getFilteredLabels(self, labels: np.ndarray ) -> np.ndarray:
+    def getFilteredLabels(self, labels: np.ndarray, mask = None ) -> np.ndarray:
         indices = np.arange(labels.shape[0])
         indexed_labels = np.vstack( [indices, labels] ).transpose()
-        return indexed_labels[labels > 0]
+        selection = mask if mask is not None else (labels > 0)
+        return indexed_labels[selection]
 
     def spread(self) -> Optional[xa.DataArray]:
         if self._flow is None:

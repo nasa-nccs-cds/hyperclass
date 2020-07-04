@@ -199,7 +199,7 @@ class Block:
     def multi_coords2indices(self, cy: List[float], cx: List[float]) -> Tuple[np.ndarray, np.ndarray]:
         coords = np.array( list( zip( cx, cy ) ) )
         trans_coords = np.floor(self.transform.inverse(coords))
-        indices = trans_coords.transpose().astype( np.int )
+        indices = trans_coords.transpose().astype( np.int32 )
         return indices[1], indices[0]
 
     def indices2coords(self, iy, ix) -> Dict:
