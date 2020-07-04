@@ -77,7 +77,7 @@ class ActivationFlow(QObject,EventClient):
         return nnd
 
 
-    def spread( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
+    def spread( self, sample_labels: xa.DataArray, nIter: int = 1, **kwargs ) -> Optional[xa.DataArray]:
         from hyperclass.gui.labels import labelsManager
         if self.D is None:
             Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
@@ -96,11 +96,26 @@ class ActivationFlow(QObject,EventClient):
         if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf') )
         self.P = np.where( sample_mask, self.P, 0.0 )
         print(f"Beginning graph flow iterations, #C = {label_count}")
+        C0 = labelsManager.getFilteredLabels(self.C)
+        print( f"Starting Spread[{self.I.shape[1]}] Op with C0: {C0}")
 
         t0 = time.time()
         converged = False
         for iter in range(nIter):
-            for iN in range( self.I.shape[1] ):
+            for iN in range( 1, self.I.shape[1] ):
+                IN = self.I[:,iN]
+                CN = self.C[IN]
+                FC = labelsManager.getFilteredLabels( CN )
+                for label_spec in FC:
+                    pid0 = label_spec[0]
+                    pid1 = self.I[pid0,iN]
+                    PN = self.P[pid1] + self.D[pid1, iN]
+                    if (self.C[pid0] == 0) or (PN < self.P[pid0]):
+                        marker = "***" if (self.C[pid0] == 0) else ""
+                        print(f"P[{iter},{iN}]: {pid0} <- {pid1}  {marker}")
+                        self.C[pid0] = label_spec[1]
+                        self.P[pid0] = PN
+            for iN in range(1, self.I.shape[1]):
                 FC = labelsManager.getFilteredLabels( self.C )
                 for label_spec in FC:
                     pid = label_spec[0]

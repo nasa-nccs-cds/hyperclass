@@ -137,7 +137,7 @@ class LabelingConsole:
         if self.figure is None:
             self.figure = plt.figure()
         self.labels_image: Optional[AxesImage] = None
-        self.flow_iterations = kwargs.get( 'flow_iterations', 5 )
+        self.flow_iterations = kwargs.get( 'flow_iterations', 1 )
         self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
         self._tiles: Dict[List,Tile] = {}

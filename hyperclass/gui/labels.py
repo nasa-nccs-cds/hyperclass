@@ -59,7 +59,7 @@ class LabelsManager(QObject,EventClient):
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
         self._labels_data: xa.DataArray = None
-        self.n_spread_iters = 2
+        self.n_spread_iters = 1
 
     def initLabelsData( self, point_data: xa.DataArray ):
         nodata_value = -1
