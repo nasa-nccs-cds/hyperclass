@@ -155,7 +155,7 @@ class DirectoryWidget(QWidget,EventClient):
                 self.addExtendedLabels( labels )
                 self.build_table.emit()
 
-    def addRow( self, pid: int ):
+    def addRow( self, pid: int, distance: float = 0.0 ):
         item = self.getItemByIndex(pid)
         if item is None:
             plot_metadata = dataEventHandler.getMetadata()
@@ -163,7 +163,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.col_data['index'].append(row_data[0])
             self.col_data['targets'].append(row_data[1])
             self.col_data['obsids'].append(row_data[2])
-            self.col_data['distance'].append(row_data[3])
+            self.col_data['distance'].append( distance )
             self.setRowData(row_data)
             self.update()
 
@@ -172,11 +172,11 @@ class DirectoryWidget(QWidget,EventClient):
         self.selectRow(self._selected_row, True)
         self.releasePick()
 
-    def addExtendedLabels(self, labels_spec: xa.Dataset ):
-        labels: xa.DataArray = labels_spec['C']
-        for itemRef in labelsManager.getFilteredLabels(labels):
+    def addExtendedLabels(self, labels: xa.Dataset ):
+        labels, distance = labelsManager.getSortedLabels(labels)
+        for itemRef, d in zip(labels, distance):
             label = labelsManager.labels[ itemRef[1] ]
-            if label == self.name: self.addRow( itemRef[0] )
+            if label == self.name: self.addRow( itemRef[0], d )
 
     def clearMarker(self, marker: Marker ):
         if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )

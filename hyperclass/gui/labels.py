@@ -82,6 +82,17 @@ class LabelsManager(QObject,EventClient):
             self._labels_data[ marker.pid ] = marker.cid
 
     @classmethod
+    def getSortedLabels(self, labels_dset: xa.Dataset ) -> Tuple[np.ndarray,np.ndarray]:
+        labels: np.ndarray = labels_dset['C'].values
+        distance: np.ndarray = labels_dset['D'].values
+        indices = np.arange(labels.shape[0])
+        indexed_labels = np.vstack( [ indices, labels ] ).transpose()
+        selection = (labels > 0)
+        filtered_labels = indexed_labels[selection]
+        filtered_distance = distance[selection]
+        return filtered_labels, filtered_distance
+
+    @classmethod
     def getFilteredLabels(self, labels: np.ndarray, mask = None ) -> np.ndarray:
         indices = np.arange(labels.shape[0])
         indexed_labels = np.vstack( [indices, labels] ).transpose()
