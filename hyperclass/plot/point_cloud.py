@@ -47,7 +47,9 @@ class PointCloud():
         self.colormap = None
         self.mapper: vtk.vtkMapper = None
         self.actor: vtk.vtkActor = None
-        self.picker: vtk.vtkPicker = None
+        self.picker = vtk.vtkPointPicker()
+        self.picker.SetUseCells(False)
+        self.picker.SetTolerance( 0.02 )
         self.polydata: vtk.vtkPolyData= None
         self.marker_actor: vtk.vtkActor = None
         self.points_modified = False
@@ -215,10 +217,8 @@ class PointCloud():
         from hyperclass.gui.points import HCRenderWindowInteractor
         if self.renWin is None:
             self.renWin = vtk.vtkRenderWindow()
-            self.rendWinInteractor =  HCRenderWindowInteractor()
+            self.rendWinInteractor =  HCRenderWindowInteractor( self.picker )
             self.renWin.SetInteractor( self.rendWinInteractor )
-            self.picker = vtk.vtkPointPicker()
-            self.rendWinInteractor.SetPicker( self.picker )
             self.rendWinInteractor.SetRenderWindow( self.renWin )
 
             self.rendWinInteractor.AddObserver( "KeyPressEvent", self.keyPressEvent )
@@ -249,6 +249,8 @@ class PointCloud():
             self.actor = vtk.vtkActor()
             self.actor.SetMapper(self.mapper)
             self.actor.GetProperty().SetPointSize(2)
+            self.picker.AddPickList( self.actor )
+            self.picker.SetPickFromList( True )
             if self.renderer is not None:
                 self.renderer.AddActor( self.actor )
         if self.marker_actor is None:

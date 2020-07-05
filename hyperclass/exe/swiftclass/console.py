@@ -8,7 +8,7 @@ classes = [ ('Quasar', [1.0, 0.0, 0.0, 1.0]),
             ('BlackHole', [1.0, 0.0, 1.0, 1.0]),
             ('BinaryStar', [0.0, 0.0, 1.0, 1.0])]
 
-subsample = 100
+subsample = 10
 
 app = HCApplication()
 labelsManager.setLabels( classes )

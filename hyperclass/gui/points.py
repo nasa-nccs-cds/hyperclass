@@ -9,12 +9,12 @@ from hyperclass.gui.events import EventClient, EventMode
 
 class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient):
 
-    def __init__(self ):
+    def __init__(self, picker: vtk.vtkPointPicker ):
         self.debug = True
         vtk.vtkGenericRenderWindowInteractor.__init__(self)
         self.renderer = None
         self.pick_enabled = False
-        self.SetPicker( vtk.vtkPointPicker() )
+        self.SetPicker(picker)
         interactorStyle = vtk.vtkInteractorStyleTrackballCamera()
         self.SetInteractorStyle(interactorStyle)
         interactorStyle.KeyPressActivationOff()
@@ -30,10 +30,12 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
             picker = self.GetPicker()
             picker.Pick(clickPos[0], clickPos[1], 0, self.renderer )
             picked_point = picker.GetPointId()
-            if picked_point > 0:
-                if self.debug: print( f"Picked point {picked_point}")
+            if picked_point >= 0:
+                print( f"Picked point {picked_point}, tolerance = {picker.GetTolerance()}, useCells = {picker.GetUseCells()}, nprops = {picker.GetPickList().GetNumberOfItems()}")
                 event = dict(event="pick", type="vtkpoint", pid=picked_point, transient=True)
                 self.submitEvent( event, EventMode.Gui )
+            else:
+                print(f"Point pick failed")
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 
@@ -42,10 +44,9 @@ class VTKWidget(QVTKRenderWindowInteractor):
     def __init__(self, parent, point_cloud: PointCloud ):
         self.rw: vtk.vtkRenderWindow = vtk.vtkRenderWindow()
         self.point_cloud: PointCloud = point_cloud
-        self.iren = HCRenderWindowInteractor()
+        self.iren = HCRenderWindowInteractor( point_cloud.picker )
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )
-        self.picker = vtk.vtkPointPicker()
 
     @staticmethod
     def _getPixelRatio():

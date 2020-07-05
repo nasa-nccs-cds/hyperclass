@@ -16,7 +16,7 @@ class MixingSpace():
         self.colormap = None
         self.mapper = None
         self.actor = None
-        self.picker = None
+        self.picker = vtk.vtkPointPicker()
         self.polydata = None
         self.marker_actor = None
         self.points_modified = False
@@ -160,9 +160,8 @@ class MixingSpace():
         from hyperclass.gui.points import HCRenderWindowInteractor
         if self.renWin is None:
             self.renWin = vtk.vtkRenderWindow()
-            self.rendWinInteractor =  HCRenderWindowInteractor()
+            self.rendWinInteractor =  HCRenderWindowInteractor( self.picker )
             self.renWin.SetInteractor( self.rendWinInteractor )
-            self.picker = vtk.vtkPointPicker()
             self.rendWinInteractor.SetPicker( self.picker )
             self.rendWinInteractor.SetRenderWindow( self.renWin )
 

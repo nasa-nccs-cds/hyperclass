@@ -21,7 +21,7 @@ class HCApplication( QApplication, EventClient ):
                           nativeVirtualKey=event.nativeVirtualKey() )
         except Exception as err:
             print(f"HCApplication.keyPressEvent error: {err}")
-        self.submitEvent( event, EventMode.Foreground )
+        self.submitEvent( event, EventMode.Gui )
 
     def onKeyRelease(self):
         self.submitEvent( dict( event="gui", type="keyRelease"), EventMode.Foreground )

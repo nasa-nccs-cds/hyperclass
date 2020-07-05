@@ -10,7 +10,6 @@ from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.labels import labelsManager, Marker
 
-
 class NumericTableWidgetItem(QTableWidgetItem):
 
     def __lt__(self, other):
@@ -36,6 +35,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.current_pid = None
         self._head_row = 0
         self._selected_row = -1
+        self.sort_column = 1
         self.pick_enabled = False
         self._key_state = None
         self._marked_rows = []
@@ -89,7 +89,7 @@ class DirectoryWidget(QWidget,EventClient):
                 if isinstance(value,str):   table_item = QTableWidgetItem( value )
                 else:                       table_item = NumericTableWidgetItem( str(value) )
                 self.table.setItem(row, column, table_item)
-        self.table.sortItems(1)
+        self.table.sortItems(self.sort_column)
         self.update()
 
     def clear_table(self):
@@ -143,6 +143,11 @@ class DirectoryWidget(QWidget,EventClient):
                 elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     self.current_pid = event.get('pid')
                     self.addRow( self.current_pid )
+                elif (labelsManager.selectedLabel.lower() == "unlabeled") and self.pick_enabled:
+                    pid = event.get('pid')
+                    if self.selectRowByIndex(pid):
+                        self.current_pid = pid
+
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
@@ -166,6 +171,8 @@ class DirectoryWidget(QWidget,EventClient):
             self.col_data['distance'].append( distance )
             self.setRowData(row_data)
             self.update()
+        else:
+            self.selectRowByIndex(pid)
 
     def markCurrentRow(self):
         self.enablePick()
@@ -177,6 +184,7 @@ class DirectoryWidget(QWidget,EventClient):
         for itemRef, d in zip(labels, distance):
             label = labelsManager.labels[ itemRef[1] ]
             if label == self.name: self.addRow( itemRef[0], d )
+        self.sort_column = 4
 
     def clearMarker(self, marker: Marker ):
         if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
@@ -218,14 +226,16 @@ class DirectoryWidget(QWidget,EventClient):
                 return item
         return None
 
-    def selectRowByIndex( self, pid: int ):
+    def selectRowByIndex( self, pid: int ) -> bool:
         rows = self.table.rowCount()
         color = labelsManager.selectedColor
         cid = labelsManager.selectedClass
+        rv = False
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, 0 )
             if item == None: break
             if pid == int( item.text() ):
+                rv = True
                 self._selected_row = iRow
                 self.table.scrollToItem( item )
                 if self.pick_enabled and (cid > 0) and (color is not None):
@@ -234,9 +244,11 @@ class DirectoryWidget(QWidget,EventClient):
                     item.setBackground( QBrush( QColor(*qcolor) ) )
                     self._marked_rows.append( iRow )
                 else:
+                    self.table.clearSelection()
                     self.table.selectRow(iRow)
                 break
         self.update()
+        return rv
 
     def unselectRowByIndex(self, pid: int):
         rows = self.table.rowCount()
