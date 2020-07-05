@@ -26,17 +26,17 @@ class DialogBase(QDialog):
     def addContent(self):
         pass
 
-    def createSizeSelector(self, label_text: str, values: List[int], settings_key: str ) -> QLayout:
+    def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
         comboBox = QComboBox()
         label = QLabel( label_text )
         label.setBuddy( comboBox )
         comboBox.addItems( [ str(x) for x in values ] )
-        comboBox.setCurrentText( str( self.settings.value(settings_key) ) )
+        comboBox.setCurrentText( str( self.settings.value(settings_key,default_value) ) )
         sizeSelectorLayout.addWidget( label )
         sizeSelectorLayout.addWidget(comboBox)
         def selectionchange( index ):
-            self.settings.setValue( settings_key, int( comboBox.currentText() ) )
+            self.settings.setValue( settings_key, comboBox.currentText() )
         comboBox.currentIndexChanged.connect( selectionchange )
         return sizeSelectorLayout
 

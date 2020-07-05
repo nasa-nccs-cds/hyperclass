@@ -14,10 +14,22 @@ class PrepareInputsDialog(DialogBase):
 
     def addContent(self):
         self.mainLayout.addLayout( self.createSettingInputField( "Dataset ID", "dataset/id", self.DSID ) )
-        self.mainLayout.addLayout( self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" ) )
-        self.mainLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir") )
+        inputsGroupBox = QGroupBox('inputs')
+        inputsLayout = QVBoxLayout()
+        inputsGroupBox.setLayout( inputsLayout )
+
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" ) )
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir") )
         for input_file_id in self.inputs:
-            self.mainLayout.addLayout( self.createFileSystemSelectionWidget( input_file_id, self.FILE, f"data/init/{input_file_id}", "data/dir" ) )
+            inputsLayout.addLayout( self.createFileSystemSelectionWidget( input_file_id, self.FILE, f"data/init/{input_file_id}", "data/dir" ) )
+
+        self.mainLayout.addWidget( inputsGroupBox )
+        self.mainLayout.addWidget( self.createReductionGroupBox() )
+
+    def createReductionGroupBox(self):
+        methodSelector = self.createComboSelector("Method: ", [ "None", "Autoencoder" ], "input.reduction/method", None )
+        nDimSelector = self.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35 )
+        return self.createGroupBox("reduction", [methodSelector, nDimSelector])
 
 class SwiftPreferencesDialog(DialogBase):
 
@@ -52,10 +64,10 @@ class SwiftPreferencesDialog(DialogBase):
         return self.createGroupBox( "data", widgets )
 
     def createUMAPGroupBox(self):
-        nNeighborsSelector = self.createSizeSelector( "#Neighbors: ", range(4,20), "umap/nneighbors" )
-        nEpochsSelector = self.createSizeSelector( "#Epochs: ", range(50,500,50), "umap/nepochs" )
+        nNeighborsSelector = self.createComboSelector("#Neighbors: ", range(4, 20), "umap/nneighbors")
+        nEpochsSelector = self.createComboSelector("#Epochs: ", range(50, 500, 50), "umap/nepochs")
         return self.createGroupBox("umap", [nNeighborsSelector, nEpochsSelector])
 
     def createSVMGroupBox(self):
-        nDimSelector = self.createSizeSelector( "#Dimensions: ", range(4,20), "svm/ndim" )
+        nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")
         return self.createGroupBox("svm", [nDimSelector])

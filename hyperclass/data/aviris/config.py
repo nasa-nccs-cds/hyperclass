@@ -34,22 +34,22 @@ class PreferencesDialog(DialogBase):
         return self.createGroupBox( "data", [ dirSelection, cacheSelection, fileSelection ] )
 
     def createTileGroupBox(self):
-        blockSizeSelector = self.createSizeSelector( "Block Side Length: ", range(100,600,50), "block/size" )
-        blocksPerTileSelector = self.createSizeSelector( "Tile Side Length: ", range(600,2000,200), "tile/size" )
+        blockSizeSelector = self.createComboSelector("Block Side Length: ", range(100, 600, 50), "block/size")
+        blocksPerTileSelector = self.createComboSelector("Tile Side Length: ", range(600, 2000, 200), "tile/size")
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
     def createInitGroupBox(self):
-        blockSizeSelector = self.createSizeSelector( "Tile Indices: ", range(100,600,50), "block/indices" )
-        blocksPerTileSelector = self.createSizeSelector( "Block Indices: ", [ x*x for x in range(1,7) ], "tile/indices" )
+        blockSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "block/indices")
+        blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "tile/indices")
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
     def createUMAPGroupBox(self):
-        nNeighborsSelector = self.createSizeSelector( "#Neighbors: ", range(4,20), "umap/nneighbors" )
-        nEpochsSelector = self.createSizeSelector( "#Epochs: ", range(50,500,50), "umap/nepochs" )
+        nNeighborsSelector = self.createComboSelector("#Neighbors: ", range(4, 20), "umap/nneighbors")
+        nEpochsSelector = self.createComboSelector("#Epochs: ", range(50, 500, 50), "umap/nepochs")
         return self.createGroupBox("umap", [nNeighborsSelector, nEpochsSelector])
 
     def createSVMGroupBox(self):
-        nDimSelector = self.createSizeSelector( "#Dimensions: ", range(4,20), "svm/ndim" )
+        nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")
         return self.createGroupBox("svm", [nDimSelector])
 
     def createGoogleGroupBox(self):
