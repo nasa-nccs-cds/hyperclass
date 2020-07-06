@@ -3,6 +3,8 @@ from hyperclass.data.swift.manager import dataManager
 from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
 from hyperclass.gui.dialog import DialogBase
+from hyperclass.reduction.manager import reductionManager
+
 
 class PrepareInputsDialog(DialogBase):
 
@@ -24,12 +26,7 @@ class PrepareInputsDialog(DialogBase):
             inputsLayout.addLayout( self.createFileSystemSelectionWidget( input_file_id, self.FILE, f"data/init/{input_file_id}", "data/dir" ) )
 
         self.mainLayout.addWidget( inputsGroupBox )
-        self.mainLayout.addWidget( self.createReductionGroupBox() )
-
-    def createReductionGroupBox(self):
-        methodSelector = self.createComboSelector("Method: ", [ "None", "Autoencoder" ], "input.reduction/method", None )
-        nDimSelector = self.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35 )
-        return self.createGroupBox("reduction", [methodSelector, nDimSelector])
+        self.mainLayout.addWidget( reductionManager.gui(self) )
 
 class SwiftPreferencesDialog(DialogBase):
 

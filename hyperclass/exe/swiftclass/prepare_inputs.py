@@ -7,6 +7,9 @@ import xarray as xa
 import numpy as np
 import pickle, os
 
+from hyperclass.reduction.manager import reductionManager
+
+
 def prepare_inputs():
     data_vars = dict( )
 
@@ -29,9 +32,17 @@ def prepare_inputs():
     scaled_spectra = np.array( scaled_spectra_data, dtype=np.single )
     data_vars['scaled_spectra'] = xa.DataArray( scaled_spectra, dims=['samples','bands'], coords=dict( samples=samples, bands=bands ) )
 
+    reduction_method = dataManager.config.value("input.reduction/method",  'None ')
+    ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
+    if reduction_method != "None":
+        reduced_spectra = reductionManager.reduce( scaled_spectra, reduction_method, ndim )
+        coords = dict( samples=samples, bands=np.arange(ndim) )
+        data_vars['reduced_spectra'] =  xa.DataArray( reduced_spectra, dims=['samples','bands'], coords=coords )
+
     dataset = xa.Dataset( data_vars, coords=dict( samples=samples, bands=bands ) )
     dsid = dataManager.config.value('dataset/id', PrepareInputsDialog.DSID )
-    output_file = os.path.join( dataManager.config.value('data/cache'), dsid + ".nc" )
+    file_name = f"{dsid}.nc" if reduction_method == "None" else f"{dsid}.{reduction_method}-{ndim}.nc"
+    output_file = os.path.join( dataManager.config.value('data/cache'), file_name )
     print( f"Writing output to {output_file}")
     dataset.to_netcdf( output_file )
 
