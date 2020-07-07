@@ -13,13 +13,24 @@ class ActivationFlowManager:
 
     def __init__( self ):
         self.instances = {}
+        self.condition = threading.Condition()
 
     def __getitem__( self, dsid ):
         return self.instances.get( dsid )
 
     def getActivationFlow( self, point_data: xa.DataArray, **kwargs ) -> "ActivationFlow":
         dsid = point_data.attrs['dsid']
-        return self.instances.setdefault( dsid, self.create_flow( point_data, **kwargs ) )
+        print( f"Get Activation flow for dsid {dsid}")
+        self.condition.acquire()
+        try:
+            result = self.instances.get( dsid, None )
+            if result is None:
+                result = self.create_flow( point_data, **kwargs )
+                self.instances[dsid] = result
+            self.condition.notifyAll()
+        finally:
+            self.condition.release()
+        return result
 
     def create_flow(self, point_data: xa.DataArray, **kwargs):
         return ActivationFlow( point_data, **kwargs )
@@ -35,7 +46,7 @@ class ActivationFlow(QObject,EventClient):
         self.P: np.ndarray = None
         self.C: np.ndarray = None
         self.reset = True
-        self.condition = threading.Condition()
+
         background = kwargs.get( 'background', False )
         if background:
             self.init_task = Task( f"Compute NN graph", self.setNodeData, nodes_data, **kwargs )
@@ -51,9 +62,8 @@ class ActivationFlow(QObject,EventClient):
         self.D = ma.MaskedArray( D )
 
     def setNodeData(self, nodes_data: xa.DataArray, **kwargs ):
-        if nodes_data.size > 0:
-            self.condition.acquire( )
-            try:
+        if self.reset or (self.nodes is None):
+            if (nodes_data.size > 0):
                 t0 = time.time()
                 self.nodes = nodes_data
                 self.nnd = self.getNNGraph( nodes_data, **kwargs )
@@ -61,11 +71,8 @@ class ActivationFlow(QObject,EventClient):
                 self.D = self.nnd.neighbor_graph[1]
                 dt = (time.time()-t0)
                 print( f"Computed NN Graph in {dt} sec ({dt/60} min)")
-                self.condition.notifyAll()
-            finally:
-                self.condition.release()
-        else:
-            print( "No data available for this block")
+            else:
+                print( "No data available for this block")
 
     @classmethod
     def getNNGraph(cls, nodes: xa.DataArray, **kwargs ):

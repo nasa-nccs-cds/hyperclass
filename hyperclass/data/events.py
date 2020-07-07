@@ -1,6 +1,12 @@
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from hyperclass.data.aviris.tile import Tile, Block
+from enum import Enum
 import xarray as xa
+
+class DataType(Enum):
+    Scaled = 1
+    Reduced = 2
+    Raw = 3
 
 class DataEventHandler:
 
@@ -35,15 +41,22 @@ class DataEventHandler:
         if (self._loaded_data is None) and self.isDataLoadEvent(event) :
             self._loaded_data = event.get('result')
 
-    def getPointData(self, event: Dict, **kwargs ) -> xa.DataArray:
-        scaled: bool = kwargs.get( 'scaled', False )
+    def getPointData(self, event: Dict, type: DataType = DataType.Reduced, **kwargs ) -> xa.DataArray:
         self.getLoadedData(event)
         if isinstance(self._loaded_data, Block):
             return self._loaded_data.getPointData( subsample = self._subsample )
         elif isinstance(self._loaded_data, xa.Dataset):
             dset_type = self._loaded_data.attrs['type']
             if dset_type == 'spectra':
-                varid = 'scaled_spectra' if scaled else 'spectra'
+                if type == DataType.Reduced:
+                    if 'reduced_spectra' in self._loaded_data:
+                        varid = 'reduced_spectra'
+                    else: varid = 'scaled_spectra'
+                elif type == DataType.Scaled:
+                    varid = 'scaled_spectra'
+                elif type == DataType.Raw:
+                    varid = 'spectra'
+                else: raise Exception( f"Unrecognized DataType: {type}")
                 point_data: xa.DataArray = dataEventHandler.subsample( self._loaded_data[varid] )
                 point_data.attrs['dsid'] = self._loaded_data.attrs['dsid']
                 point_data.attrs['type'] = dset_type

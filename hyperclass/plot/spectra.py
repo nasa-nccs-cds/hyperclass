@@ -8,7 +8,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from matplotlib.axes import Axes
 from collections import OrderedDict
-from hyperclass.data.events import dataEventHandler
+from hyperclass.data.events import dataEventHandler, DataType
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.labels import labelsManager
 import xarray as xa
@@ -101,22 +101,23 @@ class SpectralPlot(QObject,EventClient):
 
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            self.scaled_spectra: xa.DataArray = dataEventHandler.getPointData(event, scaled = True)
-            self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData(event, scaled = False)
+            self.scaled_spectra: xa.DataArray = dataEventHandler.getPointData( event, DataType.Scaled )
+            self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData( event, DataType.Raw )
             self.configure( event )
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
-                self.current_pid = event.get('pid')
-                cid = labelsManager.selectedClass
-                self.clear_transients()
-                print( f"SpectralPlot: pick event, pid = {self.current_pid}")
-                scaled_values = self.scaled_spectra[self.current_pid]
-                self.plot_spectrum( self.current_pid, cid, scaled_values, labelsManager.selectedColor )
-                if self._titles is not None:
-                    self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
-                self.update_marker()
-                self.axes.set_title( "", {}, 'right' )
-                self.update_signal.emit()
+                if  self.scaled_spectra is not None:
+                    self.current_pid = event.get('pid')
+                    cid = labelsManager.selectedClass
+                    self.clear_transients()
+                    print( f"SpectralPlot: pick event, pid = {self.current_pid}")
+                    scaled_values = self.scaled_spectra[self.current_pid]
+                    self.plot_spectrum( self.current_pid, cid, scaled_values, labelsManager.selectedColor )
+                    if self._titles is not None:
+                        self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
+                    self.update_marker()
+                    self.axes.set_title( "", {}, 'right' )
+                    self.update_signal.emit()
 
     def update_marker(self, new_xval = None ):
         if self.marker is not None:

@@ -59,7 +59,7 @@ class ReductionManager(QObject,EventClient):
         encoder = Model(inputs=[inputlayer], outputs=[encoded])
         autoencoder.compile(loss='mse', optimizer='rmsprop')
 
-        autoencoder.fit( encoder_input, encoder_input, epochs=3, batch_size=256, shuffle=True )
+        autoencoder.fit( encoder_input, encoder_input, epochs=2, batch_size=256, shuffle=True )
         return  encoder.predict( encoder_input )
 
 reductionManager = ReductionManager( )

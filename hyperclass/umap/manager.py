@@ -45,7 +45,7 @@ class UMAPManager(QObject,EventClient):
     def processEvent( self, event: Dict ):
         print(f"UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
-            point_data = dataEventHandler.getPointData( event, scaled = True )
+            point_data = dataEventHandler.getPointData( event )
             self.embedding( point_data )
         elif event.get('event') == 'labels':
             if event.get('type') == 'clear':       self.plotMarkers()

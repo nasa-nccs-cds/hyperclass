@@ -1534,10 +1534,10 @@ class UMAP(BaseEstimator):
 
         if isinstance(self.init, np.ndarray):
             init = check_array(self.init, dtype=np.float32, accept_sparse=False)
-            print(f"Running umap[{self.n_components}] with init array, shape = {init.shape}, #epochs = {self.n_epochs}")
+            print(f"Running umap[{self.n_components}] with init array, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
         else:
             init = self.init
-            print(f"Running umap[{self.n_components}] with init {init}, #epochs = {self.n_epochs}")
+            print(f"Running umap[{self.n_components}] with init {init}, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
 
         self._initial_alpha = self.learning_rate
         self._validate_parameters()
