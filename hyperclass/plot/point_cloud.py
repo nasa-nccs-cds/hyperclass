@@ -248,7 +248,7 @@ class PointCloud():
                 self.mapper.SetInputData(self.polydata)
             self.actor = vtk.vtkActor()
             self.actor.SetMapper(self.mapper)
-            self.actor.GetProperty().SetPointSize(2)
+            self.actor.GetProperty().SetPointSize(1)
             self.picker.AddPickList( self.actor )
             self.picker.SetPickFromList( True )
             if self.renderer is not None:

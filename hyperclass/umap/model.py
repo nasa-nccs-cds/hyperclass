@@ -1152,7 +1152,8 @@ class UMAP(BaseEstimator):
         self.n_components = n_components
         self.repulsion_strength = repulsion_strength
         self.learning_rate = learning_rate
-        self.embedding_ = None
+        self._embedding_ = None
+        self.external_embedding = None
 
         self.spread = spread
         self.min_dist = min_dist
@@ -1174,6 +1175,13 @@ class UMAP(BaseEstimator):
 
         self.a = a
         self.b = b
+
+    def set_embedding(self, embed_ : np.ndarray ):
+        self.external_embedding = embed_
+
+    @property
+    def embedding( self ) ->  np.ndarray:
+        return self.external_embedding.values if self.external_embedding is not None else self._embedding_
 
     def _validate_parameters(self):
         if self.set_op_mix_ratio < 0.0 or self.set_op_mix_ratio > 1.0:
@@ -1390,7 +1398,7 @@ class UMAP(BaseEstimator):
         # Error check n_neighbors based on data size
         if X.shape[0] <= self.n_neighbors:
             if X.shape[0] == 1:
-                self.embedding_ = np.zeros(
+                self._embedding_ = np.zeros(
                     (1, self.n_components)
                 )  # needed to sklearn comparability
                 return self
@@ -1496,7 +1504,7 @@ class UMAP(BaseEstimator):
 
         t3 = time.time()
         if self.verbose: print(ts(), "Construct embedding")
-        self.embedding_ = spectral_embedding( self._raw_data, self.graph_, self.n_components )
+        self._embedding_ = spectral_embedding(self._raw_data, self.graph_, self.n_components)
         t4 = time.time()
         print(ts() + f" Finished embedding- times: {(t1 - t0) / 60.0} {(t2 - t1) / 60.0} {(t3 - t2) / 60.0} {(t4 - t3) / 60.0}")
         self._input_hash = joblib.hash(self._raw_data)
@@ -1632,7 +1640,7 @@ class UMAP(BaseEstimator):
         if self.verbose:
             print(ts(), "Construct embedding")
 
-        self.embedding_ = simplicial_set_embedding(
+        self._embedding_ = simplicial_set_embedding(
             self._raw_data,  # JH why raw data?
             self.graph_,
             self.n_components,
@@ -1675,7 +1683,7 @@ class UMAP(BaseEstimator):
             Embedding of the training data in low-dimensional space.
         """
         self.fit(X, y)
-        return self.embedding_
+        return self.embedding
 
     def transform(self, X):
         """Transform X into the existing embedded space and return that
@@ -1692,7 +1700,7 @@ class UMAP(BaseEstimator):
             Embedding of the new data in low-dimensional space.
         """
         # If we fit just a single instance then error
-        if self.embedding_.shape[0] == 1:
+        if self.embedding.shape[0] == 1:
             raise ValueError(
                 "Transform unavailable when model was fit with only a single data sample."
             )
@@ -1700,7 +1708,7 @@ class UMAP(BaseEstimator):
         X = check_array(X, dtype=np.float32, accept_sparse="csr", order="C")
         x_hash = joblib.hash(X)
         if x_hash == self._input_hash:
-            return self.embedding_
+            return self.embedding
 
         if self.metric == "precomputed":
             raise ValueError(
@@ -1725,7 +1733,7 @@ class UMAP(BaseEstimator):
         csr_graph = normalize(graph.tocsr(), norm="l1")
         inds = csr_graph.indices.reshape(X.shape[0], self.n_neighbors)
         weights = csr_graph.data.reshape(X.shape[0], self.n_neighbors)
-        embedding = init_transform(inds, weights, self.embedding_)
+        embedding = init_transform(inds, weights, self.embedding)
 
         if self.n_epochs == 0:
             # For smaller datasets we can use more epochs
@@ -1753,7 +1761,7 @@ class UMAP(BaseEstimator):
         if self.output_metric == "euclidean":
             embedding = optimize_layout_euclidean(
                 embedding,
-                self.embedding_.astype(np.float32, copy=True),  # Fixes #179 & #217,
+                self.embedding.astype(np.float32, copy=True),  # Fixes #179 & #217,
                 head,
                 tail,
                 n_epochs,
@@ -1771,7 +1779,7 @@ class UMAP(BaseEstimator):
         else:
             embedding = optimize_layout_generic(
                 embedding,
-                self.embedding_.astype(np.float32, copy=True),  # Fixes #179 & #217
+                self.embedding.astype(np.float32, copy=True),  # Fixes #179 & #217
                 head,
                 tail,
                 n_epochs,
@@ -1824,17 +1832,17 @@ class UMAP(BaseEstimator):
 
         # build Delaunay complex (Does this not assume a roughly euclidean output metric)?
         deltri = scipy.spatial.Delaunay(
-            self.embedding_, incremental=True, qhull_options="QJ"
+            self.embedding, incremental=True, qhull_options="QJ"
         )
         neighbors = deltri.simplices[deltri.find_simplex(X)]
         adjmat = scipy.sparse.lil_matrix(
-            (self.embedding_.shape[0], self.embedding_.shape[0]), dtype=int
+            (self.embedding.shape[0], self.embedding.shape[0]), dtype=int
         )
         for i in np.arange(0, deltri.simplices.shape[0]):
             for j in deltri.simplices[i]:
-                if j < self.embedding_.shape[0]:
+                if j < self.embedding.shape[0]:
                     idx = deltri.simplices[i][
-                        deltri.simplices[i] < self.embedding_.shape[0]
+                        deltri.simplices[i] < self.embedding.shape[0]
                     ]
                     adjmat[j, idx] = 1
                     adjmat[idx, j] = 1
@@ -1867,7 +1875,7 @@ class UMAP(BaseEstimator):
         distances = [
             np.array(
                 [
-                    dist_only_func(X[i], self.embedding_[nb], *dist_args)
+                    dist_only_func(X[i], self.embedding[nb], *dist_args)
                     for nb in neighborhood[i]
                 ]
             )

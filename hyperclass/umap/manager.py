@@ -28,7 +28,7 @@ class UMAPManager(QObject,EventClient):
         self.conf = kwargs
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
-        self._current_mapper = None
+        self._current_mapper: UMAP = None
         self.setClassColors()
         self.update_signal.connect( self.update )
 
@@ -65,7 +65,8 @@ class UMAPManager(QObject,EventClient):
                         pid = event.get('pid')
                         cid = event.get('cid', labelsManager.selectedClass )
                         color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
-                        transformed_data: np.ndarray = self._current_mapper.embedding_[ [pid] ]
+                        embedding = self._current_mapper.embedding
+                        transformed_data: np.ndarray = embedding[ [pid] ]
                         labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
                         self.point_cloud.plotMarkers()
                         self.update_signal.emit()
@@ -79,8 +80,8 @@ class UMAPManager(QObject,EventClient):
 
     def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
         mapper: UMAP = self.getMapper( point_data.attrs['dsid'], ndim )
-        if mapper.embedding_ is not None:
-            return self.wrap_embedding( point_data.coords[ point_data.dims[0] ], mapper.embedding_ )
+        if mapper.embedding is not None:
+            return self.wrap_embedding(point_data.coords[ point_data.dims[0] ], mapper.embedding )
         return self.embed( point_data, ndim = ndim )
 
     def wrap_embedding(self, ax_samples: xa.DataArray, embedding: np.ndarray, **kwargs )-> xa.DataArray:
@@ -124,11 +125,11 @@ class UMAPManager(QObject,EventClient):
         filtered_point_data: xa.DataArray = point_data.where( labels_mask, drop=True )
         nnd = ActivationFlow.getNNGraph( filtered_point_data, **kwargs )
         self.learned_mapping.embed(filtered_point_data.data, nnd, filtered_labels.values, **kwargs)
-        coords = dict( samples=filtered_point_data.samples, model=np.arange(self.learned_mapping.embedding_.shape[1]) )
-        return xa.DataArray( self.learned_mapping.embedding_, dims=['samples','model'], coords=coords ), filtered_labels
+        coords = dict(samples=filtered_point_data.samples, model=np.arange(self.learned_mapping_embedding.shape[1]))
+        return xa.DataArray(self.learned_mapping.embedding, dims=['samples', 'model'], coords=coords), filtered_labels
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
-        if (self.learned_mapping is None) or (self.learned_mapping.embedding_ is None):
+        if (self.learned_mapping is None) or (self.learned_mapping.embedding is None):
             Task.taskNotAvailable( "Workflow violation", "Must learn a classication before it can be applied", **kwargs )
             return None
         point_data: xa.DataArray = block.getPointData( **kwargs )
@@ -156,22 +157,25 @@ class UMAPManager(QObject,EventClient):
         mapper = self.getMapper( point_data.attrs['dsid'], ndim )
         mapper.flow = flow
         t1 = time.time()
-        print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
         labels_data = None if labels is None else labels.values
-        if mapper.embedding_ is not None:
-            mapper.init = mapper.embedding_
-        etype = self.embedding_type.lower()
-        if etype == "umap":
-            mapper.embed(point_data.data, flow.nnd, labels_data, **kwargs)
-        elif etype == "spectral":
-            mapper.spectral_embed(point_data.data, flow.nnd, labels_data, **kwargs)
-        else: raise Exception( f" Unknown embedding type: {etype}")
+        if point_data.shape[1] <= ndim:
+            mapper.set_embedding( point_data )
+        else:
+            print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
+            if mapper.embedding is not None:
+                mapper.init = mapper.embedding
+            etype = self.embedding_type.lower()
+            if etype == "umap":
+                mapper.embed(point_data.data, flow.nnd, labels_data, **kwargs)
+            elif etype == "spectral":
+                mapper.spectral_embed(point_data.data, flow.nnd, labels_data, **kwargs)
+            else: raise Exception( f" Unknown embedding type: {etype}")
         if ndim == 3:
-            self.point_cloud.setPoints( mapper.embedding_, labels_data )
+            self.point_cloud.setPoints(mapper.embedding, labels_data)
         t2 = time.time()
         self.update_signal.emit()
-        print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = {mapper.embedding_.shape}")
-        return self.wrap_embedding( point_data.coords['samples'], mapper.embedding_ )
+        print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )
+        return self.wrap_embedding(point_data.coords['samples'], mapper.embedding )
 
     @property
     def conf_keys(self) -> List[str]:
@@ -189,8 +193,8 @@ class UMAPManager(QObject,EventClient):
     def plot_markers(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
         pindices: np.ndarray  = block.multi_coords2pindex( ycoords, xcoords )
         mapper = self.getMapper( block.dsid, 3 )
-        if mapper.embedding_ is not None:
-            transformed_data: np.ndarray = mapper.embedding_[ pindices ]
+        if mapper.embedding is not None:
+            transformed_data: np.ndarray = mapper.embedding[ pindices]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
             self.update_signal.emit()
 

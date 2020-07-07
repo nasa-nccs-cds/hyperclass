@@ -36,8 +36,8 @@ def prepare_inputs():
     ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
     if reduction_method != "None":
         reduced_spectra = reductionManager.reduce( scaled_spectra, reduction_method, ndim )
-        coords = dict( samples=samples, bands=np.arange(ndim) )
-        data_vars['reduced_spectra'] =  xa.DataArray( reduced_spectra, dims=['samples','bands'], coords=coords )
+        coords = dict( samples=samples, model=np.arange(ndim) )
+        data_vars['reduced_spectra'] =  xa.DataArray( reduced_spectra, dims=['samples','model'], coords=coords )
 
     dataset = xa.Dataset( data_vars, coords=dict( samples=samples, bands=bands ) )
     dsid = dataManager.config.value('dataset/id', PrepareInputsDialog.DSID )

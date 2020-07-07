@@ -189,7 +189,7 @@ class MixingSpace():
                 self.mapper.SetInputData(self.polydata)
             self.actor = vtk.vtkActor()
             self.actor.SetMapper(self.mapper)
-            self.actor.GetProperty().SetPointSize(2)
+            self.actor.GetProperty().SetPointSize(1)
             if self.renderer is not None:
                 self.renderer.AddActor( self.actor )
                 self.renderer.AddActor( self.marker_actor )
