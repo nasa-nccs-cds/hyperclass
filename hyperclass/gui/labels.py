@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QWidget, QAction, QVBoxLayout,  QHBoxLayout, QRadioB
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import OrderedDict
 from hyperclass.gui.events import EventClient, EventMode
-from PyQt5.QtCore import Qt
+from hyperclass.data.events import dataEventHandler, DataType
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import collections.abc
 from functools import partial
@@ -73,7 +73,7 @@ class LabelsManager(QObject,EventClient):
         from hyperclass.data.events import dataEventHandler
         from hyperclass.graph.flow import activationFlowManager
         if dataEventHandler.isDataLoadEvent(event):
-            point_data = dataEventHandler.getPointData( event )
+            point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self.initLabelsData( point_data )
             self._flow = activationFlowManager.getActivationFlow( point_data )
 

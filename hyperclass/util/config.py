@@ -2,6 +2,18 @@ import os, shutil, pathlib, sys
 from typing import List, Union, Tuple, Optional, Dict
 LOCAL_DIR = pathlib.Path(__file__).parent.absolute()
 
+def is_integer_num(n):
+    if isinstance(n, int):
+        return True
+    if isinstance(n, float):
+        return n.is_integer()
+    return False
+
+def tostr( val ):
+    if isinstance( val, str ): return val
+    elif is_integer_num( val ): return str(int(val))
+    else: return f"{val:.3f}"
+
 class Section:
 
     def __init__(self, name: str ):

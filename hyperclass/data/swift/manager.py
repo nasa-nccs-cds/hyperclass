@@ -48,15 +48,23 @@ class DataManager:
                 current = settings.value( key )
                 if not current: settings.setValue( key, value )
 
-    def getInputFileData(self, input_file_id: str):
+    def get_dtype(self, result ):
+        if isinstance( result, np.ndarray ): return result.dtype
+        else: return np.float64 if type( result[0] ) == "float" else None
+
+    def getInputFileData(self, input_file_id: str, subsample: int = 1 ):
         input_file_path = self.config.value(f"data/init/{input_file_id}")
         try:
             if os.path.isfile(input_file_path):
                 print(f"Reading swift {input_file_id} data from file {input_file_path}")
                 with open(input_file_path, 'rb') as f:
-                    return pickle.load(f)
+                    result = pickle.load(f)
+                    if   isinstance( result, np.ndarray ):  return result[::subsample]
+                    elif isinstance( result, list ):
+                        subsampled = [ result[i] for i in range( 0, len(result), subsample ) ]
+                        if isinstance( result[0], np.ndarray ):  return np.vstack( subsampled )
+                        else:                                    return np.array( subsampled )
         except Exception as err:
             print(f" Can't read data[{input_file_id}] file {input_file_path}: {err}")
-
 
 dataManager = DataManager()

@@ -4,7 +4,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from PyQt5.QtWidgets import  QSizePolicy
 from matplotlib.lines import Line2D
 from matplotlib.backend_bases import PickEvent, MouseEvent
-from PyQt5.QtGui import *
+from hyperclass.util.config import tostr
 from PyQt5.QtCore import *
 from matplotlib.axes import Axes
 from collections import OrderedDict
@@ -41,8 +41,8 @@ class SpectralPlot(QObject,EventClient):
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
         self.current_pid = -1
-        self.scaled_spectra = None
-        self.raw_spectra = None
+        self.plotx: xa.DataArray = None
+        self.ploty: xa.DataArray = None
         self.marker: Line2D = None
         self._gui = None
         self._titles = None
@@ -56,22 +56,20 @@ class SpectralPlot(QObject,EventClient):
         self.figure = Figure(constrained_layout=True)
         self.axes = self.figure.add_subplot(111)
         self.axes.title.set_fontsize(14)
-        self.axes.set_facecolor((0.0, 0.0, 0.0))
-        self.axes.get_yaxis().set_visible(False)
         self.activate_event_listening()
 
     def configure(self, event: Dict ):
-        type = self.scaled_spectra.attrs.get('type')
+        type = self.ploty.attrs.get('type')
+        self.axes.set_facecolor((0.0, 0.0, 0.0))
         if type == 'spectra':
             plot_metadata = dataEventHandler.getMetadata( event )
-            obsids = plot_metadata['obsids'].values
-            targets = plot_metadata['targets'].values
             self._titles = {}
-            for index in range( obsids.shape[0] ):
-                self._titles[index] = f"{targets[index]}: {obsids[index]}"
+            for index in range( plot_metadata[0].shape[0] ):
+                self._titles[index] = "[" + ",".join( [ tostr(pm.values[index]) for pm in plot_metadata ] ) + "]"
         else:
             self.figure.patch.set_facecolor( (0.0, 0.0, 0.0) )
             self.axes.axis('off')
+            self.axes.get_yaxis().set_visible(False)
             self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
 
     def gui(self, parent) :
@@ -87,11 +85,11 @@ class SpectralPlot(QObject,EventClient):
         return self._gui
 
     def mouseClick(self, event: MouseEvent):
-        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.raw_spectra is not None ):
+        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.ploty is not None ):
             print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
             xindex = int( event.xdata )
-            data_values = self.raw_spectra[ self.current_pid ]
-            axis_values = self.raw_spectra.coords[ self.raw_spectra.dims[1] ]
+            data_values = self.ploty[ self.current_pid ]
+            axis_values = self.plotx[ self.current_pid ]
             xval = axis_values[xindex].values.tolist()
             yval = data_values[xindex].values.tolist()
             title = f" {xval:.2f}: {yval:.3f} "
@@ -101,20 +99,20 @@ class SpectralPlot(QObject,EventClient):
 
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            self.scaled_spectra: xa.DataArray = dataEventHandler.getPointData( event, DataType.Scaled )
-            self.raw_spectra:    xa.DataArray = dataEventHandler.getPointData( event, DataType.Raw )
+            plot_data = dataEventHandler.getPointData( event, DataType.Plot )
+            self.plotx: xa.DataArray = plot_data["plotx"]
+            self.ploty: xa.DataArray = plot_data["ploty"]
             self.configure( event )
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
-                if  self.scaled_spectra is not None:
+                if  self.ploty is not None:
                     self.current_pid = event.get('pid')
                     cid = labelsManager.selectedClass
                     self.clear_transients()
                     print( f"SpectralPlot: pick event, pid = {self.current_pid}")
-                    scaled_values = self.scaled_spectra[self.current_pid]
-                    self.plot_spectrum( self.current_pid, cid, scaled_values, labelsManager.selectedColor )
+                    self.plot_spectrum( self.current_pid, cid, labelsManager.selectedColor )
                     if self._titles is not None:
-                        self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'left' )
+                        self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
                     self.update_marker()
                     self.axes.set_title( "", {}, 'right' )
                     self.update_signal.emit()
@@ -126,12 +124,17 @@ class SpectralPlot(QObject,EventClient):
         if new_xval is not None:
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
-    def plot_spectrum(self, pid: int, cid: int, data: xa.DataArray, color: List[float] ):
-        x = range( data.size )
+    def plot_spectrum(self, pid: int, cid: int, color: List[float] ):
+        spectrum = self.ploty[self.current_pid].values
+        x = self.plotx[ self.current_pid ].values
+        ymax, ymin = spectrum.max(), spectrum.min()
+        xmax, xmin = x.max(), x.min()
         linewidth = 2 if self.overlay else 1
         if len(color) == 4: color[3] = 1.0
-        spectrum = data.values
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
+        self.axes.set_ybound(ymin, ymax)
+        self.axes.set_xbound(xmin, xmax)
+        print( f"SPECTRA BOUNDS: [ {xmin:.2f}, {xmax:.2f} ] -> [ {ymin:.2f}, {ymax:.2f} ]")
         self.current_line.color = color
         self.current_line.cid = cid
         self.lines[ self.current_pid ] = self.current_line
@@ -163,15 +166,3 @@ class SpectralPlot(QObject,EventClient):
         if self._gui is not None:
             self.figure.canvas.draw_idle()
             self._gui.update()
-
-    # def get_axes(self):
-    #     h = [Size.Fixed(0.0), Size.Fixed(0.0)]
-    #     v = [Size.Fixed(0.0), Size.Fixed(0.0)]
-    #     divider = Divider( self.figure, (0.0, 0.0, 1., 1.), h, v, aspect=False)
-    #     self.axes = Axes( self.figure, divider.get_position())
-    #     self.axes.set_axes_locator(divider.new_locator(nx=1, ny=1))
-    #     self.figure.add_axes(self.axes)
-    #     self.axes.set_facecolor( self.parms.get( 'bc', (0.0, 0.0, 0.0)) )
-    #     self.axes.xaxis.set_visible(False)
-    #     self.axes.yaxis.set_visible(False)
-    #

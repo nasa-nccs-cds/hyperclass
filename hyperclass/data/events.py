@@ -4,19 +4,24 @@ from enum import Enum
 import xarray as xa
 
 class DataType(Enum):
-    Scaled = 1
-    Reduced = 2
-    Raw = 3
+    Embedding = 1
+    Plot = 2
+    Image = 3
+    Directory = 4
 
 class DataEventHandler:
 
     def __init__(self):
-        self._loaded_data = None
-        self._subsample = None
+        self._loaded_data: xa.Dataset = Optional[Union[xa.Dataset,Block]]
+        self._subsample: int = None
 
     def reset( self, event: Dict ):
         if self.isDataLoadEvent( event ):
             self._loaded_data = None
+
+    def varid(self, data_type: DataType ) -> List[str]:
+        if data_type == DataType.Embedding: return [ "reduction", "embedding" ]
+        elif data_type == DataType.Plot: return [ "plot-x", "plot-y" ]
 
     def subsample(self, samples: xa.DataArray) -> xa.DataArray:
         if self.subsample is None: return samples
@@ -38,36 +43,43 @@ class DataEventHandler:
         return self._loaded_data
 
     def getLoadedData(self, event: Dict  ):
-        if (self._loaded_data is None) and self.isDataLoadEvent(event) :
+        if (event is not None) and (self._loaded_data is None) and self.isDataLoadEvent(event) :
             self._loaded_data = event.get('result')
 
-    def getPointData(self, event: Dict, type: DataType = DataType.Reduced, **kwargs ) -> xa.DataArray:
+    def getDataArray(self, varname: str ) -> Optional[xa.DataArray]:
+        return self._loaded_data.data_vars.get( varname, None )
+
+    def getPointData(self, event: Dict, type: DataType = DataType.Embedding, **kwargs ) -> Union[Dict[str,Optional[xa.DataArray]],Optional[xa.DataArray]]:
         self.getLoadedData(event)
         if isinstance(self._loaded_data, Block):
             return self._loaded_data.getPointData( subsample = self._subsample )
         elif isinstance(self._loaded_data, xa.Dataset):
             dset_type = self._loaded_data.attrs['type']
             if dset_type == 'spectra':
-                if type == DataType.Reduced:
-                    if 'reduced_spectra' in self._loaded_data:
-                        varid = 'reduced_spectra'
-                    else: varid = 'scaled_spectra'
-                elif type == DataType.Scaled:
-                    varid = 'scaled_spectra'
-                elif type == DataType.Raw:
-                    varid = 'spectra'
-                else: raise Exception( f"Unrecognized DataType: {type}")
-                point_data: xa.DataArray = dataEventHandler.subsample( self._loaded_data[varid] )
-                point_data.attrs['dsid'] = self._loaded_data.attrs['dsid']
-                point_data.attrs['type'] = dset_type
+                point_data: Union[Dict[str,Optional[xa.DataArray]],Optional[xa.DataArray]] = None
+                if type == DataType.Embedding:
+                    raw_data = self.getDataArray( "reduction" )
+                    if raw_data is None: raw_data = self.getDataArray( "embedding" )
+                    point_data: Optional[xa.DataArray] = dataEventHandler.subsample( raw_data )
+                    point_data.attrs['dsid'] = self._loaded_data.attrs['dsid']
+                    point_data.attrs['type'] = dset_type
+                elif type == DataType.Plot:
+                    point_data: Dict[str,Optional[xa.DataArray]] = { 'plotx': self.getDataArray("plot-x"), 'ploty': self.getDataArray("plot-y") }
+                    for pdata in point_data.values():
+                        pdata.attrs['dsid'] = self._loaded_data.attrs['dsid']
+                        pdata.attrs['type'] = dset_type
                 return point_data
 
-    def getMetadata(self, event: Dict = {} ) -> Dict[str,xa.DataArray]:
+    def getMetadata(self, event: Dict = None ) -> List[xa.DataArray]:
         self.getLoadedData( event )
         dset_type = self._loaded_data.attrs.get('type')
+        mdata: List[xa.DataArray] = []
         if dset_type == 'spectra':
-            return { key: dataEventHandler.subsample(  self._loaded_data.variables[key] ) for key in [ 'obsids', 'targets'] }
-        else: return {}
+            for iDir in range(10):
+                vname = f"dir-{iDir}"
+                if vname not in self._loaded_data.variables.keys(): break
+                mdata.append( dataEventHandler.subsample(  self._loaded_data[vname] ) )
+        return mdata
 
 
 dataEventHandler = DataEventHandler()

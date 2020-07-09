@@ -6,6 +6,7 @@ from hyperclass.data.events import dataEventHandler
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.events import EventClient, EventMode
+from hyperclass.data.events import dataEventHandler, DataType
 from hyperclass.gui.points import VTKFrame
 from hyperclass.umap.model import UMAP
 from collections import OrderedDict
@@ -45,7 +46,7 @@ class UMAPManager(QObject,EventClient):
     def processEvent( self, event: Dict ):
         print(f"UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
-            point_data = dataEventHandler.getPointData( event )
+            point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self.embedding( point_data )
         elif event.get('event') == 'labels':
             if event.get('type') == 'clear':       self.plotMarkers()

@@ -5,7 +5,6 @@ from typing import List, Union, Tuple, Optional
 from hyperclass.gui.dialog import DialogBase
 from hyperclass.reduction.manager import reductionManager
 
-
 class PrepareInputsDialog(DialogBase):
 
     DSID = "swift_spectra"
@@ -27,44 +26,3 @@ class PrepareInputsDialog(DialogBase):
 
         self.mainLayout.addWidget( inputsGroupBox )
         self.mainLayout.addWidget( reductionManager.gui(self) )
-
-class SwiftPreferencesDialog(DialogBase):
-
-    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
-        super(PrepareInputsDialog, self).__init__( callback, scope )
-        dataGroupBox = self.createDataGroupBox( input_file_ids )
-        umapGroupBox = self.createUMAPGroupBox()
-        svmGroupBox = self.createSVMGroupBox()
-
-        mainLayout = QGridLayout()
-        mainLayout.addWidget( dataGroupBox, 0, 0, 1, 2 )
-        mainLayout.addWidget( umapGroupBox, 2, 1, 1, 1 )
-        mainLayout.addWidget(  svmGroupBox, 2, 0, 1, 1 )
-
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect( self.save )
-        mainLayout.addWidget( self.buttonBox, 3, 0, 1, 2 )
-        self.setLayout(mainLayout)
-        self.resize( 800, 400)
-
-    def save(self):
-        del self.settings
-        self.close()
-        if self.callback: self.callback()
-
-    def createDataGroupBox(self, input_file_ids: List[str] ) -> QGroupBox:
-        dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" )
-        cacheSelection = self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir")
-        widgets = [ dirSelection, cacheSelection ]
-        for input_file_id in input_file_ids:
-            widgets.append( self.createFileSystemSelectionWidget( input_file_id, self.FILE, f"data/init/{input_file_id}", "data/dir" ) )
-        return self.createGroupBox( "data", widgets )
-
-    def createUMAPGroupBox(self):
-        nNeighborsSelector = self.createComboSelector("#Neighbors: ", range(4, 20), "umap/nneighbors")
-        nEpochsSelector = self.createComboSelector("#Epochs: ", range(50, 500, 50), "umap/nepochs")
-        return self.createGroupBox("umap", [nNeighborsSelector, nEpochsSelector])
-
-    def createSVMGroupBox(self):
-        nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")
-        return self.createGroupBox("svm", [nDimSelector])

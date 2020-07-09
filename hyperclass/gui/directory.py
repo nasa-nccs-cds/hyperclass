@@ -1,4 +1,4 @@
-import sys
+from hyperclass.util.config import tostr
 import numpy as np
 import xarray as xa
 from PyQt5.QtCore import *
@@ -35,6 +35,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.current_pid = None
         self._head_row = 0
         self._selected_row = -1
+        self.col_headers = []
         self.sort_column = 1
         self.pick_enabled = False
         self._key_state = None
@@ -78,9 +79,9 @@ class DirectoryWidget(QWidget,EventClient):
     @pyqtSlot()
     def build_table_slot(self):
         self.table.setRowCount( self.nRows )
-        self.table.setColumnCount( 4 )
-        col_headers = [ 'index', 'targets', 'obsids', 'distance']
-        for column, cid in enumerate( col_headers ):
+        self.table.setColumnCount( len(self.col_headers) )
+
+        for column, cid in enumerate( self.col_headers ):
             self.table.setColumnWidth( column, 150 )
             column_header: QTableWidgetItem = QTableWidgetItem(cid)
             self.table.setHorizontalHeaderItem( column, column_header )
@@ -108,6 +109,7 @@ class DirectoryWidget(QWidget,EventClient):
                     self.table.setItem( row, column, QTableWidgetItem( "" ) )
             for key in self.col_data.keys():
                 self.col_data[key] = []
+        self.col_headers = []
         self.update()
 
     def setRowData(self, row_data: List ) -> QTableWidgetItem:
@@ -124,14 +126,17 @@ class DirectoryWidget(QWidget,EventClient):
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            plot_metadata = dataEventHandler.getMetadata( event )
-            targets = plot_metadata['targets']
-            obsids = plot_metadata['obsids']
-            self.nRows = targets.shape[0]
-            self.col_data['index'] = range( self.nRows ) if self.name == "catalog" else []
-            self.col_data['targets'] = targets.values.tolist() if self.name == "catalog" else []
-            self.col_data['obsids'] = obsids.values.tolist() if self.name == "catalog" else []
+            plot_metadata: List[xa.DataArray] = dataEventHandler.getMetadata( event )
+            for colIndeex, mdata_array in enumerate(plot_metadata):
+                if colIndeex == 0:
+                    self.nRows = mdata_array.shape[0]
+                    self.col_data['index'] = range(self.nRows) if self.name == "catalog" else []
+                    self.col_headers.append('index')
+                col_name = mdata_array.attrs['name']
+                self.col_data[col_name] = mdata_array.values.tolist() if self.name == "catalog" else []
+                self.col_headers.append( col_name )
             self.col_data['distance'] = []
+            self.col_headers.append('distance')
             self.build_table.emit()
         elif event.get('event') == 'pick':
             etype = event.get('type')
@@ -164,11 +169,19 @@ class DirectoryWidget(QWidget,EventClient):
         item = self.getItemByIndex(pid)
         if item is None:
             plot_metadata = dataEventHandler.getMetadata()
-            row_data = [ pid, plot_metadata['targets'].values[pid], plot_metadata['obsids'].values[pid], 0.0]
-            self.col_data['index'].append(row_data[0])
-            self.col_data['targets'].append(row_data[1])
-            self.col_data['obsids'].append(row_data[2])
-            self.col_data['distance'].append( distance )
+            row_data = []
+            self.col_data['index'].append(pid)
+            row_data.append( pid )
+
+            for mdata_array in plot_metadata:
+                col_name = mdata_array.attrs['name']
+                cval = mdata_array.values[pid]
+                self.col_data[ col_name ].append( tostr(cval) )
+                row_data.append( cval )
+
+            self.col_data['distance'].append(0.0)
+            row_data.append(0.0)
+
             self.setRowData(row_data)
             self.update()
         else:
