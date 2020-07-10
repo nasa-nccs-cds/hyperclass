@@ -11,10 +11,18 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QMessageBox
 import os, time, threading
 
-@numba.jit(fastmath=True)
-def getFilteredLabels( labels: np.ndarray, mask = None ) -> np.ndarray:
-    indices = np.arange(labels.shape[0])
-    return np.vstack( [indices, labels] ).transpose()[ (labels > 0) ]
+@numba.njit(fastmath=True,
+    locals={
+        "selection": numba.boolean[:],
+        "indices": numba.int32[:],
+        "labels": numba .int32[:],
+        "index_stack": numba.int32[:,:],
+    },)
+def getFilteredLabels( labels: np.ndarray ) -> np.ndarray:
+    indices = np.arange(labels.shape[0], dtype = np.int32 )
+    selection = (labels > 0)
+    index_stack = np.vstack( (indices, labels) ).transpose()
+    return index_stack[ selection ]
 
 @numba.jit(fastmath=True)
 def iterate_spread_labels( FCN: Dict, FC: np.ndarray,  I: np.ndarray, D: np.ndarray, C: np.ndarray, P: np.ndarray ):
