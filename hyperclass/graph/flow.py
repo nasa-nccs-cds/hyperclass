@@ -2,12 +2,42 @@ from pynndescent import NNDescent
 import numpy as np
 import numpy.ma as ma
 import xarray as xa
-from typing import List, Union, Tuple, Optional
+import numba
+from typing import List, Union, Tuple, Optional, Dict
 from hyperclass.gui.events import EventClient
 from hyperclass.data.aviris.manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import QMessageBox
 import os, time, threading
+
+@numba.jit(fastmath=True)
+def getFilteredLabels( labels: np.ndarray, mask = None ) -> np.ndarray:
+    indices = np.arange(labels.shape[0])
+    return np.vstack( [indices, labels] ).transpose()[ (labels > 0) ]
+
+@numba.jit(fastmath=True)
+def iterate_spread_labels( FCN: Dict, FC: np.ndarray,  I: np.ndarray, D: np.ndarray, C: np.ndarray, P: np.ndarray ):
+    for iN in range(1, I.shape[1]):
+        for label_spec in FCN[iN]:
+            pid0 = label_spec[0]
+            pid1 = I[pid0, iN]
+            PN = P[pid1] + D[pid1, iN]
+            if (C[pid0] == 0) or (PN < P[pid0]):
+                #                        marker = "***" if (self.C[pid0] == 0) else ""
+                #                       print(f"P[{iter},{iN}]: {pid0} <- {pid1}  {marker}")
+                C[pid0] = label_spec[1]
+                P[pid0] = PN
+    for iN in range(1, I.shape[1]):
+        for label_spec in FC:
+            pid = label_spec[0]
+            pid1 = I[pid, iN]
+            PN = P[pid] + D[pid, iN]
+            if (C[pid1] == 0) or (PN < P[pid1]):
+                #                        marker = "***" if ( self.C[pid1] == 0 ) else ""
+                #                        print( f"P[{iter},{iN}]: {pid} -> {pid1}  {marker}")
+                C[pid1] = label_spec[1]
+                P[pid1] = PN
 
 class ActivationFlowManager:
 
@@ -83,11 +113,10 @@ class ActivationFlow(QObject,EventClient):
 #        nnd._init_search_graph()
         return nnd
 
-
     def spread( self, sample_labels: xa.DataArray, nIter: int = 1, **kwargs ) -> Optional[xa.Dataset]:
         from hyperclass.gui.labels import labelsManager
         if self.D is None:
-            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+            Task.showMessage( "Awaiting task completion", "The NN graph computation has not yet finished", QMessageBox.Critical )
             return None
         sample_data = sample_labels.values
         debug = kwargs.get( 'debug', False )
@@ -98,39 +127,20 @@ class ActivationFlow(QObject,EventClient):
             self.C = np.where( sample_mask, self.C, sample_data )
         label_count = np.count_nonzero(self.C)
         if label_count == 0:
-            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
+            Task.showMessage("Workflow violation", "Must label some points before this algorithm can be applied", QMessageBox.Critical )
             return None
         if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf') )
         self.P = np.where( sample_mask, self.P, 0.0 )
         print(f"Beginning graph flow iterations, #C = {label_count}")
-        C0 = labelsManager.getFilteredLabels(self.C)
+        C0 = getFilteredLabels(self.C)
         print( f"Starting Spread[{self.I.shape[1]}] Op with C0: {C0}")
 
         t0 = time.time()
         converged = False
         for iter in range(nIter):
-            FCN = { iN: labelsManager.getFilteredLabels( self.C[ self.I[:,iN] ] ) for iN in range( 1, self.I.shape[1] ) }
-            FC = labelsManager.getFilteredLabels(self.C)
-            for iN in range( 1, self.I.shape[1] ):
-                for label_spec in FCN[iN]:
-                    pid0 = label_spec[0]
-                    pid1 = self.I[pid0,iN]
-                    PN = self.P[pid1] + self.D[pid1, iN]
-                    if (self.C[pid0] == 0) or (PN < self.P[pid0]):
-                        marker = "***" if (self.C[pid0] == 0) else ""
-                        print(f"P[{iter},{iN}]: {pid0} <- {pid1}  {marker}")
-                        self.C[pid0] = label_spec[1]
-                        self.P[pid0] = PN
-            for iN in range(1, self.I.shape[1]):
-                for label_spec in FC:
-                    pid = label_spec[0]
-                    pid1 = self.I[pid,iN]
-                    PN = self.P[pid] + self.D[pid,iN]
-                    if ( self.C[pid1] == 0 ) or (PN < self.P[pid1]):
-                        marker = "***" if ( self.C[pid1] == 0 ) else ""
-                        print( f"P[{iter},{iN}]: {pid} -> {pid1}  {marker}")
-                        self.C[pid1] = label_spec[1]
-                        self.P[pid1] = PN
+            FCN = { iN: getFilteredLabels( self.C[self.I[:, iN]] ) for iN in range( 1, self.I.shape[1] ) }
+            FC = getFilteredLabels( self.C )
+            iterate_spread_labels( FCN, FC, self.I, self.D, self.C, self.P )
             new_label_count = np.count_nonzero(self.C)
             if new_label_count == label_count:
                 print( "Converged!" )

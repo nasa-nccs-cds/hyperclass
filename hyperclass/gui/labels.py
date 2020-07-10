@@ -92,13 +92,6 @@ class LabelsManager(QObject,EventClient):
         filtered_distance = distance[selection]
         return filtered_labels, filtered_distance
 
-    @classmethod
-    def getFilteredLabels(self, labels: np.ndarray, mask = None ) -> np.ndarray:
-        indices = np.arange(labels.shape[0])
-        indexed_labels = np.vstack( [indices, labels] ).transpose()
-        selection = mask if mask is not None else (labels > 0)
-        return indexed_labels[selection]
-
     def spread(self) -> Optional[xa.Dataset]:
         if self._flow is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )

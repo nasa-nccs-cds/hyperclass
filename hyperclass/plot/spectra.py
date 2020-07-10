@@ -87,12 +87,12 @@ class SpectralPlot(QObject,EventClient):
     def mouseClick(self, event: MouseEvent):
         if (self.axes is not None) and ( self.current_pid is not None ) and ( self.ploty is not None ):
             print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
-            xindex = int( event.xdata )
-            data_values = self.ploty[ self.current_pid ]
-            axis_values = self.plotx[ self.current_pid ]
-            xval = axis_values[xindex].values.tolist()
-            yval = data_values[xindex].values.tolist()
-            title = f" {xval:.2f}: {yval:.3f} "
+            # xindex = int( event.xdata )
+            # data_values = self.ploty[ self.current_pid ]
+            # axis_values = self.plotx[ self.current_pid ]
+            # xval = axis_values[xindex].values.tolist()
+            # yval = data_values[xindex].values.tolist()
+            title = f" {event.xdata:.2f}: {event.ydata:.3f} "
             self.axes.set_title( title, {'fontsize': 10 }, 'right' )
             self.update_marker( event.xdata )
             self.update()

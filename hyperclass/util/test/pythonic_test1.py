@@ -2,8 +2,8 @@ import numpy as np
 from time import time
 npixels = 1000000
 nbands = 420
-image = np.random.rand(nbands,npixels)
-weights = np.random.rand(npixels)
+image = np.random.rand(npixels,nbands)
+weights = np.random.rand(nbands)
 
 print( "Non Pythonic Weighted sum of bands at each pixel:" )
 t0 = time()
@@ -11,7 +11,7 @@ result = []
 for ix in range( npixels ):
     wsum = 0.0
     for ib in range( nbands ):
-        wsum = wsum + image[ib,ix] * weights[ix]
+        wsum = wsum + image[ix,ib] * weights[ib]
     result.append( wsum )
 dt0 = time()-t0
 print( f"Non Pythonic result[100] = {result[100]:.4f}, time required = {dt0:.6f} secs.")
