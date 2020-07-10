@@ -41,7 +41,9 @@ class SpectralPlot(QObject,EventClient):
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
         self.current_pid = -1
+        self.norm = None
         self.plotx: xa.DataArray = None
+        self.nploty: xa.DataArray = None
         self.ploty: xa.DataArray = None
         self.marker: Line2D = None
         self._gui = None
@@ -97,11 +99,20 @@ class SpectralPlot(QObject,EventClient):
             self.update_marker( event.xdata )
             self.update()
 
+    def normalize(self):
+        self.norm = self.ploty.attrs.get("norm", None)
+        if not self.norm: return self.ploty
+        elif self.norm == "median": return self.ploty / self.ploty.median( axis = 1 )
+        elif self.norm == "mean": return self.ploty / self.ploty.mean(axis=1)
+        else: return self.ploty
+
     def processEvent(self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
-            self.plotx: xa.DataArray = plot_data["plotx"]
-            self.ploty: xa.DataArray = plot_data["ploty"]
+            self.plotx = plot_data["plotx"]
+            self.ploty = plot_data["ploty"]
+            self.nploty = self.normalize()
+            self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
             self.configure( event )
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
@@ -125,16 +136,16 @@ class SpectralPlot(QObject,EventClient):
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
     def plot_spectrum(self, pid: int, cid: int, color: List[float] ):
-        spectrum = self.ploty[self.current_pid].values
+        spectrum = self.nploty[self.current_pid].values
         x = self.plotx[ self.current_pid ].values
-        ymax, ymin = spectrum.max(), spectrum.min()
-        xmax, xmin = x.max(), x.min()
         linewidth = 2 if self.overlay else 1
         if len(color) == 4: color[3] = 1.0
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
-        self.axes.set_ybound(ymin, ymax)
-        self.axes.set_xbound(xmin, xmax)
-        print( f"SPECTRA BOUNDS: [ {xmin:.2f}, {xmax:.2f} ] -> [ {ymin:.2f}, {ymax:.2f} ]")
+        if not self.norm: self.ymax, self.ymin = spectrum.max(), spectrum.min()
+        self.xmax, self.xmin = x.max(), x.min()
+        self.axes.set_ybound(self.ymin, self.ymax)
+        self.axes.set_xbound(self.xmin, self.xmax)
+        print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
         self.current_line.color = color
         self.current_line.cid = cid
         self.lines[ self.current_pid ] = self.current_line

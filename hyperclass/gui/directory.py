@@ -179,7 +179,7 @@ class DirectoryWidget(QWidget,EventClient):
                 self.col_data[ col_name ].append( tostr(cval) )
                 row_data.append( cval )
 
-            self.col_data['distance'].append(0.0)
+            self.col_data['distance'].append( distance )
             row_data.append(0.0)
 
             self.setRowData(row_data)
