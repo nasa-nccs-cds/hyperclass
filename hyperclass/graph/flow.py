@@ -24,26 +24,34 @@ def getFilteredLabels( labels: np.ndarray ) -> np.ndarray:
     index_stack = np.vstack( (indices, labels) ).transpose()
     return index_stack[ selection ]
 
-@numba.jit(fastmath=True)
-def iterate_spread_labels( FCN: Dict, FC: np.ndarray,  I: np.ndarray, D: np.ndarray, C: np.ndarray, P: np.ndarray ):
-    for iN in range(1, I.shape[1]):
-        for label_spec in FCN[iN]:
-            pid0 = label_spec[0]
-            pid1 = I[pid0, iN]
+@numba.jit(fastmath=True,
+    locals={
+        "iN": numba.int32,
+        "pid": numba.int32,
+        "pid1": numba.int64,
+        "I": numba.int64[:,:],
+        "label_spec": numba.int32[:],
+        "C": numba.int32[:],
+        "P": numba.float32[:],
+        "D": numba.float32[:,:],
+    },)
+def iterate_spread_labels( I: np.ndarray, D: np.ndarray, C: np.ndarray, P: np.ndarray ):
+    for iN in np.arange( 1, I.shape[1], dtype=np.int32 ):
+        FC = getFilteredLabels( C[I[:,iN]] )
+        for label_spec in FC:
+            pid = label_spec[0]
+            pid1 = I[pid, iN]
             PN = P[pid1] + D[pid1, iN]
-            if (C[pid0] == 0) or (PN < P[pid0]):
-                #                        marker = "***" if (self.C[pid0] == 0) else ""
-                #                       print(f"P[{iter},{iN}]: {pid0} <- {pid1}  {marker}")
-                C[pid0] = label_spec[1]
-                P[pid0] = PN
-    for iN in range(1, I.shape[1]):
+            if (C[pid] == 0) or (PN < P[pid]):
+                C[pid] = label_spec[1]
+                P[pid] = PN
+    FC = getFilteredLabels( C )
+    for iN in np.arange( 1, I.shape[1], dtype=np.int32 ):
         for label_spec in FC:
             pid = label_spec[0]
             pid1 = I[pid, iN]
             PN = P[pid] + D[pid, iN]
             if (C[pid1] == 0) or (PN < P[pid1]):
-                #                        marker = "***" if ( self.C[pid1] == 0 ) else ""
-                #                        print( f"P[{iter},{iN}]: {pid} -> {pid1}  {marker}")
                 C[pid1] = label_spec[1]
                 P[pid1] = PN
 
@@ -137,18 +145,13 @@ class ActivationFlow(QObject,EventClient):
         if label_count == 0:
             Task.showMessage("Workflow violation", "Must label some points before this algorithm can be applied", QMessageBox.Critical )
             return None
-        if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf') )
+        if (self.P is None) or self.reset:   self.P = np.full( self.C.shape, float('inf'), dtype=np.float32 )
         self.P = np.where( sample_mask, self.P, 0.0 )
         print(f"Beginning graph flow iterations, #C = {label_count}")
-        C0 = getFilteredLabels(self.C)
-        print( f"Starting Spread[{self.I.shape[1]}] Op with C0: {C0}")
-
         t0 = time.time()
         converged = False
         for iter in range(nIter):
-            FCN = { iN: getFilteredLabels( self.C[self.I[:, iN]] ) for iN in range( 1, self.I.shape[1] ) }
-            FC = getFilteredLabels( self.C )
-            iterate_spread_labels( FCN, FC, self.I, self.D, self.C, self.P )
+            iterate_spread_labels( self.I, self.D, self.C, self.P )
             new_label_count = np.count_nonzero(self.C)
             if new_label_count == label_count:
                 print( "Converged!" )
