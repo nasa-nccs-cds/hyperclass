@@ -114,7 +114,7 @@ class LabelsManager(QObject,EventClient):
         self._markers.append(marker)
 
     def popMarker(self) -> Marker:
-        marker = self._markers.pop( -1 )
+        marker = self._markers.pop( -1 ) if len( self._markers ) else None
         event = dict( event="labels", type="undo", marker=marker )
         self.submitEvent( event, EventMode.Gui )
         return marker

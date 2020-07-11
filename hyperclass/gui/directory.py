@@ -200,8 +200,9 @@ class DirectoryWidget(QWidget,EventClient):
         self.sort_column = 4
 
     def clearMarker(self, marker: Marker ):
-        if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
-        else:                           self.clearRowByIndex( marker.pid )
+        if marker is not None:
+            if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
+            else:                           self.clearRowByIndex( marker.pid )
 
     def enablePick(self):
         self.pick_enabled = True

@@ -126,11 +126,9 @@ class ActivationFlow(QObject,EventClient):
         n_trees = kwargs.get('ntree', 5 + int(round((nodes.shape[0]) ** 0.5 / 20.0)))
         n_iters = kwargs.get('niter', max(5, 2 * int(round(np.log2(nodes.shape[0])))))
         nnd = NNDescent(nodes.values, n_trees=n_trees, n_iters=n_iters, n_neighbors=n_neighbors, max_candidates=60, verbose=True)
-#        nnd._init_search_graph()
         return nnd
 
     def spread( self, sample_labels: xa.DataArray, nIter: int = 1, **kwargs ) -> Optional[xa.Dataset]:
-        from hyperclass.gui.labels import labelsManager
         if self.D is None:
             Task.showMessage( "Awaiting task completion", "The NN graph computation has not yet finished", QMessageBox.Critical )
             return None
@@ -169,53 +167,53 @@ class ActivationFlow(QObject,EventClient):
         print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {xC.min().values} -> {xC.max().values} ], #marked = {np.count_nonzero(xC.values)}")
         self.reset = False
         return xa.Dataset( dict( C=xC, D=xP ) )
-
-    def spread1( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
-        if self.D is None:
-            Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
-            return None
-        debug = kwargs.get( 'debug', False )
-        sample_mask = sample_labels == -1
-        if self.C is None or self.reset:
-            self.C = np.ma.masked_equal( sample_labels, -1 )
-        else:
-            self.C = np.ma.where( sample_mask, self.C, sample_labels )
-
-        label_count = self.C.count()
-        if label_count == 0:
-            Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
-            return None
-        if (self.P is None) or self.reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
-        else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )
-        index0 = np.arange( self.I.shape[0] )
-        max_flt = np.finfo( self.P.dtype ).max
-        print(f"Beginning graph flow iterations, #C = {label_count}")
-        if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
-        t0 = time.time()
-        converged = False
-        for iter in range(nIter):
-            PN: ma.MaskedArray = self.P[ self.I.flatten() ].reshape(self.I.shape) + self.D
-            CN: ma.MaskedArray = self.C[ self.I.flatten() ].reshape( self.I.shape )
-            best_neighbors: ma.MaskedArray = PN.argmin(axis=1, fill_value=max_flt)
-            self.P = PN[index0, best_neighbors]
-            self.C = CN[index0, best_neighbors]
-            new_label_count = self.C.count()
-            if new_label_count == label_count:
-                print( "Converged!" )
-                converged = True
-                break
-            else:
-                label_count = new_label_count
-                print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
-                if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
-
-        t1 = time.time()
-        result_attrs = dict( converged=converged, **sample_labels.attrs )
-        result_attrs[ '_FillValue']=-2
-        result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
-        print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ], #marked = {np.count_nonzero(result.values)}")
-        self.reset = False
-        return result
+    #
+    # def spread1( self, sample_labels: xa.DataArray, nIter: int, **kwargs ) -> Optional[xa.DataArray]:
+    #     if self.D is None:
+    #         Task.taskNotAvailable( "Awaiting task completion", "The NN graph computation has not yet finished", **kwargs)
+    #         return None
+    #     debug = kwargs.get( 'debug', False )
+    #     sample_mask = sample_labels == -1
+    #     if self.C is None or self.reset:
+    #         self.C = np.ma.masked_equal( sample_labels, -1 )
+    #     else:
+    #         self.C = np.ma.where( sample_mask, self.C, sample_labels )
+    #
+    #     label_count = self.C.count()
+    #     if label_count == 0:
+    #         Task.taskNotAvailable("Workflow violation", "Must label some points before this algorithm can be applied", **kwargs )
+    #         return None
+    #     if (self.P is None) or self.reset:   self.P = ma.masked_array(  np.full( self.C.shape, 0.0 ), mask = self.C.mask )
+    #     else:                           self.P = np.ma.where( sample_mask, self.P, 0.0 )
+    #     index0 = np.arange( self.I.shape[0] )
+    #     max_flt = np.finfo( self.P.dtype ).max
+    #     print(f"Beginning graph flow iterations, #C = {label_count}")
+    #     if debug: print(f"I = {self.I}" ); print(f"D = {self.D}" ); print(f"P = {self.P}" ); print(f"C = {self.C}" )
+    #     t0 = time.time()
+    #     converged = False
+    #     for iter in range(nIter):
+    #         PN: ma.MaskedArray = self.P[ self.I.flatten() ].reshape(self.I.shape) + self.D
+    #         CN: ma.MaskedArray = self.C[ self.I.flatten() ].reshape( self.I.shape )
+    #         best_neighbors: ma.MaskedArray = PN.argmin(axis=1, fill_value=max_flt)
+    #         self.P = PN[index0, best_neighbors]
+    #         self.C = CN[index0, best_neighbors]
+    #         new_label_count = self.C.count()
+    #         if new_label_count == label_count:
+    #             print( "Converged!" )
+    #             converged = True
+    #             break
+    #         else:
+    #             label_count = new_label_count
+    #             print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
+    #             if debug: print(f"PN = {PN}"); print(f"CN = {CN}"); print(f"best_neighbors = {best_neighbors}"); print( f"P = {self.P}" ); print( f"C = {self.C}" )
+    #
+    #     t1 = time.time()
+    #     result_attrs = dict( converged=converged, **sample_labels.attrs )
+    #     result_attrs[ '_FillValue']=-2
+    #     result: xa.DataArray =  xa.DataArray( self.C.filled(0), dims=sample_labels.dims, coords=sample_labels.coords, attrs=result_attrs )
+    #     print(f"Completed graph flow {nIter} iterations in {(t1 - t0)} sec, Class Range = [ {result.min().values} -> {result.max().values} ], #marked = {np.count_nonzero(result.values)}")
+    #     self.reset = False
+    #     return result
 
 activationFlowManager = ActivationFlowManager()
 
