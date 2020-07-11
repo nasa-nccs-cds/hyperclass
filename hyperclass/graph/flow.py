@@ -5,7 +5,7 @@ import xarray as xa
 import numba
 from typing import List, Union, Tuple, Optional, Dict
 from hyperclass.gui.events import EventClient
-from hyperclass.data.aviris.manager import dataManager
+from hyperclass.data.spatial.manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QMessageBox

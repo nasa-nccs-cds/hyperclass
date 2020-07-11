@@ -2,19 +2,18 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas, ReferenceImageCanvas
-from hyperclass.data.aviris.config import PreferencesDialog
+from hyperclass.gui.config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.data.aviris.manager import dataManager
+from hyperclass.data.spatial.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
-from hyperclass.gui.labels import format_colors
 from hyperclass.gui.points import VTKFrame
 from typing import List, Union, Tuple
 
 
-class HyperclassConsole(QMainWindow):
+class SpatialAppConsole(QMainWindow):
     def __init__( self, **kwargs ):
         QMainWindow.__init__(self)
         self.umgr = UMAPManager( )

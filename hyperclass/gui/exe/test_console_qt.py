@@ -3,7 +3,7 @@ import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import MainWindow
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import os, math, sys
 
 block_index = (0, 0)

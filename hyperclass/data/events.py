@@ -1,5 +1,5 @@
 from typing import List, Union, Dict, Callable, Tuple, Optional
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 from enum import Enum
 import xarray as xa
 

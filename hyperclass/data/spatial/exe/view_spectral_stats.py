@@ -1,7 +1,7 @@
 import xarray as xa
 from typing import List, Union, Tuple, Optional
 import matplotlib.pyplot as plt
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import os, math
 
 # Plot raster for block

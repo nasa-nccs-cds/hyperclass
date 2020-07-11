@@ -1,7 +1,7 @@
 from pynndescent import NNDescent
 import numpy as np
 import numpy.ma as ma
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 import time
 

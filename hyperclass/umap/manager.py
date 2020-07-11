@@ -12,8 +12,8 @@ from hyperclass.umap.model import UMAP
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
-from hyperclass.data.aviris.manager import dataManager
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.manager import dataManager
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
 
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )

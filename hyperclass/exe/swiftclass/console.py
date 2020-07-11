@@ -1,4 +1,4 @@
-from hyperclass.data.swift.application import SwiftConsole
+from hyperclass.gui.unstructured.application import UnstructuredAppConsole
 from hyperclass.gui.application import HCApplication
 import sys
 from hyperclass.gui.labels import labelsManager
@@ -12,6 +12,6 @@ subsample = 2
 
 app = HCApplication()
 labelsManager.setLabels( classes )
-swiftclass = SwiftConsole( subsample=subsample )
+swiftclass = UnstructuredAppConsole('swiftclass', subsample=subsample)
 swiftclass.gui.show()
 sys.exit(app.exec_())

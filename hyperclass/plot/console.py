@@ -11,14 +11,14 @@ from matplotlib.colors import Normalize
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from collections import OrderedDict
-from hyperclass.data.aviris.manager import dataManager
+from hyperclass.data.spatial.manager import dataManager
 from hyperclass.umap.manager import UMAPManager
 from PyQt5.QtWidgets import QMessageBox
 from functools import partial
 from pyproj import Proj, transform
 import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure

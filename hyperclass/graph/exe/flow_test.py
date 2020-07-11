@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xa
 import numpy.ma as ma
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import os, time
 
 

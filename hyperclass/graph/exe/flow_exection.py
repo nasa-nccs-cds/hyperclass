@@ -2,7 +2,7 @@ from hyperclass.graph.flow import ActivationFlow
 import numpy as np
 import numpy.ma as ma
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import os, time
 # import pptk
 

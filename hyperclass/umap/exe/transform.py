@@ -2,7 +2,7 @@ import xarray as xa
 import umap, time, pickle
 import umap.plot
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.manager import DataManager, Block, Tile
+from hyperclass.data.spatial.manager import DataManager, Block, Tile
 from hyperclass.umap.manager import UMAPManager
 import os, math
 

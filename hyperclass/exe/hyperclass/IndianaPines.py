@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from hyperclass.data.aviris.application import HyperclassConsole
+from hyperclass.gui.spatial.application import SpatialAppConsole
 import sys
 
 ref_file = "/Users/tpmaxwel/Dropbox/Tom/Data/Aviris/IndianPines/documentation/Site3_Project_and_Ground_Reference_Files/19920612_AVIRIS_IndianPine_Site3_gr.tif"
@@ -24,7 +24,7 @@ classes = [ ('Alfalfa', (255, 254, 137) ),
 
 tabs = dict( Reference=dict( type="reference", classes=classes, path=ref_file ) )
 app = QtWidgets.QApplication(sys.argv)
-hyperclass = HyperclassConsole( classes, tabs=tabs )
+hyperclass = SpatialAppConsole(classes, tabs=tabs)
 hyperclass.show()
 sys.exit(app.exec_())
 

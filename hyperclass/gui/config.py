@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import *
-from hyperclass.data.aviris.manager import dataManager
+from hyperclass.data.spatial.manager import dataManager
 from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
 from hyperclass.gui.dialog import DialogBase

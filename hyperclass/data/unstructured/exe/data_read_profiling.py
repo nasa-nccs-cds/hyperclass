@@ -1,4 +1,4 @@
-from hyperclass.data.swift.manager import dataManager
+from hyperclass.data.unstructured.manager import dataManager
 import xarray as xa
 import numpy as np
 import pickle, os, time

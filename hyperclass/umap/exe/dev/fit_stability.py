@@ -1,4 +1,4 @@
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 import plotly.graph_objs as go
 

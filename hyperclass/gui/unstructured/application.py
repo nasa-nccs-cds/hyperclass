@@ -1,6 +1,5 @@
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QKeyEvent
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QObject
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.application import HCMainWindow
 from hyperclass.gui.events import EventClient, EventMode
@@ -8,16 +7,17 @@ from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.directory import DirectoryWidget
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.data.swift.manager import dataManager
+from hyperclass.data.unstructured.manager import dataManager
 from collections import Mapping
 from functools import partial
 from hyperclass.gui.labels import labelsManager
 from hyperclass.plot.spectra import SpectralPlot
-from typing import List, Union, Tuple, Dict
+from typing import List, Union, Dict
 import xarray as xa
-import os, abc
+import os
 
-class SwiftMainWindow(HCMainWindow):
+
+class UnstructuredAppMainWindow(HCMainWindow):
 
     def __init__( self, parent, title: str ):
         HCMainWindow.__init__( self, parent, title )
@@ -26,13 +26,13 @@ class SwiftMainWindow(HCMainWindow):
         self.load_dataset = self.fileMenu.addMenu("Load Dataset")
 
     def getPreferencesDialog(self):
-        from hyperclass.data.aviris.config import PreferencesDialog
+        from hyperclass.gui.config import PreferencesDialog
         return PreferencesDialog()
 
-class SwiftConsole(QObject,EventClient):
-    def __init__( self, **kwargs ):
+class UnstructuredAppConsole(QObject, EventClient):
+    def __init__( self, application_name: str, **kwargs ):
         QObject.__init__(self)
-        self.gui = SwiftMainWindow(None, 'swiftclass')
+        self.gui = UnstructuredAppMainWindow(None, application_name )
         dataEventHandler.config( subsample=kwargs.pop('subsample')  )
         self.umgr = UMAPManager( **kwargs )
 

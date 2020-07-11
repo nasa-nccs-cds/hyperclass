@@ -6,8 +6,8 @@ from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from hyperclass.plot.spectra import SpectralPlot
 from matplotlib.image import AxesImage
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
-from hyperclass.data.aviris.manager import DataManager
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.manager import DataManager
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.umap.manager import UMAPManager
 from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any

@@ -1,4 +1,4 @@
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import matplotlib.pyplot as plt
 from hyperclass.data.google import GoogleMaps
 

@@ -1,4 +1,4 @@
-from hyperclass.data.aviris.config import PreferencesDialog
+from hyperclass.gui.config import PreferencesDialog
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QSettings
 import sys

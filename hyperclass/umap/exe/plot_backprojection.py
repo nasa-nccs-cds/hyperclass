@@ -1,7 +1,7 @@
 import xarray as xa
 import matplotlib.pyplot as plt
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.manager import DataManager, Dict
+from hyperclass.data.spatial.manager import DataManager, Dict
 from hyperclass.umap.manager import UMAPManager
 
 # Fit UMAP to hyperspectral data and view embedding

@@ -4,7 +4,7 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 import time, math, atexit, json, matplotlib
 import matplotlib.pyplot as plt
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.data.aviris.manager import DataManager, Tile
+from hyperclass.data.spatial.manager import DataManager, Tile
 import os, math
 
 if __name__ == '__main__':

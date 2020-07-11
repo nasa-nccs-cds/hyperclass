@@ -1,7 +1,7 @@
 from pygsp import graphs
 import xarray as xa
 import numpy as np
-from hyperclass.data.aviris.tile import Tile, Block
+from hyperclass.data.spatial.tile import Tile, Block
 import os, math, sys
 
 block_shape = (500, 500)

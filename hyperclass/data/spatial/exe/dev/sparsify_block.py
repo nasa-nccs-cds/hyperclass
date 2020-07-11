@@ -1,8 +1,8 @@
 import xarray as xa
 import numpy as np
 from typing import List, Union, Tuple, Optional
-from hyperclass.data.aviris.manager import DataManager
-from hyperclass.data.aviris.tile import  Tile, Block
+from hyperclass.data.spatial.manager import DataManager
+from hyperclass.data.spatial.tile import  Tile, Block
 from sklearn.cluster import DBSCAN
 import os, math, time
 

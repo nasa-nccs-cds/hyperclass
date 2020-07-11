@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import *
-from hyperclass.data.swift.manager import dataManager
+from hyperclass.data.unstructured.manager import dataManager
 from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
 import sys
