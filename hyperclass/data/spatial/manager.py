@@ -8,10 +8,8 @@ from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
 import os, math, pickle
 import rioxarray as rio
-
-QCoreApplication.setOrganizationName("ilab")
-QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
-QCoreApplication.setApplicationName("hyperclass")
+from hyperclass.gui.config import SettingsManager
+QCoreApplication.setApplicationName("hyperclass.spatial")
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -67,17 +65,13 @@ class MarkerManager:
         except Exception as err:
             print( f" Can't read markers: {err}" )
 
-class DataManager:
-
-    settings_initialized = False
-    default_settings = { 'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200,
-                         'block/indices': [0,0], 'tile/indices': [0,0], "svm/ndim": 8  }
+class DataManager(SettingsManager):
 
     def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
+        SettingsManager.__init__(  **kwargs )
+        self.default_settings = {'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200,
+                            'block/indices': [0, 0], 'tile/indices': [0, 0], "svm/ndim": 8}
         self.cacheTileData = kwargs.get( 'cache_tile', True )
-        self._initDefaultSettings()
-        self.config = self.getSettings( QSettings.UserScope )
-        print(f"Saving user settings to {self.config.fileName()}, writable = {self.config.isWritable()}")
         self.image_name = None
         self.setImageName( self.config.value("data/init/file") )
         self.markers = MarkerManager( self.markerFileName() + ".pkl", self.config )
@@ -86,35 +80,6 @@ class DataManager:
         if image_name:
             self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
             self.config.setValue('data/init/file', self.image_name)
-
-    def iparm(self, key: str ):
-        return int( self.config.value(key) )
-
-    @classmethod
-    def root_dir(cls) -> str:
-        parent_dirs = pathlib.Path(__file__).parents
-        return parent_dirs[ 3 ]
-
-    @classmethod
-    def settings_dir(cls) -> str:
-        return os.path.join( cls.root_dir(), 'config' )
-
-    @classmethod
-    def getSettings( cls, scope: QSettings.Scope ):
-        cls._initDefaultSettings()
-        return QSettings(QSettings.IniFormat, scope, QCoreApplication.organizationDomain(), QCoreApplication.applicationName())
-
-    @classmethod
-    def _initDefaultSettings(cls):
-        if not cls.settings_initialized:
-            cls.settings_initialized = True
-            system_settings_dir = cls.settings_dir()
-            QSettings.setPath( QSettings.IniFormat, QSettings.SystemScope, system_settings_dir )
-            settings = cls.getSettings( QSettings.SystemScope )
-            print( f"Saving system settings to {settings.fileName()}, writable = {settings.isWritable()}")
-            for key, value in cls.default_settings.items():
-                current = settings.value( key )
-                if not current: settings.setValue( key, value )
 
     @property
     def tile_shape(self) -> List[int]:

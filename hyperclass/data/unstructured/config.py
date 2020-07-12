@@ -10,7 +10,7 @@ class PrepareInputsDialog(DialogBase):
 
     DSID = "swift_spectra"
 
-    def __init__( self, input_file_ids: List[str], callback = None, scope: QSettings.Scope = QSettings.UserScope ):
+    def __init__( self, input_file_ids: List[str], callback = None, scope: QSettings.Scope = QSettings.SystemScope ):
         self.inputs = input_file_ids
         super(PrepareInputsDialog, self).__init__( callback, scope )
 

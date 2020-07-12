@@ -41,16 +41,33 @@ def prepare_inputs( input_vars, subsample ):
     dataset.to_netcdf( output_file, format='NETCDF4', engine='netcdf4' )
 
 
-class PrepareInputsDialog(DialogBase):
+class ConfigurationDialog(DialogBase):
 
-    DSID = "swift_spectra"
-
-    def __init__( self, input_vars: Dict, subsample: int = 1, scope: QSettings.Scope = QSettings.UserScope ):
-        self.inputs =  [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
-        super(PrepareInputsDialog, self).__init__( partial( prepare_inputs, input_vars, subsample ), scope )
+    def __init__( self, app_name: str, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
+        self.default_app_name = app_name
+        super(ConfigurationDialog, self).__init__( callback, scope )
 
     def addContent(self):
-        self.mainLayout.addLayout( self.createSettingInputField( "Dataset ID", "dataset/id", self.DSID ) )
+        self.mainLayout.addLayout( self.createSettingInputField( "Dataset ID", "dataset/id", self.default_app_name ) )
+        inputsGroupBox = QGroupBox('inputs')
+        inputsLayout = QVBoxLayout()
+        inputsGroupBox.setLayout( inputsLayout )
+
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" ) )
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir") )
+
+        self.mainLayout.addWidget( inputsGroupBox )
+        self.mainLayout.addWidget( reductionManager.gui(self) )
+
+
+class PrepareInputsDialog(ConfigurationDialog):
+
+    def __init__( self, app_name: str, input_vars: Optional[Dict] = None, subsample: int = 1, scope: QSettings.Scope = QSettings.SystemScope  ):
+        self.inputs = {} if input_vars is None else [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
+        super(PrepareInputsDialog, self).__init__( app_name, partial( prepare_inputs, input_vars, subsample ), scope )
+
+    def addContent(self):
+        self.mainLayout.addLayout( self.createSettingInputField( "Dataset ID", "dataset/id", self.app_name ) )
         inputsGroupBox = QGroupBox('inputs')
         inputsLayout = QVBoxLayout()
         inputsGroupBox.setLayout( inputsLayout )

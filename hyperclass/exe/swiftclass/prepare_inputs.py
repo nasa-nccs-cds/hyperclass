@@ -7,6 +7,6 @@ input_vars = dict( embedding='scaled_specs', directory = [ "obsids", "target_nam
 subsample = 50
 
 app = QApplication(sys.argv)
-preferences = PrepareInputsDialog( input_vars, subsample, QSettings.SystemScope )
+preferences = PrepareInputsDialog( input_vars, subsample )
 preferences.show()
 sys.exit( app.exec_() )
