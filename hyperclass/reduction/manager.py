@@ -1,24 +1,15 @@
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QKeyEvent
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.gui.events import EventClient, EventMode
-from hyperclass.gui.tasks import taskRunner, Task
+from hyperclass.gui.dialog import DialogBase
 from typing import List, Union, Tuple, Dict
 from keras.layers import *
-from keras.optimizers import *
 from keras.models import *
 from keras.callbacks import *
-from keras.regularizers import *
-from keras.constraints import *
-from keras import losses
-from keras.utils import multi_gpu_model
-import keras.backend as K
-from hyperclass.gui.dialog import DialogBase
 import xarray as xa
 import numpy as np
-import os, abc
 
 class ReductionManager(QObject,EventClient):
+
     def __init__( self, **kwargs ):
         QObject.__init__(self)
 

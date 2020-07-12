@@ -68,7 +68,7 @@ class MarkerManager:
 class DataManager(SettingsManager):
 
     def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
-        SettingsManager.__init__(  **kwargs )
+        SettingsManager.__init__( self, **kwargs )
         self.default_settings = {'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200,
                             'block/indices': [0, 0], 'tile/indices': [0, 0], "svm/ndim": 8}
         self.cacheTileData = kwargs.get( 'cache_tile', True )

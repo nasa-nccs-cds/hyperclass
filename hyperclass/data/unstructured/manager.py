@@ -13,7 +13,7 @@ QCoreApplication.setApplicationName("hyperclass.unstructured")
 class DataManager(SettingsManager):
 
     def __init__( self, **kwargs ):
-        SettingsManager.__init__(  **kwargs )
+        SettingsManager.__init__(  self, **kwargs )
         self.default_settings = {"umap/nneighbors": 8, "umap/nepochs": 300, "svm/ndim": 8}
 
     def getInputFileData(self, input_file_id: str, subsample: int = 1 ):

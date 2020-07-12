@@ -1,5 +1,4 @@
 from PyQt5.QtWidgets import *
-from hyperclass.data.unstructured.manager import dataManager
 from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
 import sys
@@ -10,6 +9,7 @@ class DialogBase(QDialog):
     DIRECTORY = 1
 
     def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
+        from hyperclass.data.unstructured.manager import dataManager
         super(DialogBase, self).__init__(None)
         self.callback = callback
         self.scope = scope
@@ -23,8 +23,24 @@ class DialogBase(QDialog):
         self.setLayout(self.mainLayout)
         self.resize( 800, 400)
 
-    def addContent(self):
+    def addFileContent(self):
         pass
+
+    def addContent(self, project_name ):
+        from hyperclass.reduction.manager import reductionManager
+
+        self.mainLayout.addLayout(self.createSettingInputField("Dataset ID", "dataset/id", project_name ) )
+        inputsGroupBox = QGroupBox('inputs')
+        inputsLayout = QVBoxLayout()
+        inputsGroupBox.setLayout(inputsLayout)
+
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget("Data Directory", self.DIRECTORY, "data/dir", "data/dir"))
+        inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir"))
+
+        self.addFileContent()
+
+        self.mainLayout.addWidget(inputsGroupBox)
+        self.mainLayout.addWidget(reductionManager.gui(self))
 
     def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
