@@ -60,7 +60,7 @@ class UMAPManager(QObject,EventClient):
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
         elif event.get('event') == 'pick':
             etype = event.get('type')
-            if etype in [ 'directory', "vtkpoint" ]:
+            if etype in [ 'directory', "vtkpoint", "plot" ]:
                 if self._current_mapper is not None:
                     try:
                         pid = event.get('pid')

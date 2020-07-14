@@ -44,13 +44,13 @@ class ReductionManager(QObject,EventClient):
             layer_dims = layer_dims * 2
         decoded = Dense( input_dims, activation='sigmoid' )(x)
 
-        modelcheckpoint = ModelCheckpoint('xray_auto.weights', monitor='loss', verbose=1, save_best_only=True, save_weights_only=True, mode='auto', period=1)
-        earlystopping = EarlyStopping(monitor='loss', min_delta=0., patience=100, verbose=1, mode='auto')
+#        modelcheckpoint = ModelCheckpoint('xray_auto.weights', monitor='loss', verbose=1, save_best_only=True, save_weights_only=True, mode='auto', period=1)
+#        earlystopping = EarlyStopping(monitor='loss', min_delta=0., patience=100, verbose=1, mode='auto')
         autoencoder = Model(inputs=[inputlayer], outputs=[decoded])
         encoder = Model(inputs=[inputlayer], outputs=[encoded])
         autoencoder.compile(loss='mse', optimizer='rmsprop')
 
-        autoencoder.fit( encoder_input, encoder_input, epochs=2, batch_size=256, shuffle=True )
+        autoencoder.fit( encoder_input, encoder_input, epochs=1, batch_size=256, shuffle=True )
         return  encoder.predict( encoder_input )
 
 reductionManager = ReductionManager( )

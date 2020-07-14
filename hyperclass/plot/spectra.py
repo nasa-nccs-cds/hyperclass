@@ -53,6 +53,9 @@ class SpectralPlot(QObject,EventClient):
 
     def activate( self, active: bool  ):
         self._active = active
+        if self._active:
+            event = dict(event="pick", type="plot", pid=self.current_pid, transient=True)
+            self.submitEvent(event, EventMode.Gui)
 
     def init( self ):
         self.figure = Figure(constrained_layout=True)
@@ -87,7 +90,7 @@ class SpectralPlot(QObject,EventClient):
         return self._gui
 
     def mouseClick(self, event: MouseEvent):
-        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.ploty is not None ):
+        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.ploty is not None ) and self._active:
             print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
             # xindex = int( event.xdata )
             # data_values = self.ploty[ self.current_pid ]
@@ -103,7 +106,7 @@ class SpectralPlot(QObject,EventClient):
         self.norm = self.ploty.attrs.get("norm", None)
         if not self.norm: return self.ploty
         elif self.norm == "median": return self.ploty / self.ploty.median( axis = 1 )
-        elif self.norm == "mean": return self.ploty / self.ploty.mean(axis=1)
+        elif self.norm == "mean": return self.ploty / self.ploty.mean( axis=1 )
         else: return self.ploty
 
     def processEvent(self, event: Dict ):

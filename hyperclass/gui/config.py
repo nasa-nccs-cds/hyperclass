@@ -1,35 +1,38 @@
 from PyQt5.QtWidgets import *
 from hyperclass.gui.dialog import DialogBase
-import pathlib
+import pathlib, glob
 import numpy as np
 from typing import List, Union, Tuple, Optional, Dict
 from PyQt5.QtCore import QSettings, QCoreApplication
 import os, math, pickle
 QCoreApplication.setOrganizationName("ilab")
 QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
+QCoreApplication.setApplicationName("hyperclass")
 
 class PreferencesDialog(DialogBase):
 
-    def __init__( self, callback = None,  scope: QSettings.Scope = QSettings.UserScope ):
+    def __init__( self, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
+        self.spatial = spatial
         super(PreferencesDialog, self).__init__( callback, scope )
 
-    def addContent(self):
-        dataGroupBox = self.createDataGroupBox()
-        tileGroupBox = self.createTileGroupBox()
+    def addApplicationContent( self, mainLayout ):
+
         umapGroupBox = self.createUMAPGroupBox()
         svmGroupBox = self.createSVMGroupBox()
 
         gridLayout = QGridLayout()
-        gridLayout.addWidget( dataGroupBox, 0, 0, 1, 2 )
-        gridLayout.addWidget( tileGroupBox, 1, 0, 1, 1 )
-        gridLayout.addWidget( umapGroupBox, 1, 1, 1, 1 )
-        gridLayout.addWidget(  svmGroupBox, 2, 0, 1, 1 )
+        gridLayout.addWidget( umapGroupBox, 0, 1, 1, 1 )
+        gridLayout.addWidget( svmGroupBox, 0, 0, 1, 1 )
 
-        if self.scope == QSettings.SystemScope:
+        if self.spatial:
+            tileGroupBox = self.createTileGroupBox()
+            gridLayout.addWidget( tileGroupBox, 1, 0, 1, 1  )
+
+        if self.spatial and (self.scope == QSettings.SystemScope):
             googleGroupBox = self.createGoogleGroupBox()
-            gridLayout.addWidget(googleGroupBox, 2, 1, 1, 1)
+            gridLayout.addWidget(googleGroupBox, 1, 1, 1, 1)
 
-        self.mainLayout.addLayout(gridLayout)
+        mainLayout.addLayout(gridLayout)
 
     def createDataGroupBox(self) -> QGroupBox:
         dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" )
@@ -63,8 +66,8 @@ class PreferencesDialog(DialogBase):
 class SettingsManager:
 
     def __init__( self, **kwargs ):
-        system_settings_dir = self.settings_dir()
-        QSettings.setPath(QSettings.IniFormat, QSettings.SystemScope, system_settings_dir)
+        self.system_settings_dir = self.settings_dir()
+        QSettings.setPath(QSettings.IniFormat, QSettings.SystemScope, self.system_settings_dir )
         self.project_name = None
         self.default_settings = {}
 
@@ -89,10 +92,16 @@ class SettingsManager:
     def settings_dir(self) -> str:
         return os.path.join( self.root_dir(), 'config' )
 
+    def updateProjectName(self):
+        settings_path = os.path.join( self.system_settings_dir, QCoreApplication.organizationDomain() + "." + QCoreApplication.applicationName() )
+        sorted_inifiles = sorted( glob.glob(f"{settings_path}/*.ini"), key=lambda t: -os.stat(t).st_mtime)
+        self.project_name =  os.path.splitext( os.path.basename( sorted_inifiles[0] ) )[0]
+
     def getSettings( self, scope: QSettings.Scope ) -> QSettings:
-        settings = QSettings(QSettings.IniFormat, scope, QCoreApplication.organizationDomain()+ "." + QCoreApplication.applicationName(), self.project_name )
+        if self.project_name is None: self.updateProjectName()
+        settings = QSettings( QSettings.IniFormat, scope, QCoreApplication.organizationDomain() + "." + QCoreApplication.applicationName(), self.project_name )
         for key, value in self.default_settings.items():
             current = settings.value(key)
             if not current: settings.setValue(key, value)
-        print(f"Saving system settings to {settings.fileName()}, writable = {settings.isWritable()}")
+        print(f"Saving {scope} settings for project {self.project_name} to {settings.fileName()}, writable = {settings.isWritable()}")
         return settings

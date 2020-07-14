@@ -8,8 +8,10 @@ from PyQt5.QtCore import QSettings, QCoreApplication
 import matplotlib.pyplot as plt
 import os, math, pickle
 import rioxarray as rio
+from hyperclass.data.manager import DataManager
 from hyperclass.gui.config import SettingsManager
-QCoreApplication.setApplicationName("hyperclass.spatial")
+from hyperclass.util.accessor import _register_accessor
+def register_datamanager_accessor(name): return _register_accessor(name, DataManager)
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -65,7 +67,9 @@ class MarkerManager:
         except Exception as err:
             print( f" Can't read markers: {err}" )
 
-class DataManager(SettingsManager):
+
+@register_datamanager_accessor('spatial')
+class SpatialDataManager(SettingsManager):
 
     def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
         SettingsManager.__init__( self, **kwargs )

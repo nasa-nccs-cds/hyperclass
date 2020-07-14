@@ -5,9 +5,9 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 import sys
 
 input_vars = dict( embedding='scaled_lcs', directory = [ "camera", "chip", "dec", 'ra', 'tics', 'tmag' ], plot= dict( y="lcs", x='times' ) )
-subsample = 50
+subsample = 1
 
 app = QApplication(sys.argv)
-preferences = PrepareInputsDialog( input_vars, subsample  )
+preferences = PrepareInputsDialog( "tessclass", input_vars, subsample  )
 preferences.show()
 sys.exit( app.exec_() )

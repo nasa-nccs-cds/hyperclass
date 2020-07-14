@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import  QSettings
 from typing import List, Union, Tuple, Optional
+from typing import List
 import sys
 
 class DialogBase(QDialog):
@@ -8,41 +9,54 @@ class DialogBase(QDialog):
     FILE = 0
     DIRECTORY = 1
 
-    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
-        from hyperclass.data.unstructured.manager import dataManager
+    def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
+
         super(DialogBase, self).__init__(None)
         self.callback = callback
+        self.project_name = proj_name
         self.scope = scope
-        self.settings: QSettings = dataManager.getSettings( scope )
-        self.mainLayout = QVBoxLayout()
-        self.addContent()
+        self.updateSettings()
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect( self.save )
         self.buttonBox.rejected.connect( self.cancel )
-        self.mainLayout.addWidget( self.buttonBox )
-        self.setLayout(self.mainLayout)
-        self.resize( 800, 400)
+        self.addContent()
 
-    def addFileContent(self):
+    def addFileContent(self, inputsLayout: QBoxLayout ):
         pass
 
-    def addContent(self, project_name ):
-        from hyperclass.reduction.manager import reductionManager
+    def addApplicationContent(self, inputsLayout: QBoxLayout ):
+        pass
 
-        self.mainLayout.addLayout(self.createSettingInputField("Dataset ID", "dataset/id", project_name ) )
+    def getProjectList(self) -> Optional[List[str]]:
+        return None
+
+    def updateSettings(self, proj_name = None):
+        from hyperclass.data.manager import dataManager
+        if proj_name is not None: self.project_name = proj_name
+        dataManager.setProjectName( self.project_name )
+        self.settings: QSettings = dataManager.getSettings(self.scope)
+
+
+    def addContent(self):
+        from hyperclass.reduction.manager import reductionManager
+        self.mainLayout = QVBoxLayout()
+        self.mainLayout.addLayout(self.createComboSelector("Project ID", [self.project_name], "project/id", self.project_name ) )
         inputsGroupBox = QGroupBox('inputs')
         inputsLayout = QVBoxLayout()
         inputsGroupBox.setLayout(inputsLayout)
 
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Data Directory", self.DIRECTORY, "data/dir", "data/dir"))
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir"))
-
-        self.addFileContent()
+        self.addFileContent( inputsLayout )
+        self.addApplicationContent(inputsLayout)
 
         self.mainLayout.addWidget(inputsGroupBox)
         self.mainLayout.addWidget(reductionManager.gui(self))
+        self.mainLayout.addWidget( self.buttonBox )
+        self.setLayout(self.mainLayout)
+        self.resize( 800, 400)
 
-    def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None) -> QLayout:
+    def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None, update_dialog = False ) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
         comboBox = QComboBox()
         label = QLabel( label_text )
@@ -53,24 +67,28 @@ class DialogBase(QDialog):
         sizeSelectorLayout.addWidget(comboBox)
         def selectionchange( index ):
             self.settings.setValue( settings_key, comboBox.currentText() )
+            if update_dialog: self.addContent()
         comboBox.currentIndexChanged.connect( selectionchange )
+        self.settings.setValue(settings_key, comboBox.currentText())
         return sizeSelectorLayout
 
-    def createSettingInputField(self, label_text, settings_key, default_value = None, hidden=False ) -> QLayout:
+    def createSettingInputField(self, label_text, settings_key, default_value = None, **kwargs ) -> QLayout:
         layout = QHBoxLayout()
         init_value = self.settings.value( settings_key, None )
         if init_value is None:
             init_value = default_value
             self.settings.setValue( settings_key, init_value )
         textField = QLineEdit( init_value )
-        if hidden: textField.setEchoMode(QLineEdit.Password)
+        if bool(kwargs.get('hidden',False)): textField.setEchoMode(QLineEdit.Password)
         label = QLabel( label_text )
         label.setBuddy( textField )
         layout.addWidget( label )
         layout.addWidget( textField )
+        callback = kwargs.get( 'callback', None )
         def selectionchange( value ):
             print( f"{settings_key}: {value}")
             self.settings.setValue( settings_key, value )
+            if callback is not None: callback( value )
         textField.textChanged.connect( selectionchange )
         return layout
 

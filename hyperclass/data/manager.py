@@ -1,14 +1,10 @@
 import numpy as np
 import xarray as xa
 import pathlib
-import matplotlib as mpl
 from typing import List, Union, Tuple, Optional, Dict
-from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from PyQt5.QtCore import QSettings, QCoreApplication
-import matplotlib.pyplot as plt
 import os, math, pickle
 from hyperclass.gui.config import SettingsManager
-QCoreApplication.setApplicationName("hyperclass.unstructured")
 
 class DataManager(SettingsManager):
 

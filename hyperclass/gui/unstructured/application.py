@@ -7,7 +7,7 @@ from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.directory import DirectoryWidget
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.data.unstructured.manager import dataManager
+from hyperclass.data.manager import dataManager
 from collections import Mapping
 from functools import partial
 from hyperclass.gui.labels import labelsManager
@@ -150,9 +150,9 @@ class UnstructuredAppConsole(QObject, EventClient):
         labelsManager.clearMarkers()
         return dataset
 
-    def loadCurrentDataset(self):
-        dsid = dataManager.config.value("dataset/id",None)
-        if dsid is not None: self.loadDataset( dsid )
+    def loadCurrentProject(self):
+        projId = dataManager.config.value("project/id",None)
+        if projId is not None: self.loadDataset( projId )
 
     def tabShape(self) -> QTabWidget.TabShape:
         return self.gui.tabShape()
@@ -179,7 +179,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.gui.activateWindow()
         self.gui.raise_()
         self.submitEvent( dict( event="gui", type="show" ), EventMode.Gui )
-        self.loadCurrentDataset()
+        self.loadCurrentProject()
 
     def processEvent(self, event: Dict ):
         if event.get('event') == 'task':

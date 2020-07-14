@@ -1,5 +1,4 @@
 import xarray as xa
-import umap, time, pickle
 import umap.plot
 from typing import List, Union, Tuple, Optional
 from hyperclass.data.spatial.manager import DataManager

@@ -140,7 +140,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.build_table.emit()
         elif event.get('event') == 'pick':
             etype = event.get('type')
-            if etype in [ 'vtkpoint', 'directory' ]:
+            if etype in [ 'vtkpoint', 'directory', 'plot' ]:
                 if (self.name == "catalog"):
                     self.current_pid = event.get('pid')
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
