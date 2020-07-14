@@ -141,7 +141,8 @@ class DirectoryWidget(QWidget,EventClient):
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'vtkpoint', 'directory', 'plot' ]:
-                if (self.name == "catalog"):
+                cid = event.get( 'cid', -1 )
+                if (self.name == "catalog") or (cid == 0):
                     self.current_pid = event.get('pid')
                     print( f"DirectoryWidget: pick event, pid = {self.current_pid}")
                     self.selectRowByIndex( self.current_pid )

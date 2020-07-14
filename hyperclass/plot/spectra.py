@@ -54,7 +54,7 @@ class SpectralPlot(QObject,EventClient):
     def activate( self, active: bool  ):
         self._active = active
         if self._active:
-            event = dict(event="pick", type="plot", pid=self.current_pid, transient=True)
+            event = dict( event="pick", type="plot", pid=self.current_pid, cid=0 )
             self.submitEvent(event, EventMode.Gui)
 
     def init( self ):
@@ -121,10 +121,13 @@ class SpectralPlot(QObject,EventClient):
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 if  self.ploty is not None:
                     self.current_pid = event.get('pid')
-                    cid = labelsManager.selectedClass
+                    current_line = self.lines.get( self.current_pid, None )
+                    if current_line is not None:    cid = current_line.cid
+                    else:                           cid = event.get( 'cid', labelsManager.selectedClass )
+                    labelsManager.setClassIndex( cid )
                     self.clear_transients()
-                    print( f"SpectralPlot: pick event, pid = {self.current_pid}")
-                    self.plot_spectrum( self.current_pid, cid, labelsManager.selectedColor )
+                    print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
+                    self.plot_spectrum( cid, labelsManager.selectedColor )
                     if self._titles is not None:
                         self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
                     self.update_marker()
@@ -138,7 +141,7 @@ class SpectralPlot(QObject,EventClient):
         if new_xval is not None:
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
-    def plot_spectrum(self, pid: int, cid: int, color: List[float] ):
+    def plot_spectrum(self, cid: int, color: List[float] ):
         spectrum = self.nploty[self.current_pid].values
         x = self.plotx[ self.current_pid ].values
         linewidth = 2 if self.overlay else 1

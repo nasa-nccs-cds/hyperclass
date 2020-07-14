@@ -55,6 +55,7 @@ class LabelsManager(QObject,EventClient):
         self._labels = None
         self.buttons: List[QRadioButton] = []
         self.selectedClass = 0
+        self.console: QWidget = None
         self.selectedColor = [1.0,1.0,1.0]
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
@@ -148,12 +149,12 @@ class LabelsManager(QObject,EventClient):
 
     def gui(self, **kwargs ):
         self.show_unlabeled = kwargs.get( 'show_unlabeled', True )
-        console = QWidget()
+        self.console = QWidget()
         console_layout = QVBoxLayout()
-        console.setLayout( console_layout )
+        self.console.setLayout( console_layout )
         radio_button_style = [ "border-style: outset", "border-width: 4px", "padding: 6px", "border-radius: 10px" ]
 
-        labels_frame = QFrame( console )
+        labels_frame = QFrame( self.console )
         buttons_frame_layout = QVBoxLayout()
         labels_frame.setLayout( buttons_frame_layout )
         labels_frame.setFrameStyle( QFrame.StyledPanel | QFrame.Raised )
@@ -165,7 +166,7 @@ class LabelsManager(QObject,EventClient):
 
         for index, label in enumerate(self._labels):
             if (index > 0) or self.show_unlabeled:
-                radiobutton = QRadioButton( label, console )
+                radiobutton = QRadioButton( label, self.console )
                 radiobutton.index = index
                 raw_color = [str(int(c * 155.99)) for c in self._colors[index]]
                 qcolor = [ str(150+int(c*105.99)) for c in self._colors[index] ]
@@ -175,7 +176,7 @@ class LabelsManager(QObject,EventClient):
                 buttons_frame_layout.addWidget( radiobutton )
                 self.buttons.append( radiobutton )
 
-        buttons_frame = QFrame( console )
+        buttons_frame = QFrame( self.console )
         buttons_frame_layout = QVBoxLayout()
         buttons_frame.setLayout( buttons_frame_layout )
         buttons_frame.setFrameStyle( QFrame.StyledPanel | QFrame.Raised )
@@ -186,14 +187,14 @@ class LabelsManager(QObject,EventClient):
         buttons_frame_layout.addWidget( title )
 
         for action in [ 'Mark', 'Neighbors', 'Undo', 'Clear' ]:
-            pybutton = QPushButton( action, console )
+            pybutton = QPushButton( action, self.console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttons_frame_layout.addWidget(pybutton)
 
         console_layout.addStretch( 1 )
         self.buttons[0].setChecked( True )
         self.activate_event_listening()
-        return console
+        return self.console
 
     def execute(self, action: str ):
         print( f"Executing action {action}" )
@@ -215,5 +216,12 @@ class LabelsManager(QObject,EventClient):
             self.selectedClass = radioButton.index
             self.selectedColor = self.colors[ radioButton.index ]
             print(f"Selected class {radioButton.index}")
+
+    def setClassIndex(self, cid: int ):
+        self.selectedClass = cid
+        self.selectedColor = self.colors[ cid ]
+        for button in self.buttons:
+            button.setChecked( cid == button.index )
+        self.console.update()
 
 labelsManager = LabelsManager()
