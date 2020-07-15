@@ -2,6 +2,7 @@ from hyperclass.data.manager import dataManager
 import xarray as xa
 import numpy as np
 import os, glob
+from collections import OrderedDict
 from typing import List, Union, Tuple, Optional, Dict
 from PyQt5.QtWidgets import *
 from functools import partial
@@ -10,23 +11,26 @@ from typing import Optional, Dict
 from hyperclass.gui.dialog import DialogBase
 from hyperclass.reduction.manager import reductionManager
 
-def getXarray(  id: str, coords: Dict, subsample, **kwargs ) -> xa.DataArray:
-    np_data: np.ndarray = dataManager.getInputFileData( id, subsample )
-    xdims = ['samples'] if np_data.ndim == 1 else [ 'samples', 'bands' ]
-    xcoords = { 'samples':coords['samples'] }
-    if np_data.ndim == 2: xcoords['bands'] = coords['bands']
+def getXarray(  id: str, xcoords: Dict, subsample: int, xdims:OrderedDict, **kwargs ) -> xa.DataArray:
+    np_data: np.ndarray = dataManager.getInputFileData( id, subsample, tuple(xdims.keys()) )
+    dims, coords = [], {}
+    for iS in np_data.shape:
+        coord_name = xdims[iS]
+        dims.append( coord_name )
+        coords[ coord_name ] = xcoords[ coord_name ]
     attrs = { **kwargs, 'name': id }
-    return xa.DataArray( np_data, dims=xdims, coords=xcoords, name=id, attrs=attrs )
+    return xa.DataArray( np_data, dims=dims, coords=coords, name=id, attrs=attrs )
 
 def prepare_inputs( input_vars, subsample ):
-    values = { k: dataManager.config.value(k) for k in dataManager.config.allKeys() }
+#    values = { k: dataManager.config.value(k) for k in dataManager.config.allKeys() }
     np_embedding = dataManager.getInputFileData( input_vars['embedding'], subsample )
-    xcoords = dict( samples = np.arange( np_embedding.shape[0] ), bands = np.arange(np_embedding.shape[1]) )
-    xdims = list(xcoords.keys())
-    data_vars = dict( embedding = xa.DataArray( np_embedding, dims=xdims, coords=xcoords, name=input_vars['embedding'] ) )
-    data_vars.update( { f'dir-{idx}': getXarray( vid, xcoords, subsample ) for idx, vid in enumerate( input_vars['directory']) } )
+    dims = np_embedding.shape
+    xcoords = OrderedDict( samples = np.arange( dims[0] ), bands = np.arange(dims[1]) )
+    xdims = OrderedDict( { dims[0]: 'samples', dims[1]: 'bands' } )
+    data_vars = dict( embedding = xa.DataArray( np_embedding, dims=xcoords.keys(), coords=xcoords, name=input_vars['embedding'] ) )
+    data_vars.update( { f'dir-{idx}': getXarray( vid, xcoords, subsample, xdims ) for idx, vid in enumerate( input_vars['directory']) } )
     pspec = input_vars['plot']
-    data_vars.update( { f'plot-{vid}': getXarray( pspec[vid], xcoords, subsample, norm=pspec.get('norm','')) for vid in [ 'x', 'y' ] } )
+    data_vars.update( { f'plot-{vid}': getXarray( pspec[vid], xcoords, subsample, xdims, norm=pspec.get('norm','')) for vid in [ 'x', 'y' ] } )
     reduction_method = dataManager.config.value("input.reduction/method",  'None')
     ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
     if reduction_method != "None":
@@ -36,8 +40,9 @@ def prepare_inputs( input_vars, subsample ):
 
     dataset = xa.Dataset( data_vars, coords=xcoords, attrs = {'type':'spectra'} )
     projId = dataManager.config.value('project/id')
-    file_name = f"{projId}.nc" if reduction_method == "None" else f"{projId}.{reduction_method}-{ndim}.nc"
-    output_file = os.path.join( dataManager.config.value('data/cache'), file_name )
+    file_name = f"{projId}.nc" if reduction_method == "None" else f"{projId}.{reduction_method}-{ndim}"
+    if subsample > 1: file_name = f"{file_name}-ss{subsample}"
+    output_file = os.path.join( dataManager.config.value('data/cache'), file_name + ".nc" )
     print( f"Writing output to {output_file}")
     dataset.to_netcdf( output_file, format='NETCDF4', engine='netcdf4' )
 

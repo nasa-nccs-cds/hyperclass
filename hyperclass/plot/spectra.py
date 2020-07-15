@@ -143,7 +143,7 @@ class SpectralPlot(QObject,EventClient):
 
     def plot_spectrum(self, cid: int, color: List[float] ):
         spectrum = self.nploty[self.current_pid].values
-        x = self.plotx[ self.current_pid ].values
+        x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx
         linewidth = 2 if self.overlay else 1
         if len(color) == 4: color[3] = 1.0
         self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )

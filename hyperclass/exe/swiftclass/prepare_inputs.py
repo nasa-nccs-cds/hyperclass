@@ -4,7 +4,7 @@ from PyQt5.QtCore import QSettings
 import sys
 
 input_vars = dict( embedding='scaled_specs', directory = [ "obsids", "target_names" ], plot= dict( y="specs", x='spectra_x_axis' ) )
-subsample = 50
+subsample = 2
 
 app = QApplication(sys.argv)
 preferences = PrepareInputsDialog( "swiftclass", input_vars, subsample )
