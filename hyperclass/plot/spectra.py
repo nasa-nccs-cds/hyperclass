@@ -53,7 +53,7 @@ class SpectralPlot(QObject,EventClient):
 
     def activate( self, active: bool  ):
         self._active = active
-        if self._active:
+        if self._active and (self.current_pid >= 0):
             event = dict( event="pick", type="plot", pid=self.current_pid, cid=0 )
             self.submitEvent(event, EventMode.Gui)
 
@@ -90,13 +90,8 @@ class SpectralPlot(QObject,EventClient):
         return self._gui
 
     def mouseClick(self, event: MouseEvent):
-        if (self.axes is not None) and ( self.current_pid is not None ) and ( self.ploty is not None ) and self._active:
+        if (self.axes is not None) and ( self.current_pid >= 0 ) and ( self.ploty is not None ) and self._active:
             print(f"SpectralPlot.mousePressEvent: [{event.x}, {event.y}] -> [{event.xdata}, {event.ydata}]" )
-            # xindex = int( event.xdata )
-            # data_values = self.ploty[ self.current_pid ]
-            # axis_values = self.plotx[ self.current_pid ]
-            # xval = axis_values[xindex].values.tolist()
-            # yval = data_values[xindex].values.tolist()
             title = f" {event.xdata:.2f}: {event.ydata:.3f} "
             self.axes.set_title( title, {'fontsize': 10 }, 'right' )
             self.update_marker( event.xdata )
@@ -120,19 +115,21 @@ class SpectralPlot(QObject,EventClient):
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 if  self.ploty is not None:
-                    self.current_pid = event.get('pid')
-                    current_line = self.lines.get( self.current_pid, None )
-                    if current_line is not None:    cid = current_line.cid
-                    else:                           cid = event.get( 'cid', labelsManager.selectedClass )
-                    labelsManager.setClassIndex( cid )
-                    self.clear_transients()
-                    print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
-                    self.plot_spectrum( cid, labelsManager.selectedColor )
-                    if self._titles is not None:
-                        self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
-                    self.update_marker()
-                    self.axes.set_title( "", {}, 'right' )
-                    self.update_signal.emit()
+                    pid = event.get('pid')
+                    if pid >= 0:
+                        self.current_pid = event.get('pid')
+                        current_line = self.lines.get( self.current_pid, None )
+                        if (current_line is not None) and (current_line.cid > 0):    cid = current_line.cid
+                        else:                                                        cid = event.get( 'cid', labelsManager.selectedClass )
+                        labelsManager.setClassIndex( cid )
+                        self.clear_transients()
+                        print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
+                        self.plot_spectrum( cid, labelsManager.selectedColor )
+                        if self._titles is not None:
+                            self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
+                        self.update_marker()
+                        self.axes.set_title( "", {}, 'right' )
+                        self.update_signal.emit()
 
     def update_marker(self, new_xval = None ):
         if self.marker is not None:
@@ -142,19 +139,20 @@ class SpectralPlot(QObject,EventClient):
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
     def plot_spectrum(self, cid: int, color: List[float] ):
-        spectrum = self.nploty[self.current_pid].values
-        x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx
-        linewidth = 2 if self.overlay else 1
-        if len(color) == 4: color[3] = 1.0
-        self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
-        if not self.norm: self.ymax, self.ymin = spectrum.max(), spectrum.min()
-        self.xmax, self.xmin = x.max(), x.min()
-        self.axes.set_ybound(self.ymin, self.ymax)
-        self.axes.set_xbound(self.xmin, self.xmax)
-        print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
-        self.current_line.color = color
-        self.current_line.cid = cid
-        self.lines[ self.current_pid ] = self.current_line
+        if self.current_pid >= 0:
+            spectrum = self.nploty[self.current_pid].values
+            x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
+            linewidth = 2 if self.overlay else 1
+            if len(color) == 4: color[3] = 1.0
+            self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
+            if not self.norm: self.ymax, self.ymin = spectrum.max(), spectrum.min()
+            self.xmax, self.xmin = x.max(), x.min()
+            self.axes.set_ybound(self.ymin, self.ymax)
+            self.axes.set_xbound(self.xmin, self.xmax)
+            print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
+            self.current_line.color = color
+            self.current_line.cid = cid
+            self.lines[ self.current_pid ] = self.current_line
 
     def clear(self):
         self.lines = OrderedDict()

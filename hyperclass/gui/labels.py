@@ -120,6 +120,11 @@ class LabelsManager(QObject,EventClient):
         self.submitEvent( event, EventMode.Gui )
         return marker
 
+    @property
+    def currentMarker(self) -> Marker:
+        marker = self._markers[ -1 ] if len( self._markers ) else None
+        return marker
+
     def getMarkers( self ) -> List[Marker]:
         return self._markers
 

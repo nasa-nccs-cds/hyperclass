@@ -23,7 +23,7 @@ class UMAPManager(QObject,EventClient):
 
     def __init__(self,  **kwargs ):
         QObject.__init__(self)
-        self.point_cloud: PointCloud = PointCloud( **kwargs )
+        self.point_cloud: PointCloud = PointCloud( )
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs

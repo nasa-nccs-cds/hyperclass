@@ -41,7 +41,7 @@ import vtk
 
 class PointCloud():
 
-    def __init__( self, **kwargs ):
+    def __init__( self ):
         self.renWin = None
         self.renderer: vtk.vtkRenderer = None
         self.colormap = None

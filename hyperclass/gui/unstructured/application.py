@@ -5,6 +5,7 @@ from hyperclass.gui.application import HCMainWindow
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.directory import DirectoryWidget
+from collections import OrderedDict
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.data.manager import dataManager
@@ -74,11 +75,13 @@ class UnstructuredAppConsole(QObject, EventClient):
 
         self.directoryTabs = QTabWidget()
         self.directoryTabs.addTab(  self.directoryConsole, "Catalog" )
-        self.classDirecories = {}
+        self.classDirecories = OrderedDict( { "Catalog": self.directoryConsole } )
         for label in labelsManager.labels[1:]:
             classDirectoryConsole = DirectoryWidget(label)
             self.classDirecories[ label ] = classDirectoryConsole
             self.directoryTabs.addTab( classDirectoryConsole, label )
+        self.directoryTabs.currentChanged.connect( lambda index: self.activate_class_directory( index ) )
+        self.activate_class_directory( self.directoryTabs.currentIndex() )
 
         directoryLayout.addWidget( self.directoryTabs, 10 )
         directoryLayout.addWidget(self.labelsConsole, 2)
@@ -99,6 +102,13 @@ class UnstructuredAppConsole(QObject, EventClient):
         vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()
+
+    def selectClassDirectory(self, ic: int ):
+        self.directoryTabs.setCurrentIndex( ic )
+
+    def activate_class_directory( self, index: int ):
+        for iS, ctable in enumerate(self.classDirecories.values()):
+            ctable.activate( iS == index )
 
     def activate_spectral_plot( self, index: int ):
         for iS, plot in enumerate(self.spectral_plots):

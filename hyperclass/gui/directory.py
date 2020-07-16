@@ -40,8 +40,13 @@ class DirectoryWidget(QWidget,EventClient):
         self.pick_enabled = False
         self._key_state = None
         self._marked_rows = []
+        self._enabled = False
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
+
+    def activate(self, enable: bool ):
+        self._enabled = enable
+        print( f" DirectoryWidget[{self.name}] enabled = {enable}")
 
     def onCellClicked(self, row, col ):
         print( "dir on cell clicked")
@@ -57,7 +62,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):
-        if row >= 0:
+        print(f" DirectoryWidget[{self.name}] selectRow[{row}], enabled: {self._enabled}")
+        if self._enabled and (row >= 0):
             table_item: QTableWidgetItem = self.table.item( row, 0 )
             iclass = labelsManager.selectedClass if ( self.pick_enabled ) else 0
             self._selected_row = row
@@ -66,7 +72,7 @@ class DirectoryWidget(QWidget,EventClient):
                 self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
-        self.selectRow(row)
+        self.selectRow( row, True )
 
     def keyPressEvent( self, event ):
         event = dict( event="key", type="press", key=event.key() )
@@ -190,7 +196,11 @@ class DirectoryWidget(QWidget,EventClient):
 
     def markCurrentRow(self):
         self.enablePick()
-        self.selectRow(self._selected_row, True)
+        cid = labelsManager.selectedClass
+        marker = labelsManager.currentMarker
+        if self.selectRowByIndex( marker.pid ):
+            event = dict(event="pick", type="directory", pid=marker.pid, cid=cid )
+            self.submitEvent(event, EventMode.Gui)
         self.releasePick()
 
     def addExtendedLabels(self, labels: xa.Dataset ):
@@ -198,7 +208,9 @@ class DirectoryWidget(QWidget,EventClient):
         for itemRef, d in zip(labels, distance):
             label = labelsManager.labels[ itemRef[1] ]
             if label == self.name: self.addRow( itemRef[0], d )
-        self.sort_column = 4
+        self.sort_column = self.col_headers.index('distance')
+        self.table.sortItems(self.sort_column)
+        self.update()
 
     def clearMarker(self, marker: Marker ):
         if marker is not None:
