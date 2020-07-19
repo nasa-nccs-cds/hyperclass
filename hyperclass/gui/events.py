@@ -35,8 +35,11 @@ class EventCentral(QObject):
         self._clients: List[EventClient] = []
 
     def addClient(self, client: EventClient ):
-        self._clients.append( client )
-        self.process_event.connect( client.process_event_slot )
+        try:
+            self.process_event.connect( client.process_event_slot )
+            self._clients.append(client)
+        except Exception as err:
+            print( f"Error connecting process_event_slot for client {client}: {err}")
 
     def submitEvent(self, event: Dict, mode: EventMode ):
         from hyperclass.data.events import dataEventHandler

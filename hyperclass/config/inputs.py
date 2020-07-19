@@ -21,7 +21,8 @@ def getXarray(  id: str, xcoords: Dict, subsample: int, xdims:OrderedDict, **kwa
     attrs = { **kwargs, 'name': id }
     return xa.DataArray( np_data, dims=dims, coords=coords, name=id, attrs=attrs )
 
-def prepare_inputs( input_vars, subsample ):
+def prepare_inputs( input_vars, ssample = None ):
+    subsample = int(dataManager.config.value("input.reduction/subsample", 1 ) ) if ssample is None else ssample
 #    values = { k: dataManager.config.value(k) for k in dataManager.config.allKeys() }
     np_embedding = dataManager.getInputFileData( input_vars['embedding'], subsample )
     dims = np_embedding.shape
@@ -55,7 +56,7 @@ class ConfigurationDialog(DialogBase):
 
 class PrepareInputsDialog(ConfigurationDialog):
 
-    def __init__( self, app_name: Optional[str], input_vars: Optional[Dict] = None, subsample: int = 1, scope: QSettings.Scope = QSettings.UserScope  ):
+    def __init__( self, app_name: Optional[str], input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
         self.inputs = {} if input_vars is None else [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
         super(PrepareInputsDialog, self).__init__( app_name, partial( prepare_inputs, input_vars, subsample ), scope )
 

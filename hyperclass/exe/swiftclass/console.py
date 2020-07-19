@@ -8,10 +8,9 @@ classes = [ ('Quasar', [1.0, 0.0, 0.0, 1.0]),
             ('BlackHole', [1.0, 0.0, 1.0, 1.0]),
             ('BinaryStar', [0.0, 0.0, 1.0, 1.0])]
 
-subsample = 1
 
 app = HCApplication()
 labelsManager.setLabels( classes )
-swiftclass = UnstructuredAppConsole('swiftclass', subsample=subsample)
+swiftclass = UnstructuredAppConsole('swiftclass')
 swiftclass.gui.show()
 sys.exit(app.exec_())

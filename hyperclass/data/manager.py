@@ -1,8 +1,5 @@
 import numpy as np
-import xarray as xa
-import pathlib
 from typing import List, Union, Tuple, Optional, Dict
-from PyQt5.QtCore import QSettings, QCoreApplication
 import os, math, pickle
 from hyperclass.gui.config import SettingsManager
 

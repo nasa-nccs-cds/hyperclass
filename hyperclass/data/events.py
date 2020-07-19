@@ -24,8 +24,10 @@ class DataEventHandler:
         elif data_type == DataType.Plot: return [ "plot-x", "plot-y" ]
 
     def subsample(self, samples: xa.DataArray) -> xa.DataArray:
-        if self.subsample is None: return samples
-        return samples[::self._subsample]
+        if self._subsample is None: return samples
+        rv = samples[::self._subsample]
+        rv.load()
+        return rv
 
     def config(self, **kwargs ):
         self._subsample = kwargs.pop('subsample', None)

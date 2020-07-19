@@ -8,10 +8,8 @@ classes = [ ('Quasar', [1.0, 0.0, 0.0, 1.0]),
             ('BlackHole', [1.0, 0.0, 1.0, 1.0]),
             ('BinaryStar', [0.0, 0.0, 1.0, 1.0])]
 
-subsample = 100
-
 app = HCApplication()
 labelsManager.setLabels( classes )
-tessclass = UnstructuredAppConsole('tessclass', subsample=subsample)
+tessclass =  UnstructuredAppConsole( 'tessclass' )
 tessclass.gui.show()
 sys.exit(app.exec_())

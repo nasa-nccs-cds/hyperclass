@@ -1,5 +1,4 @@
 from hyperclass.util.config import tostr
-import numpy as np
 import xarray as xa
 from PyQt5.QtCore import *
 from collections import OrderedDict

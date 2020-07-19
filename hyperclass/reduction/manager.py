@@ -16,7 +16,8 @@ class ReductionManager(QObject,EventClient):
     def gui(self, base: DialogBase ):
         methodSelector = base.createComboSelector("Method: ", ["None", "Autoencoder"], "input.reduction/method", "Autoencoder" )
         nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35)
-        return base.createGroupBox("reduction", [methodSelector, nDimSelector])
+        ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
+        return base.createGroupBox("reduction", [methodSelector, nDimSelector, ssSelector])
 
     def reduce(self, inputs: np.ndarray, reduction_method: str, ndim: int ) -> np.ndarray:
         if reduction_method.lower() == "autoencoder": return self.autoencoder( inputs, ndim )
