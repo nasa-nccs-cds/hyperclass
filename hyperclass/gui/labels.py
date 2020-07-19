@@ -93,13 +93,14 @@ class LabelsManager(QObject,EventClient):
         filtered_distance = distance[selection]
         return filtered_labels, filtered_distance
 
-    def spread(self) -> Optional[xa.Dataset]:
+    def spread(self, n_iters = None) -> Optional[xa.Dataset]:
         if self._flow is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )
             self.submitEvent( event, EventMode.Gui )
             return None
         self.updateLabels()
-        return self._flow.spread( self._labels_data, self.n_spread_iters )
+        niters = self.n_spread_iters if n_iters is None else n_iters
+        return self._flow.spread( self._labels_data, niters )
 
     def clearTransient(self):
         if len(self._markers) > 0 and self._markers[-1].cid == 0:
@@ -191,7 +192,7 @@ class LabelsManager(QObject,EventClient):
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
 
-        for action in [ 'Mark', 'Neighbors', 'Undo', 'Clear' ]:
+        for action in [ 'Mark', 'Neighbors', 'Distance', 'Undo', 'Clear' ]:
             pybutton = QPushButton( action, self.console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttons_frame_layout.addWidget(pybutton)
@@ -211,6 +212,11 @@ class LabelsManager(QObject,EventClient):
             if new_classes is not None:
                 event = dict( event="labels", type="spread", labels=new_classes )
                 self.submitEvent( event, EventMode.Gui )
+        elif etype == "distance":
+            new_classes: Optional[xa.DataArray] = self.spread(100)
+            if new_classes is not None:
+                event = dict(event="labels", type="distance", labels=new_classes)
+                self.submitEvent(event, EventMode.Gui)
         elif etype == "mark":
             event = dict( event='gui', type="mark" )
             self.submitEvent( event, EventMode.Gui )

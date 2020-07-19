@@ -78,10 +78,51 @@ class PointCloud():
         self.actor.GetProperty().SetPointSize( max( psize, 1 ) )
         self.update()
 
-    def set_point_colors( self, sample_labels: np.array, **kwargs ):
+    def makeLUT( self, tableSize=256 ) -> vtk.vtkLookupTable:
+        ctf = vtk.vtkColorTransferFunction()
+        ctf.SetColorSpaceToDiverging()
+        ctf.AddRGBPoint( 0.0, 1.0, 0.0, 0.0 )
+        ctf.AddRGBPoint( 0.5, 0.5, 1.0, 0.5 )
+        ctf.AddRGBPoint( 1.0, 0.0, 0.0, 1.0 )
+        lut = vtk.vtkLookupTable()
+        lut.SetNumberOfTableValues(tableSize)
+        lut.Build()
+        for i in range(0, tableSize):
+            rgb = list(ctf.GetColor(float(i) / tableSize)) + [1]
+            lut.SetTableValue(i, rgb)
+        return lut
+
+    def makeColors(self, data: np.ndarray, maxVal: float  ) -> vtk.vtkUnsignedCharArray:
+        lut = self.makeLUT()
+        colorData: vtk.vtkUnsignedCharArray = vtk.vtkUnsignedCharArray()
+        colorData.SetName('colors')  # Any name will work here.
+        colorData.SetNumberOfComponents(3)
+        for i in range( data.shape[0] ):
+            rgb = [0.0, 0.0, 0.0]
+            lut.GetColor( data[i]/maxVal, rgb )
+            ucrgb = list( map(int, [x * 255 for x in rgb]) )
+            colorData.InsertNextTuple3( ucrgb[0], ucrgb[1], ucrgb[2] )
+        return colorData
+
+    def color_by_metric( self, metric: np.array, **kwargs ):
         if self.polydata is None:
             print( "Points are not yet available" )
         else:
+            masked_metric: np.ma.MaskedArray = np.ma.masked_invalid(metric)
+            maxval = masked_metric.max()
+            metric_data = masked_metric.filled( maxval )
+            vtk_color_data: vtk.vtkUnsignedCharArray = self.makeColors( metric_data, maxval )
+            vtkpts = self.polydata.GetPointData()
+            vtkpts.SetScalars(vtk_color_data)
+            vtkpts.SetActiveScalars('colors')
+            vtkpts.Modified()
+
+    def set_point_colors( self, sample_labels: np.array = None, **kwargs ):
+        if self.polydata is None:
+            print( "Points are not yet available" )
+        else:
+            if sample_labels is None:
+                sample_labels = np.full( shape=[ self.polydata.GetPointData().GetNumberOfTuples() ], fill_value= 0 )
             print(f"PointCloud.set_point_colors, #labels: {np.count_nonzero(sample_labels)}")
             labels = np.where( sample_labels >= 0, sample_labels, 0 )
             colors = self.colormap[ labels ]
@@ -134,7 +175,7 @@ class PointCloud():
             np_cell_data = np.dstack(( cell_sizes, np_index_seq) )
             vtk_cell_data = npsup.numpy_to_vtkIdTypeArray( np_cell_data.ravel(), deep=1 )
             vertices.SetCells( cell_sizes.size, vtk_cell_data )
-            self.set_point_colors( np.full( shape=[nPoints], fill_value= 0 ) )
+            self.set_point_colors(  )
             self.polydata.Modified()
             self.points_modified = True
 
@@ -172,8 +213,9 @@ class PointCloud():
         self.marker_mapper.Modified()
 
     def plotMarkers(self, **kwargs  ):
-        reset = kwargs.get( 'reset', True )
-        if reset: self.initMarkers( )
+        reset = kwargs.get( 'reset', False )
+        if reset:
+            self.initMarkers( )
         for marker in labelsManager.getMarkers():
             id = self.marker_points.InsertNextPoint( *marker.location  )
             self.marker_verts.InsertNextCell(1)

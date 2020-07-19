@@ -39,8 +39,10 @@ class UMAPManager(QObject,EventClient):
             self.activate_event_listening()
         return self._gui
 
-    def plotMarkers(self):
-        self.point_cloud.plotMarkers()
+    def plotMarkers(self, **kwargs ):
+        reset = kwargs.get( 'reset', False )
+        if reset: self.point_cloud.set_point_colors()
+        self.point_cloud.plotMarkers( **kwargs )
         self.update_signal.emit()
 
     def processEvent( self, event: Dict ):
@@ -49,11 +51,19 @@ class UMAPManager(QObject,EventClient):
             point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self.embedding( point_data )
         elif event.get('event') == 'labels':
-            if event.get('type') == 'clear':       self.plotMarkers()
-            elif event.get('type') == 'undo':      self.plotMarkers()
+            if event.get('type') == 'clear':
+                activationFlowManager.clear()
+                self.plotMarkers( reset=True )
+            elif event.get('type') == 'undo':
+                self.plotMarkers()
             elif event.get('type') == 'spread':
                 labels: xa.Dataset = event.get('labels')
                 self.point_cloud.set_point_colors( labels['C'] )
+                self.update_signal.emit()
+            elif event.get('type') == 'distance':
+                labels: xa.Dataset = event.get('labels')
+                D = labels['D']
+                self.point_cloud.color_by_metric( D )
                 self.update_signal.emit()
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )

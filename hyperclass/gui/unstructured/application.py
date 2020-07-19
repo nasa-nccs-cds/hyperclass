@@ -34,7 +34,7 @@ class UnstructuredAppConsole(QObject, EventClient):
     def __init__( self, application_name: str, **kwargs ):
         QObject.__init__(self)
         self.gui = UnstructuredAppMainWindow(None, application_name )
-        dataEventHandler.config( subsample=kwargs.pop('subsample')  )
+        dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
         self.umgr = UMAPManager( **kwargs )
 
         self.left = 10

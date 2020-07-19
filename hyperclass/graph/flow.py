@@ -64,6 +64,10 @@ class ActivationFlowManager:
     def __getitem__( self, dsid ):
         return self.instances.get( dsid )
 
+    def clear(self):
+        for instance in self.instances.values():
+            instance.clear()
+
     def getActivationFlow( self, point_data: xa.DataArray, **kwargs ) -> "ActivationFlow":
         dsid = point_data.attrs['dsid']
         print( f"Get Activation flow for dsid {dsid}")
