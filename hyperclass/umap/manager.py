@@ -79,7 +79,7 @@ class UMAPManager(QObject,EventClient):
                         embedding = self._current_mapper.embedding
                         transformed_data: np.ndarray = embedding[ [pid] ]
                         labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
-                        self.point_cloud.plotMarkers()
+                        self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit()
                     except Exception as err:
                         print( f"Point selection error: {err}")

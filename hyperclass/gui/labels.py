@@ -60,15 +60,19 @@ class LabelsManager(QObject,EventClient):
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
         self._labels_data: xa.DataArray = None
+        self.template = None
         self.n_spread_iters = 1
 
-    def initLabelsData( self, point_data: xa.DataArray ):
+    def initLabelsData( self, point_data: xa.DataArray = None ):
         nodata_value = -1
-        template = point_data[:,0].squeeze( drop=True )
-        self._labels_data: xa.DataArray = xa.full_like( template, 0, dtype=np.int32 ).where( template.notnull(), nodata_value )
-        self._labels_data.attrs['_FillValue'] = nodata_value
-        self._labels_data.name = point_data.attrs['dsid'] + "_labels"
-        self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
+        if point_data is not None:
+            self.template = point_data[:,0].squeeze( drop=True )
+            self.template.attrs = point_data.attrs
+        if self.template is not None:
+            self._labels_data: xa.DataArray = xa.full_like( self.template, 0, dtype=np.int32 ).where( self.template.notnull(), nodata_value )
+            self._labels_data.attrs['_FillValue'] = nodata_value
+            self._labels_data.name = self.template.attrs['dsid'] + "_labels"
+            self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
 
     def processEvent( self, event: Dict ):
         from hyperclass.data.events import dataEventHandler
@@ -108,6 +112,7 @@ class LabelsManager(QObject,EventClient):
 
     def clearMarkers(self):
         self._markers = []
+        self.initLabelsData()
         event = dict( event="labels", type="clear" )
         self.submitEvent( event, EventMode.Gui )
 
