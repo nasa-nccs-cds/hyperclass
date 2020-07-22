@@ -42,7 +42,7 @@ class Task(QRunnable,EventClient):
             event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc() )
             self.submitEvent(  event, EventMode.Gui )
         else:
-            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Foreground )  # Return the result of the processing
+            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Gui )  # Return the result of the processing
         finally:
             dt = time.time()-t0
             print( f"Completed task {self.label} in {dt} sec ({dt/60} min)")

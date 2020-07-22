@@ -148,7 +148,13 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.settings = dataManager.config
 
     def runLoadDataset( self, dsid: str, **kwargs ):
-        taskRunner.start( Task( f"Load Dataset {dsid}", self.loadDataset, dsid, **kwargs) )
+        load_dataset_in_background = True
+        if load_dataset_in_background:
+            taskRunner.start( Task( f"Load Dataset {dsid}", self.loadDataset, dsid, **kwargs) )
+        else:
+            dset = self.loadDataset( dsid, **kwargs )
+            event = dict(event='task', type='result', label='load dataset', result=dset )
+            self.submitEvent(event, EventMode.Gui)
 
     def loadDataset( self, dsid: str, *args, **kwargs ) -> xa.Dataset:
         data_dir = dataManager.config.value('data/cache')
