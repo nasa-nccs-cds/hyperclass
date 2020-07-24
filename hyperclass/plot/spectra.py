@@ -130,6 +130,9 @@ class SpectralPlot(QObject,EventClient):
                         self.update_marker()
                         self.axes.set_title( "", {}, 'right' )
                         self.update_signal.emit()
+        elif event.get('event') == 'gui':
+            if event.get('type') =='reset':
+                self.clear()
 
     def update_marker(self, new_xval = None ):
         if self.marker is not None:

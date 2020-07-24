@@ -120,7 +120,7 @@ class ActivationFlow(QObject,EventClient):
                 self.I = self.nnd.neighbor_graph[0]
                 self.D = self.nnd.neighbor_graph[1]
                 dt = (time.time()-t0)
-                print( f"Computed NN Graph in {dt} sec ({dt/60} min)")
+                print( f"Computed NN Graph with {self.nnd.n_neighbors} neighbors and {nodes_data.shape[0]} verts in {dt} sec ({dt/60} min)")
             else:
                 print( "No data available for this block")
 

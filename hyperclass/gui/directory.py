@@ -98,11 +98,11 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.sortItems(self.sort_column)
         self.update()
 
-    def clear_table(self):
+    def clear_table( self, reset_catalog = False ):
         self.table.clearSelection()
         self._selected_row = -1
         self._head_row = 0
-        if (self.name == "catalog"):
+        if (self.name == "catalog") and not reset_catalog:
             brush = QBrush( QColor(255, 255, 255) )
             for row in self._marked_rows:
                 item: QTableWidgetItem = self.table.item(row, 0)
@@ -162,7 +162,8 @@ class DirectoryWidget(QWidget,EventClient):
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self.releaseKeyState( event )
-            elif event.get('type') == 'clear':       self.clear_table()
+            elif event.get('type') == 'clear':       self.clear_table( False )
+            elif event.get('type') == 'reset':       self.clear_table( True )
             elif event.get('type') == 'mark':        self.markCurrentRow()
             elif event.get('type') == 'undo':        self.clearMarker( event.get('marker') )
         elif event.get('event') == 'labels':
@@ -260,19 +261,21 @@ class DirectoryWidget(QWidget,EventClient):
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, 0 )
             if item == None: break
-            if pid == int( item.text() ):
-                rv = True
-                self._selected_row = iRow
-                self.table.scrollToItem( item )
-                if self.pick_enabled and (cid > 0) and (color is not None):
-                    self.table.clearSelection()
-                    qcolor = [int(color[ic] * 255.99) for ic in range(3)]
-                    item.setBackground( QBrush( QColor(*qcolor) ) )
-                    self._marked_rows.append( iRow )
-                else:
-                    self.table.clearSelection()
-                    self.table.selectRow(iRow)
-                break
+            try:
+                if pid == int( item.text() ):
+                    rv = True
+                    self._selected_row = iRow
+                    self.table.scrollToItem( item )
+                    if self.pick_enabled and (cid > 0) and (color is not None):
+                        self.table.clearSelection()
+                        qcolor = [int(color[ic] * 255.99) for ic in range(3)]
+                        item.setBackground( QBrush( QColor(*qcolor) ) )
+                        self._marked_rows.append( iRow )
+                    else:
+                        self.table.clearSelection()
+                        self.table.selectRow(iRow)
+                    break
+            except: break
         self.update()
         return rv
 

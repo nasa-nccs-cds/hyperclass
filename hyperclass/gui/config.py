@@ -11,27 +11,31 @@ QCoreApplication.setApplicationName("hyperclass")
 
 class PreferencesDialog(DialogBase):
 
-    def __init__( self, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
+    def __init__( self, proj_name: str, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
         self.spatial = spatial
-        super(PreferencesDialog, self).__init__( callback, scope )
+        super(PreferencesDialog, self).__init__( proj_name, dtype, callback, scope )
 
     def addApplicationContent( self, mainLayout ):
-
-        umapGroupBox = self.createUMAPGroupBox()
-        svmGroupBox = self.createSVMGroupBox()
-
+        from hyperclass.umap.manager import UMAPManager
         gridLayout = QGridLayout()
-        gridLayout.addWidget( umapGroupBox, 0, 1, 1, 1 )
-        gridLayout.addWidget( svmGroupBox, 0, 0, 1, 1 )
 
         if self.spatial:
             tileGroupBox = self.createTileGroupBox()
-            gridLayout.addWidget( tileGroupBox, 1, 0, 1, 1  )
+            gridLayout.addWidget( tileGroupBox, 0, 0, 1, 1  )
 
         if self.spatial and (self.scope == QSettings.SystemScope):
             googleGroupBox = self.createGoogleGroupBox()
-            gridLayout.addWidget(googleGroupBox, 1, 1, 1, 1)
+            gridLayout.addWidget(googleGroupBox, 0, 1, 1, 1)
 
+        gridLayout.addWidget( UMAPManager.config_gui(self), 1, 0, 1, 1 )
+        gridLayout.addWidget(self.createSVMGroupBox(), 1, 1, 1, 1)
+        mainLayout.addLayout(gridLayout)
+
+
+    def addDataPrepContent( self, mainLayout ):
+        from hyperclass.reduction.manager import reductionManager
+        gridLayout = QGridLayout()
+        gridLayout.addWidget(reductionManager.config_gui(self), 1, 0, 1, 2)
         mainLayout.addLayout(gridLayout)
 
     def createDataGroupBox(self) -> QGroupBox:
@@ -49,11 +53,6 @@ class PreferencesDialog(DialogBase):
         blockSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "block/indices")
         blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "tile/indices")
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
-
-    def createUMAPGroupBox(self):
-        nNeighborsSelector = self.createComboSelector("#Neighbors: ", range(4, 20), "umap/nneighbors")
-        nEpochsSelector = self.createComboSelector("#Epochs: ", range(50, 500, 50), "umap/nepochs")
-        return self.createGroupBox("umap", [nNeighborsSelector, nEpochsSelector])
 
     def createSVMGroupBox(self):
         nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")

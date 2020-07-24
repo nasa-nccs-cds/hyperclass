@@ -9,8 +9,11 @@ class DialogBase(QDialog):
     FILE = 0
     DIRECTORY = 1
 
-    def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
+    CONFIG = 0
+    DATA_PREP = 1
+    RUNTIME = 2
 
+    def __init__( self, proj_name: str, dtype: int, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
         super(DialogBase, self).__init__(None)
         self.callback = callback
         self.project_name = proj_name
@@ -19,12 +22,15 @@ class DialogBase(QDialog):
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         self.buttonBox.accepted.connect( self.save )
         self.buttonBox.rejected.connect( self.cancel )
-        self.addContent()
+        self.addContent(dtype)
 
     def addFileContent(self, inputsLayout: QBoxLayout ):
         pass
 
     def addApplicationContent(self, inputsLayout: QBoxLayout ):
+        pass
+
+    def addDataPrepContent(self, inputsLayout: QBoxLayout ):
         pass
 
     def getProjectList(self) -> Optional[List[str]]:
@@ -36,9 +42,7 @@ class DialogBase(QDialog):
         dataManager.setProjectName( self.project_name )
         self.settings: QSettings = dataManager.getSettings(self.scope)
 
-
-    def addContent(self):
-        from hyperclass.reduction.manager import reductionManager
+    def addContent( self, dtype: int ):
         self.mainLayout = QVBoxLayout()
         self.mainLayout.addLayout(self.createComboSelector("Project ID", [self.project_name], "project/id", self.project_name ) )
         inputsGroupBox = QGroupBox('inputs')
@@ -48,10 +52,11 @@ class DialogBase(QDialog):
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Data Directory", self.DIRECTORY, "data/dir", "data/dir"))
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir"))
         self.addFileContent( inputsLayout )
-        self.addApplicationContent(inputsLayout)
+
+        if dtype == self.DATA_PREP: self.addDataPrepContent( inputsLayout )
+        if dtype == self.RUNTIME: self.addApplicationContent( inputsLayout )
 
         self.mainLayout.addWidget(inputsGroupBox)
-        self.mainLayout.addWidget(reductionManager.gui(self))
         self.mainLayout.addWidget( self.buttonBox )
         self.setLayout(self.mainLayout)
         self.resize( 800, 400)
@@ -112,7 +117,7 @@ class DialogBase(QDialog):
             if type == self.FILE:        selection = QFileDialog.getOpenFileName( self, "Select File", directory )[0]
             elif type == self.DIRECTORY: selection = QFileDialog.getExistingDirectory( self, "Select Directory", directory )
             else: raise Exception( f" Unknown dialog type: {type}")
-            lineEdit.setText( selection )
+            if selection: lineEdit.setText( selection )
         selectButton.clicked.connect(select)
         def selectionchange( value ):
             print( f"{settings_key}: {value}")

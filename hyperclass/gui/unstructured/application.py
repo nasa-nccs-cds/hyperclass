@@ -21,14 +21,26 @@ import os
 class UnstructuredAppMainWindow(HCMainWindow):
 
     def __init__( self, parent, title: str ):
+        self.dsid = title
         HCMainWindow.__init__( self, parent, title )
 
-    def addMenuItems(self):
+    def addMenuItems( self  ):
         self.load_dataset = self.fileMenu.addMenu("Load Dataset")
 
+        menuButton = QAction( "Clear Dataset", self )
+        menuButton.setStatusTip(f"Clear loaded data & reset to initial state")
+        menuButton.triggered.connect(self.clearDataset)
+        self.fileMenu.addAction( menuButton )
+
+    def clearDataset(self):
+        labelsManager.clearMarkers()
+        event = dict(event='gui', type='reset', label='clear dataset' )
+        self.submitEvent(event, EventMode.Gui)
+        taskRunner.kill_all_tasks()
+
     def getPreferencesDialog(self):
-        from hyperclass.gui.config import PreferencesDialog
-        return PreferencesDialog()
+        from hyperclass.config.inputs import RuntimeDialog
+        return RuntimeDialog( self.dsid )
 
 class UnstructuredAppConsole(QObject, EventClient):
     def __init__( self, application_name: str, **kwargs ):
@@ -36,6 +48,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.gui = UnstructuredAppMainWindow(None, application_name )
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
         self.umgr = UMAPManager( **kwargs )
+        self.name = application_name
 
         self.left = 10
         self.top = 10
@@ -124,9 +137,12 @@ class UnstructuredAppConsole(QObject, EventClient):
     def populate_load_menues(self):
         self.populate_dataset_load_menu()
 
+    @property
+    def datasetDir(self):
+        return os.path.join( dataManager.config.value('data/cache'), self.name )
+
     def populate_dataset_load_menu(self):
-        directory = dataManager.config.value('data/cache')
-        for file in os.listdir(directory):
+        for file in os.listdir( self.datasetDir ):
             if file.endswith(".nc"):
                 dsid = file[:-3]
                 menuButton = QAction( dsid, self.gui )
@@ -157,8 +173,7 @@ class UnstructuredAppConsole(QObject, EventClient):
             self.submitEvent(event, EventMode.Gui)
 
     def loadDataset( self, dsid: str, *args, **kwargs ) -> xa.Dataset:
-        data_dir = dataManager.config.value('data/cache')
-        data_file = os.path.join( data_dir, dsid + ".nc" )
+        data_file = os.path.join( self.datasetDir, dsid + ".nc" )
         dataset: xa.Dataset = xa.open_dataset( data_file )
         print( f"Opened Dataset {dsid} from file {data_file}")
         dataset.attrs['dsid'] = dsid

@@ -32,9 +32,9 @@ class Task(QRunnable,EventClient):
 
     @pyqtSlot()
     def run(self):
+        t0 = time.time()
         try:
             self.submitEvent(dict( event='task', type='start', label=self.label), EventMode.Gui)  # Done
-            t0 = time.time()
             result = self.fn(*self.args, **self.kwargs)
         except:
             traceback.print_exc()
@@ -88,6 +88,7 @@ class TaskRunner(QObject,EventClient):
 
     def kill_all_tasks(self):
         self.threadpool.clear()
+        self.executing_tasks = []
 
     def processEvent( self, event, **kwargs ) :
         if event.get('event') == 'task':

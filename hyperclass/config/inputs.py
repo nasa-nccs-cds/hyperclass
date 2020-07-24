@@ -8,6 +8,8 @@ from PyQt5.QtWidgets import *
 from functools import partial
 from PyQt5.QtCore import  QSettings
 from typing import Optional, Dict
+
+from hyperclass.gui.config import PreferencesDialog
 from hyperclass.gui.dialog import DialogBase
 from hyperclass.reduction.manager import reductionManager
 
@@ -41,24 +43,25 @@ def prepare_inputs( input_vars, ssample = None ):
 
     dataset = xa.Dataset( data_vars, coords=xcoords, attrs = {'type':'spectra'} )
     projId = dataManager.config.value('project/id')
-    file_name = f"{projId}.nc" if reduction_method == "None" else f"{projId}.{reduction_method}-{ndim}"
+    file_name = f"raw" if reduction_method == "None" else f"{reduction_method}-{ndim}"
     if subsample > 1: file_name = f"{file_name}-ss{subsample}"
-    output_file = os.path.join( dataManager.config.value('data/cache'), file_name + ".nc" )
+    output_file = os.path.join( dataManager.config.value('data/cache'), projId, file_name + ".nc" )
     print( f"Writing output to {output_file}")
     dataset.to_netcdf( output_file, format='NETCDF4', engine='netcdf4' )
 
 
-class ConfigurationDialog(DialogBase):
+class ConfigurationDialog(PreferencesDialog):
 
     def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
         dataManager.setProjectName( proj_name )
-        super(ConfigurationDialog, self).__init__( proj_name, callback, scope )
+        super(ConfigurationDialog, self).__init__( proj_name, DialogBase.CONFIG, callback, scope, spatial=False )
 
-class PrepareInputsDialog(ConfigurationDialog):
+class PrepareInputsDialog(PreferencesDialog):
 
     def __init__( self, app_name: Optional[str], input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
         self.inputs = {} if input_vars is None else [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
-        super(PrepareInputsDialog, self).__init__( app_name, partial( prepare_inputs, input_vars, subsample ), scope )
+        dataManager.setProjectName( app_name )
+        super(PrepareInputsDialog, self).__init__( app_name, DialogBase.DATA_PREP, partial( prepare_inputs, input_vars, subsample ), scope, spatial=False )
 
     def addFileContent( self, inputsLayout: QBoxLayout ):
         for input_file_id in self.inputs:
@@ -71,5 +74,11 @@ class PrepareInputsDialog(ConfigurationDialog):
         inifiles = glob.glob(f"{settings_path}/*.ini")
         sorted_inifiles = sorted( inifiles, key=lambda t: os.stat(t).st_mtime )
         return [ os.path.splitext( os.path.basename( f ) )[0] for f in sorted_inifiles ]
+
+class RuntimeDialog(PreferencesDialog):
+
+    def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.UserScope  ):
+        dataManager.setProjectName( proj_name )
+        super(RuntimeDialog, self).__init__( proj_name, DialogBase.RUNTIME, callback, scope, spatial=False )
 
 

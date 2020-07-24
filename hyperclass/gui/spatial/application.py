@@ -83,7 +83,7 @@ class SpatialAppConsole(QMainWindow):
         self.satelliteCanvas.addEventListener(self.labelingConsole)
         self.labelingConsole.addNavigationListener( self.satelliteCanvas )
         self.addMenues(mainMenu, self.labelingConsole.menu_actions)
-        self.mixingFrame = MixingFrame( self.umgr )
+#        self.mixingFrame = MixingFrame( self.umgr )
 
         consoleLayout.addWidget(self.labelingConsole)
         vizTabs = QTabWidget()

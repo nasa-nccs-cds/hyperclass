@@ -6,14 +6,14 @@ from keras.layers import *
 from keras.models import *
 from keras.callbacks import *
 import xarray as xa
-import numpy as np
+import numpy as np, time
 
 class ReductionManager(QObject,EventClient):
 
     def __init__( self, **kwargs ):
         QObject.__init__(self)
 
-    def gui(self, base: DialogBase ):
+    def config_gui(self, base: DialogBase):
         methodSelector = base.createComboSelector("Method: ", ["None", "Autoencoder"], "input.reduction/method", "Autoencoder" )
         nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35)
         ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
@@ -28,6 +28,22 @@ class ReductionManager(QObject,EventClient):
             coords = {inputs.dims[0]: inputs.coords[inputs.dims[0]], inputs.dims[1]: np.arange(ndim)}
             return xa.DataArray(encoded_data, dims=inputs.dims, coords=coords, attrs=inputs.attrs)
         return inputs
+
+    def spectral_embedding(data, graph, n_components=3, sparsify=False):
+        t0 = time.time()
+        graph = graph.tocoo()
+        graph.sum_duplicates()
+        if sparsify:
+            n_epochs = 200
+            graph.data[graph.data < (graph.data.max() / float(n_epochs))] = 0.0
+            graph.eliminate_zeros()
+
+        random_state = np.random.RandomState()
+        initialisation = spectral_layout(data, graph, n_components, random_state, metric="euclidean")
+        expansion = 10.0 / np.abs(initialisation).max()
+        rv = (initialisation * expansion).astype(np.float32)
+        print(f"Completed spectral_embedding in {(time.time() - t0) / 60.0} min.")
+        return rv
 
     def autoencoder( self, encoder_input: np.ndarray, ndim: int ) -> np.ndarray:
         input_dims = encoder_input.shape[1]
