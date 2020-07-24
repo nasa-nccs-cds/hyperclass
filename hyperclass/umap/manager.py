@@ -22,7 +22,7 @@ from hyperclass.gui.tasks import taskRunner, Task
 cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 
 class UMAPManager(QObject,EventClient):
-    update_signal = pyqtSignal()
+    update_signal = pyqtSignal(dict)
 
     def __init__(self,  **kwargs ):
         QObject.__init__(self)
@@ -53,16 +53,15 @@ class UMAPManager(QObject,EventClient):
         reset = kwargs.get( 'reset', False )
         if reset: self.point_cloud.set_point_colors()
         self.point_cloud.plotMarkers( **kwargs )
-        self.update_signal.emit()
+        self.update_signal.emit({})
 
     def clear(self):
         activationFlowManager.clear()
         self.plotMarkers(reset=True)
         self.point_cloud.clear()
-        self.update_signal.emit()
+        self.update_signal.emit({})
 
     def processEvent( self, event: Dict ):
-        print(f"UMAPManager.processEvent: {event}")
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self.embedding( point_data )
@@ -75,16 +74,23 @@ class UMAPManager(QObject,EventClient):
             elif event.get('type') == 'spread':
                 labels: xa.Dataset = event.get('labels')
                 self.point_cloud.set_point_colors( labels['C'] )
-                self.update_signal.emit()
+                self.update_signal.emit({})
             elif event.get('type') == 'distance':
                 labels: xa.Dataset = event.get('labels')
                 D = labels['D']
                 self.point_cloud.color_by_metric( D )
-                self.update_signal.emit()
+                self.update_signal.emit({})
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
             elif event.get('type') == 'reset':       self.clear()
+            elif event.get('type') == 'embed':
+                point_data = dataEventHandler.getPointData(event, DataType.Embedding)
+                self.embed( point_data, labelsManager.labels_data )
+            elif event.get('type') == 'plot':
+                embedded_data = event.get('value')
+                self.point_cloud.setPoints( embedded_data, labelsManager.labels_data )
+                self.update_signal.emit( event )
         elif event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'directory', "vtkpoint", "plot" ]:
@@ -97,7 +103,7 @@ class UMAPManager(QObject,EventClient):
                         transformed_data: np.ndarray = embedding[ [pid] ]
                         labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
-                        self.update_signal.emit()
+                        self.update_signal.emit({})
                     except Exception as err:
                         print( f"Point selection error: {err}")
 
@@ -205,7 +211,7 @@ class UMAPManager(QObject,EventClient):
         if ndim == 3:
             self.point_cloud.setPoints(mapper.embedding, labels_data)
         t2 = time.time()
-        self.update_signal.emit()
+        self.update_signal.emit({})
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )
         return self.wrap_embedding(point_data.coords['samples'], mapper.embedding )
 
@@ -228,14 +234,14 @@ class UMAPManager(QObject,EventClient):
         if mapper.embedding is not None:
             transformed_data: np.ndarray = mapper.embedding[ pindices]
             self.point_cloud.plotMarkers( transformed_data.tolist(), colors, **kwargs )
-            self.update_signal.emit()
+            self.update_signal.emit({})
 
     def reset_markers(self):
         self.point_cloud.initMarkers( )
 
-    @pyqtSlot()
-    def update(self):
-        self._gui.update()
+    @pyqtSlot(dict)
+    def update(self, kwargs: Dict ):
+        self._gui.update( **kwargs  )
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()

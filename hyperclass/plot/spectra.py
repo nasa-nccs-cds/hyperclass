@@ -129,7 +129,7 @@ class SpectralPlot(QObject,EventClient):
                             self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
                         self.update_marker()
                         self.axes.set_title( "", {}, 'right' )
-                        self.update_signal.emit()
+                        self.update_signal.emit({})
         elif event.get('event') == 'gui':
             if event.get('type') =='reset':
                 self.clear()

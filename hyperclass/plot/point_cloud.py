@@ -123,7 +123,6 @@ class PointCloud():
         else:
             if sample_labels is None:
                 sample_labels = np.full( shape=[ self.polydata.GetPointData().GetNumberOfTuples() ], fill_value= 0 )
-            print(f"PointCloud.set_point_colors, #labels: {np.count_nonzero(sample_labels)}")
             labels = np.where( sample_labels >= 0, sample_labels, 0 )
             colors = self.colormap[ labels ]
             vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
@@ -135,11 +134,12 @@ class PointCloud():
             vtkpts.SetActiveScalars('colors')
             vtkpts.Modified()
 
-    def update(self):
+    def update(self, **kwargs ):
         if self.mapper is not None:   self.mapper.Modified()
         if self.polydata is not None: self.polydata.Modified()
         if self.actor is not None:    self.actor.Modified()
-        if self.points_modified and self.renderer is not None:
+        reset_camera = kwargs.get( 'reset_camera', True )
+        if self.points_modified and reset_camera and self.renderer is not None:
             self.renderer.ResetCamera()
         if self.renWin is not None:   self.renWin.Render()
         self.points_modified = False
@@ -190,7 +190,6 @@ class PointCloud():
         self.initMarkers()
 
     def initMarkers( self, **kwargs ):
-        print( "Initializing Markers")
         if self.marker_actor is None:
             marker_size = kwargs.get( 'marker_size', 10 )
             self.markers = vtk.vtkPolyData()

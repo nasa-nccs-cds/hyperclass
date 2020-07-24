@@ -86,6 +86,11 @@ class LabelsManager(QObject,EventClient):
         for marker in self._markers:
             self._labels_data[ marker.pid ] = marker.cid
 
+    @property
+    def labels_data(self) -> xa.DataArray:
+        self.updateLabels()
+        return self._labels_data
+
     @classmethod
     def getSortedLabels(self, labels_dset: xa.Dataset ) -> Tuple[np.ndarray,np.ndarray]:
         labels: np.ndarray = labels_dset['C'].values
@@ -197,7 +202,7 @@ class LabelsManager(QObject,EventClient):
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
 
-        for action in [ 'Mark', 'Neighbors', 'Distance', 'Undo', 'Clear' ]:
+        for action in [ 'Mark', 'Neighbors', 'Distance', 'ReEmbed', 'Undo', 'Clear' ]:
             pybutton = QPushButton( action, self.console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttons_frame_layout.addWidget(pybutton)
@@ -222,6 +227,9 @@ class LabelsManager(QObject,EventClient):
             if new_classes is not None:
                 event = dict(event="labels", type="distance", labels=new_classes)
                 self.submitEvent(event, EventMode.Gui)
+        elif etype == "reembed":
+            event = dict( event="gui", type="embed" )
+            self.submitEvent( event, EventMode.Gui )
         elif etype == "mark":
             event = dict( event='gui', type="mark" )
             self.submitEvent( event, EventMode.Gui )

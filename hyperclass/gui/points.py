@@ -57,9 +57,9 @@ class VTKWidget(QVTKRenderWindowInteractor):
                 return screen.devicePixelRatio()
         return 1
 
-    def update(self):
+    def update(self, **kwargs ):
         self.point_cloud.createActors(self.iren.renderer)
-        self.point_cloud.update()
+        self.point_cloud.update( **kwargs )
         self.rw.Render()
 
     @property
@@ -129,7 +129,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Start()
 
     def update(self, **kwargs ):
-        self.vtkWidget.update()
+        self.vtkWidget.update( **kwargs )
         QtWidgets.QFrame.update(self)
 
 # class MixingFrame(QtWidgets.QFrame):

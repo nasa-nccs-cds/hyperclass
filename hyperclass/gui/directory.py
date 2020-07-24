@@ -8,6 +8,8 @@ from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.labels import labelsManager, Marker
+from hyperclass.gui.tasks import taskRunner, Task
+from PyQt5.QtWidgets import QMessageBox
 
 class NumericTableWidgetItem(QTableWidgetItem):
 
@@ -198,9 +200,14 @@ class DirectoryWidget(QWidget,EventClient):
         self.enablePick()
         cid = labelsManager.selectedClass
         marker = labelsManager.currentMarker
-        if self.selectRowByIndex( marker.pid ):
-            event = dict(event="pick", type="directory", pid=marker.pid, cid=cid )
-            self.submitEvent(event, EventMode.Gui)
+        try:
+            if self.selectRowByIndex( marker.pid ):
+                event = dict(event="pick", type="directory", pid=marker.pid, cid=cid )
+                self.submitEvent(event, EventMode.Gui)
+        except Exception as err:
+            if marker is None:
+                Task.showMessage("Workflow violation", "", "Must select a point before this operation can be applied", QMessageBox.Critical)
+            else: print( f"Row selection error: {err}")
         self.releasePick()
 
     def addExtendedLabels(self, labels: xa.Dataset ):

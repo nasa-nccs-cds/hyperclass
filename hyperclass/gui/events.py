@@ -44,7 +44,6 @@ class EventCentral(QObject):
     def submitEvent(self, event: Dict, mode: EventMode ):
         from hyperclass.data.events import dataEventHandler
         from hyperclass.gui.tasks import taskRunner, Task
-        print( f" EventCentral.submitEvent: {event}, mode = {mode}")
         dataEventHandler.reset( event )
         if mode == EventMode.Gui:
             self.process_event.emit( event )

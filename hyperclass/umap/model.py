@@ -2,13 +2,14 @@ from __future__ import print_function
 import locale
 from warnings import warn
 import time
-
+from hyperclass.gui.events import EventClient, EventMode
 from scipy.optimize import curve_fit
 from sklearn.base import BaseEstimator
 from sklearn.utils import check_random_state, check_array
-from sklearn.metrics import pairwise_distances
 from sklearn.preprocessing import normalize
 from sklearn.neighbors import KDTree
+
+from hyperclass.gui.events import eventCentral
 
 try:
     import joblib
@@ -41,11 +42,10 @@ from umap.rp_tree import rptree_leaf_array, make_forest
 from umap.spectral import spectral_layout
 from umap.utils import deheap_sort, submatrix
 from umap.layouts import (
-    optimize_layout_euclidean,
     optimize_layout_generic,
     optimize_layout_inverse,
+    _optimize_layout_euclidean_single_epoch
 )
-
 
 from pynndescent import NNDescent
 from pynndescent.distances import named_distances as pynn_named_distances
@@ -876,6 +876,111 @@ def simplicial_set_embedding(
     print( f"Completed simplicial_set_embedding, times = {(t1-t0)/60.0} {(t2-t1)/60.0} min")
 
     return embedding
+
+def optimize_layout_euclidean(
+    head_embedding,
+    tail_embedding,
+    head,
+    tail,
+    n_epochs,
+    n_vertices,
+    epochs_per_sample,
+    a,
+    b,
+    rng_state,
+    gamma=1.0,
+    initial_alpha=1.0,
+    negative_sample_rate=5.0,
+    parallel=False,
+    verbose=False,
+):
+    """Improve an embedding using stochastic gradient descent to minimize the
+    fuzzy set cross entropy between the 1-skeletons of the high dimensional
+    and low dimensional fuzzy simplicial sets. In practice this is done by
+    sampling edges based on their membership strength (with the (1-p) terms
+    coming from negative sampling similar to word2vec).
+    Parameters
+    ----------
+    head_embedding: array of shape (n_samples, n_components)
+        The initial embedding to be improved by SGD.
+    tail_embedding: array of shape (source_samples, n_components)
+        The reference embedding of embedded points. If not embedding new
+        previously unseen points with respect to an existing embedding this
+        is simply the head_embedding (again); otherwise it provides the
+        existing embedding to embed with respect to.
+    head: array of shape (n_1_simplices)
+        The indices of the heads of 1-simplices with non-zero membership.
+    tail: array of shape (n_1_simplices)
+        The indices of the tails of 1-simplices with non-zero membership.
+    n_epochs: int
+        The number of training epochs to use in optimization.
+    n_vertices: int
+        The number of vertices (0-simplices) in the dataset.
+    epochs_per_samples: array of shape (n_1_simplices)
+        A float value of the number of epochs per 1-simplex. 1-simplices with
+        weaker membership strength will have more epochs between being sampled.
+    a: float
+        Parameter of differentiable approximation of right adjoint functor
+    b: float
+        Parameter of differentiable approximation of right adjoint functor
+    rng_state: array of int64, shape (3,)
+        The internal state of the rng
+    gamma: float (optional, default 1.0)
+        Weight to apply to negative samples.
+    initial_alpha: float (optional, default 1.0)
+        Initial learning rate for the SGD.
+    negative_sample_rate: int (optional, default 5)
+        Number of negative samples to use per positive sample.
+    parallel: bool (optional, default False)
+        Whether to run the computation using numba parallel.
+        Running in parallel is non-deterministic, and is not used
+        if a random seed has been set, to ensure reproducibility.
+    verbose: bool (optional, default False)
+        Whether to report information on the current progress of the algorithm.
+    Returns
+    -------
+    embedding: array of shape (n_samples, n_components)
+        The optimized embedding.
+    """
+
+    dim = head_embedding.shape[1]
+    move_other = head_embedding.shape[0] == tail_embedding.shape[0]
+    alpha = initial_alpha
+
+    epochs_per_negative_sample = epochs_per_sample / negative_sample_rate
+    epoch_of_next_negative_sample = epochs_per_negative_sample.copy()
+    epoch_of_next_sample = epochs_per_sample.copy()
+
+    optimize_fn = numba.njit(
+        _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel
+    )
+    for n in range(n_epochs):
+        eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
+        optimize_fn(
+            head_embedding,
+            tail_embedding,
+            head,
+            tail,
+            n_vertices,
+            epochs_per_sample,
+            a,
+            b,
+            rng_state,
+            gamma,
+            dim,
+            move_other,
+            alpha,
+            epochs_per_negative_sample,
+            epoch_of_next_negative_sample,
+            epoch_of_next_sample,
+            n,
+        )
+        alpha = initial_alpha * (1.0 - (float(n) / float(n_epochs)))
+
+        if verbose and n % int(n_epochs / 10) == 0:
+            print("\tcompleted ", n, " / ", n_epochs, "epochs")
+
+    return head_embedding
 
 @numba.njit()
 def init_transform(indices, weights, embedding):

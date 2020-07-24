@@ -117,7 +117,6 @@ class MixingSpace():
         self.initMarkers()
 
     def initMarkers( self, **kwargs ):
-        print( "Initializing Markers")
         if self.marker_actor is None:
             marker_size = kwargs.get( 'marker_size', 10 )
             self.markers = vtk.vtkPolyData()
