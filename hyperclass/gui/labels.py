@@ -202,7 +202,7 @@ class LabelsManager(QObject,EventClient):
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
 
-        for action in [ 'Mark', 'Neighbors', 'Distance', 'ReEmbed', 'Undo', 'Clear' ]:
+        for action in [ 'Mark', 'Neighbors', 'Distance', 'Embed', 'Undo', 'Clear' ]:
             pybutton = QPushButton( action, self.console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttons_frame_layout.addWidget(pybutton)
@@ -227,8 +227,8 @@ class LabelsManager(QObject,EventClient):
             if new_classes is not None:
                 event = dict(event="labels", type="distance", labels=new_classes)
                 self.submitEvent(event, EventMode.Gui)
-        elif etype == "reembed":
-            event = dict( event="gui", type="embed" )
+        elif etype == "embed":
+            event = dict( event="gui", type="embed", alpha = 0.25 )
             self.submitEvent( event, EventMode.Gui )
         elif etype == "mark":
             event = dict( event='gui', type="mark" )

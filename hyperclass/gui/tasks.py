@@ -90,7 +90,7 @@ class TaskRunner(QObject,EventClient):
         self.threadpool.clear()
         self.executing_tasks = []
 
-    def processEvent( self, event, **kwargs ) :
+    def processEvent( self, event: Dict ) :
         if event.get('event') == 'task':
             if event.get('type') == 'finished':
                 label = event.get('label')

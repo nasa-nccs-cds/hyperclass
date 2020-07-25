@@ -7,8 +7,6 @@ from scipy.optimize import curve_fit
 from sklearn.base import BaseEstimator
 from sklearn.utils import check_random_state, check_array
 from sklearn.preprocessing import normalize
-from sklearn.neighbors import KDTree
-
 from hyperclass.gui.events import eventCentral
 
 try:
@@ -21,37 +19,14 @@ import scipy.sparse
 import scipy.sparse.csgraph
 import umap.distances as dist
 import umap.sparse as sparse
-import umap.sparse_nndescent as sparse_nn
 import numba
-
-from umap.utils import (
-    tau_rand_int,
-    deheap_sort,
-    submatrix,
-    ts,
-    csr_unique,
-    fast_knn_indices,
-)
-
-from umap.nndescent import (
-    nn_descent,
-    initialized_nnd_search,
-    initialise_search,
-)
-from umap.rp_tree import rptree_leaf_array, make_forest
+from umap.utils import ( tau_rand_int, ts)
 from umap.spectral import spectral_layout
-from umap.utils import deheap_sort, submatrix
-from umap.layouts import (
-    optimize_layout_generic,
-    optimize_layout_inverse,
-    _optimize_layout_euclidean_single_epoch
-)
-
+from umap.layouts import ( optimize_layout_generic, optimize_layout_inverse )
 from pynndescent import NNDescent
 from pynndescent.distances import named_distances as pynn_named_distances
 from pynndescent.sparse import sparse_named_distances as pynn_sparse_named_distances
 _HAVE_PYNNDESCENT = True
-
 
 locale.setlocale(locale.LC_NUMERIC, "C")
 
@@ -61,6 +36,110 @@ INT32_MAX = np.iinfo(np.int32).max - 1
 SMOOTH_K_TOLERANCE = 1e-5
 MIN_K_DIST_SCALE = 1e-3
 NPY_INFINITY = np.inf
+
+@numba.njit()
+def clip(val):
+    if val > 4.0:
+        return 4.0
+    elif val < -4.0:
+        return -4.0
+    else:
+        return val
+
+@numba.njit(
+    "f4(f4[::1],f4[::1])",
+    fastmath=True,
+    cache=True,
+    locals={
+        "result": numba.types.float32,
+        "diff": numba.types.float32,
+        "dim": numba.types.int32,
+    },
+)
+def rdist(x, y):
+    result = 0.0
+    dim = x.shape[0]
+    for i in range(dim):
+        diff = x[i] - y[i]
+        result += diff * diff
+    return result
+
+
+def _optimize_layout_euclidean_single_epoch(
+    head_embedding,
+    tail_embedding,
+    head,
+    tail,
+    n_vertices,
+    epochs_per_sample,
+    a,
+    b,
+    rng_state,
+    gamma,
+    dim,
+    move_other,
+    alpha,
+    epochs_per_negative_sample,
+    epoch_of_next_negative_sample,
+    epoch_of_next_sample,
+    n,
+):
+    for i in numba.prange(epochs_per_sample.shape[0]):
+        if epoch_of_next_sample[i] <= n:
+            j = head[i]
+            k = tail[i]
+
+            current = head_embedding[j]
+            other = tail_embedding[k]
+
+            dist_squared = rdist(current, other)
+
+            if dist_squared > 0.0:
+                grad_coeff = -2.0 * a * b * pow(dist_squared, b - 1.0)
+                grad_coeff /= a * pow(dist_squared, b) + 1.0
+            else:
+                grad_coeff = 0.0
+
+            for d in range(dim):
+                grad_d = clip(grad_coeff * (current[d] - other[d]))
+                current[d] += grad_d * alpha
+                if move_other:
+                    other[d] += -grad_d * alpha
+
+            epoch_of_next_sample[i] += epochs_per_sample[i]
+
+            n_neg_samples = int(
+                (n - epoch_of_next_negative_sample[i]) / epochs_per_negative_sample[i]
+            )
+
+            for p in range(n_neg_samples):
+                k = tau_rand_int(rng_state) % n_vertices
+
+                other = tail_embedding[k]
+
+                dist_squared = rdist(current, other)
+
+                if dist_squared > 0.0:
+                    grad_coeff = 2.0 * gamma * b
+                    grad_coeff /= (0.001 + dist_squared) * (
+                        a * pow(dist_squared, b) + 1
+                    )
+                elif j == k:
+                    continue
+                else:
+                    grad_coeff = 0.0
+
+                for d in range(dim):
+                    if grad_coeff > 0.0:
+                        grad_d = clip(grad_coeff * (current[d] - other[d]))
+                    else:
+                        grad_d = 4.0
+                    current[d] += grad_d * alpha
+
+            epoch_of_next_negative_sample[i] += (
+                n_neg_samples * epochs_per_negative_sample[i]
+            )
+
 
 def breadth_first_search(adjmat, start, min_vertices):
     explored = []
@@ -720,7 +799,7 @@ def simplicial_set_embedding(
     random_state,
     metric,
     metric_kwds,
-    progress_callback,
+    parallel = True,
     verbose=False,
 ):
     """Perform a fuzzy simplicial set embedding, using a specified
@@ -805,14 +884,6 @@ def simplicial_set_embedding(
     graph = graph.tocoo()
     graph.sum_duplicates()
     n_vertices = graph.shape[1]
-
-    # if n_epochs <= 0:
-    #     # For smaller datasets we can use more epochs
-    #     if graph.shape[0] <= 10000:
-    #         n_epochs = 500
-    #     else:
-    if n_epochs <= 0: n_epochs = 200
-
     graph.data[graph.data < (graph.data.max() / float(n_epochs))] = 0.0
     graph.eliminate_zeros()
 
@@ -834,15 +905,15 @@ def simplicial_set_embedding(
         spectral_embedding = (initialisation * expansion).astype(np.float32)
         embedding = spectral_embedding + random_state.normal(scale=0.0001, size=[graph.shape[0], n_components]).astype( np.float32 )
     else:
-        init_data = np.array(init)
-        if len(init_data.shape) == 2:
-            if np.unique(init_data, axis=0).shape[0] < init_data.shape[0]:
-                tree = KDTree(init_data)
-                dist, ind = tree.query(init_data, k=2)
-                nndist = np.mean(dist[:, 1])
-                embedding = init_data + random_state.normal( scale=0.001 * nndist, size=init_data.shape ).astype(np.float32)
-            else:
-                embedding = init_data
+        embedding = np.array(init)
+        # if len(init_data.shape) == 2:
+        #     if np.unique(init_data, axis=0).shape[0] < init_data.shape[0]:
+        #         tree = KDTree(init_data)
+        #         dist, ind = tree.query(init_data, k=2)
+        #         nndist = np.mean(dist[:, 1])
+        #         embedding = init_data + random_state.normal( scale=0.001 * nndist, size=init_data.shape ).astype(np.float32)
+        #     else:
+        #         embedding = init_data
 
     epochs_per_sample = make_epochs_per_sample(graph.data, n_epochs)
 
@@ -869,6 +940,7 @@ def simplicial_set_embedding(
         gamma,
         initial_alpha,
         negative_sample_rate,
+        parallel = parallel,
         verbose=verbose,
     )
     t2 = time.time()
@@ -946,15 +1018,15 @@ def optimize_layout_euclidean(
     dim = head_embedding.shape[1]
     move_other = head_embedding.shape[0] == tail_embedding.shape[0]
     alpha = initial_alpha
-
     epochs_per_negative_sample = epochs_per_sample / negative_sample_rate
     epoch_of_next_negative_sample = epochs_per_negative_sample.copy()
     epoch_of_next_sample = epochs_per_sample.copy()
 
-    optimize_fn = numba.njit(
-        _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel
-    )
-    for n in range(n_epochs):
+    optimize_fn = numba.njit( _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel )
+    if n_epochs == 1:
+        eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Foreground)
+    else:
+      for n in range(n_epochs):
         eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
         optimize_fn(
             head_embedding,
@@ -1243,6 +1315,7 @@ class UMAP(BaseEstimator):
         target_weight=0.5,
         transform_seed=42,
         force_approximation_algorithm=False,
+        parallel = True,
         verbose=False,
         unique=False,
     ):
@@ -1275,6 +1348,7 @@ class UMAP(BaseEstimator):
         self.target_weight = target_weight
         self.transform_seed = transform_seed
         self.force_approximation_algorithm = force_approximation_algorithm
+        self.parallel = parallel
         self.verbose = verbose
         self.unique = unique
 
@@ -1745,21 +1819,23 @@ class UMAP(BaseEstimator):
         if self.verbose:
             print(ts(), "Construct embedding")
 
+        nepochs = kwargs.get( 'nepochs', self.n_epochs )
+        init_alpha = kwargs.get( 'alpha', self._initial_alpha )
         self._embedding_ = simplicial_set_embedding(
             self._raw_data,  # JH why raw data?
             self.graph_,
             self.n_components,
-            self._initial_alpha,
+            init_alpha,
             self._a,
             self._b,
             self.repulsion_strength,
             self.negative_sample_rate,
-            self.n_epochs,
+            nepochs,
             init,
             random_state,
             self._input_distance_func,
             self._metric_kwds,
-            progress_callback,
+            self.parallel,
             self.verbose,
         )
 

@@ -27,6 +27,7 @@ class UMAPManager(QObject,EventClient):
     def __init__(self,  **kwargs ):
         QObject.__init__(self)
         self.point_cloud: PointCloud = PointCloud( )
+        self._point_data = None
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
@@ -63,8 +64,8 @@ class UMAPManager(QObject,EventClient):
 
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
-            point_data = dataEventHandler.getPointData( event, DataType.Embedding )
-            self.embedding( point_data )
+            self._point_data = dataEventHandler.getPointData( event, DataType.Embedding )
+            self.embedding( self._point_data )
         elif event.get('event') == 'labels':
             if event.get('type') == 'clear':
                 activationFlowManager.clear()
@@ -73,7 +74,7 @@ class UMAPManager(QObject,EventClient):
                 self.plotMarkers()
             elif event.get('type') == 'spread':
                 labels: xa.Dataset = event.get('labels')
-                self.point_cloud.set_point_colors( labels['C'] )
+                self.point_cloud.set_point_colors( labels=labels['C'] )
                 self.update_signal.emit({})
             elif event.get('type') == 'distance':
                 labels: xa.Dataset = event.get('labels')
@@ -85,11 +86,10 @@ class UMAPManager(QObject,EventClient):
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
             elif event.get('type') == 'reset':       self.clear()
             elif event.get('type') == 'embed':
-                point_data = dataEventHandler.getPointData(event, DataType.Embedding)
-                self.embed( point_data, labelsManager.labels_data )
+                self.embed( self._point_data, **event )
             elif event.get('type') == 'plot':
                 embedded_data = event.get('value')
-                self.point_cloud.setPoints( embedded_data, labelsManager.labels_data )
+                self.point_cloud.setPoints( embedded_data )
                 self.update_signal.emit( event )
         elif event.get('event') == 'pick':
             etype = event.get('type')
@@ -139,7 +139,7 @@ class UMAPManager(QObject,EventClient):
         return int( dataManager.config.value(key) )
 
     def color_pointcloud( self, labels: xa.DataArray, **kwargs ):
-        self.point_cloud.set_point_colors( labels.values, **kwargs )
+        self.point_cloud.set_point_colors( labels = labels.values, **kwargs )
 
     def clear_pointcloud(self):
         self.point_cloud.clear()

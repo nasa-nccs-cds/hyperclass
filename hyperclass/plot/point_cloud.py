@@ -59,8 +59,8 @@ class PointCloud():
         print( f" PointCloud.process_event: {event}")
 
     def setPoints(self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
-        self.initPolyData(points)
-        if labels is not None: self.set_point_colors( labels )
+        self.initPolyData( points, **kwargs )
+        if labels is not None: self.set_point_colors( labels = labels )
         self.initMarkers( **kwargs )
 
     def getPolydata(self):
@@ -117,18 +117,21 @@ class PointCloud():
             vtkpts.SetActiveScalars('colors')
             vtkpts.Modified()
 
-    def set_point_colors( self, sample_labels: np.array = None, **kwargs ):
+    def set_point_colors( self, **kwargs ):
         if self.polydata is None:
             print( "Points are not yet available" )
         else:
-            if sample_labels is None:
-                sample_labels = np.full( shape=[ self.polydata.GetPointData().GetNumberOfTuples() ], fill_value= 0 )
-            labels = np.where( sample_labels >= 0, sample_labels, 0 )
-            colors = self.colormap[ labels ]
-            vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
-            vtk_color_data.SetNumberOfComponents( colors.shape[1] )
-            vtk_color_data.SetNumberOfTuples( colors.shape[0] )
-            vtk_color_data.SetName('colors')
+            vtk_color_data = kwargs.get( 'data', None )
+            if vtk_color_data is None:
+                sample_labels = kwargs.get( 'labels', None )
+                if sample_labels is None:
+                    sample_labels = np.full( shape=[ self.polydata.GetPointData().GetNumberOfTuples() ], fill_value= 0 )
+                labels = np.where( sample_labels >= 0, sample_labels, 0 )
+                colors = self.colormap[ labels ]
+                vtk_color_data: vtk.vtkUnsignedCharArray  = npsup.numpy_to_vtk( colors.ravel(), deep=1, array_type=npsup.get_vtk_array_type(np.uint8) )
+                vtk_color_data.SetNumberOfComponents( colors.shape[1] )
+                vtk_color_data.SetNumberOfTuples( colors.shape[0] )
+                vtk_color_data.SetName('colors')
             vtkpts = self.polydata.GetPointData()
             vtkpts.SetScalars(vtk_color_data)
             vtkpts.SetActiveScalars('colors')
@@ -159,6 +162,8 @@ class PointCloud():
 
     def initPolyData( self, np_points_data: Optional[np.ndarray] = None, **kwargs ):
         vtk_points = vtk.vtkPoints()
+        update_colors = kwargs.get( 'update_colors', False )
+        vtk_color_data = None if update_colors or (self.polydata is None) else self.polydata.GetPointData().GetScalars('colors')
         self.polydata = vtk.vtkPolyData()
         self.polydata.SetPoints( vtk_points )
         vertices = vtk.vtkCellArray()
@@ -175,7 +180,7 @@ class PointCloud():
             np_cell_data = np.dstack(( cell_sizes, np_index_seq) )
             vtk_cell_data = npsup.numpy_to_vtkIdTypeArray( np_cell_data.ravel(), deep=1 )
             vertices.SetCells( cell_sizes.size, vtk_cell_data )
-            self.set_point_colors(  )
+            self.set_point_colors( data = vtk_color_data )
             self.polydata.Modified()
             self.points_modified = True
 
