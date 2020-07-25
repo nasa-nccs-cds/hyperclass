@@ -65,7 +65,7 @@ class UMAPManager(QObject,EventClient):
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             self._point_data = dataEventHandler.getPointData( event, DataType.Embedding )
-            self.embedding( self._point_data )
+            self.embedding( nepochs = 1 )
         elif event.get('event') == 'labels':
             if event.get('type') == 'clear':
                 activationFlowManager.clear()
@@ -86,7 +86,7 @@ class UMAPManager(QObject,EventClient):
             elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
             elif event.get('type') == 'reset':       self.clear()
             elif event.get('type') == 'embed':
-                self.embed( self._point_data, **event )
+                self.embed( **event )
             elif event.get('type') == 'plot':
                 embedded_data = event.get('value')
                 self.point_cloud.setPoints( embedded_data )
@@ -112,11 +112,11 @@ class UMAPManager(QObject,EventClient):
         self.class_colors: OrderedDict[str,List[float]] = labelsManager.toDict( 1.0 )
         self.point_cloud.set_colormap( self.class_colors )
 
-    def embedding( self, point_data: xa.DataArray, ndim: int = 3 ) -> Optional[xa.DataArray]:
-        mapper: UMAP = self.getMapper( point_data.attrs['dsid'], ndim )
+    def embedding( self, ndim: int = 3, **kwargs ) -> Optional[xa.DataArray]:
+        mapper: UMAP = self.getMapper( self._point_data.attrs['dsid'], ndim )
         if mapper.embedding is not None:
-            return self.wrap_embedding(point_data.coords[ point_data.dims[0] ], mapper.embedding )
-        return self.embed( point_data, ndim = ndim )
+            return self.wrap_embedding(self._point_data.coords[ self._point_data.dims[0] ], mapper.embedding )
+        return self.embed( ndim = ndim, **kwargs )
 
     def wrap_embedding(self, ax_samples: xa.DataArray, embedding: np.ndarray, **kwargs )-> xa.DataArray:
         ax_model = np.arange( embedding.shape[1] )
@@ -181,8 +181,8 @@ class UMAPManager(QObject,EventClient):
     #     t2 = time.time()
     #     print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
 
-    def embed( self, point_data: xa.DataArray, labels: xa.DataArray = None, **kwargs ) -> Optional[xa.DataArray]:
-        flow = activationFlowManager.getActivationFlow( point_data )
+    def embed( self, labels: xa.DataArray = None, **kwargs ) -> Optional[xa.DataArray]:
+        flow = activationFlowManager.getActivationFlow( self._point_data )
         if flow.nnd is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
             self.submitEvent( event, EventMode.Gui )
@@ -190,30 +190,30 @@ class UMAPManager(QObject,EventClient):
         ndim = kwargs.get( "ndim", 3 )
         init_method = dataManager.config.value("umap/init", "random")
         t0 = time.time()
-        mapper = self.getMapper( point_data.attrs['dsid'], ndim )
+        mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
         mapper.flow = flow
         t1 = time.time()
         labels_data = None if labels is None else labels.values
-        if point_data.shape[1] <= ndim:
-            mapper.set_embedding( point_data )
+        if self._point_data.shape[1] <= ndim:
+            mapper.set_embedding( self._point_data )
         else:
-            print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {point_data.shape[0]} samples")
+            print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {self._point_data.shape[0]} samples")
             if mapper.embedding is not None:
                 mapper.init = mapper.embedding
             elif init_method == "autoencoder":
-                mapper.init = reductionManager.reduce( point_data.data, init_method, ndim )
+                mapper.init = reductionManager.reduce( self._point_data.data, init_method, ndim )
             etype = self.embedding_type.lower()
             if etype == "umap":
-                mapper.embed(point_data.data, flow.nnd, labels_data, **kwargs)
+                mapper.embed(self._point_data.data, flow.nnd, labels_data, **kwargs)
             elif etype == "spectral":
-                mapper.spectral_embed(point_data.data, flow.nnd, labels_data, **kwargs)
+                mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
             else: raise Exception( f" Unknown embedding type: {etype}")
         if ndim == 3:
             self.point_cloud.setPoints(mapper.embedding, labels_data)
         t2 = time.time()
         self.update_signal.emit({})
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )
-        return self.wrap_embedding(point_data.coords['samples'], mapper.embedding )
+        return self.wrap_embedding( self._point_data.coords['samples'], mapper.embedding )
 
     @property
     def conf_keys(self) -> List[str]:
