@@ -5,7 +5,7 @@ import numpy as np
 from hyperclass.gui.dialog import DialogBase
 from hyperclass.reduction.manager import reductionManager
 from hyperclass.gui.labels import labelsManager, Marker
-from hyperclass.data.events import dataEventHandler
+from functools import partial
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.events import EventClient, EventMode
@@ -24,6 +24,11 @@ cfg_str = lambda x:  "-".join( [ str(i) for i in x ] )
 class UMAPManager(QObject,EventClient):
     update_signal = pyqtSignal(dict)
 
+    UNDEF = -1
+    INIT = 0
+    NEW_DATA = 1
+    PROCESSED = 2
+
     def __init__(self,  **kwargs ):
         QObject.__init__(self)
         self.point_cloud: PointCloud = PointCloud( )
@@ -31,12 +36,14 @@ class UMAPManager(QObject,EventClient):
         self._gui: VTKFrame = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
+        self._state = self.UNDEF
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self._current_mapper: UMAP = None
         self.setClassColors()
         self.update_signal.connect( self.update )
-
+        self.menu_actions = OrderedDict( Plots =  [ [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
+                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
     def gui( self ):
         if self._gui is None:
             self._gui = VTKFrame( self.point_cloud )
@@ -46,9 +53,17 @@ class UMAPManager(QObject,EventClient):
     @classmethod
     def config_gui(cls, base: DialogBase ):
         nNeighborsSelector = base.createComboSelector( "#Neighbors: ", list(range( 2, 16) ), "umap/nneighbors", 8 )
-        nEpochsSelector = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs", 300 )
         initSelector = base.createComboSelector( "Initialization: ", [ "random", "spectral", "autoencoder" ], "umap/init", "random" )
-        return base.createGroupBox( "embedding", [nNeighborsSelector, nEpochsSelector, initSelector] )
+
+        nEpochsSelector0 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs0", 200 )
+        alphaSelector0 = base.createComboSelector("alpha: ", np.arange(0.1, 2.0, 0.1 ).tolist(), "umap/alpha0", 1.0)
+        embedBox = base.createGroupBox("embed", [nEpochsSelector0, alphaSelector0])
+
+        nEpochsSelector1 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs1", 100 )
+        alphaSelector1 = base.createComboSelector("alpha: ", np.arange(0.1, 1.0, 0.1 ).tolist(), "umap/alpha1", 0.2 )
+        reEmbedBox = base.createGroupBox("reEmbed", [nEpochsSelector1, alphaSelector1] )
+
+        return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, embedBox, reEmbedBox ] )
 
     def plotMarkers(self, **kwargs ):
         reset = kwargs.get( 'reset', False )
@@ -65,31 +80,29 @@ class UMAPManager(QObject,EventClient):
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             self._point_data = dataEventHandler.getPointData( event, DataType.Embedding )
-            self.embedding( nepochs = 1 )
-        elif event.get('event') == 'labels':
-            if event.get('type') == 'clear':
-                activationFlowManager.clear()
-                self.plotMarkers( reset=True )
-            elif event.get('type') == 'undo':
-                self.plotMarkers()
-            elif event.get('type') == 'spread':
-                labels: xa.Dataset = event.get('labels')
-                self.point_cloud.set_point_colors( labels=labels['C'] )
-                self.update_signal.emit({})
-            elif event.get('type') == 'distance':
-                labels: xa.Dataset = event.get('labels')
-                D = labels['D']
-                self.point_cloud.color_by_metric( D )
-                self.update_signal.emit({})
+            self._state = self.INIT
+            self.embedding()
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
-            elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState( event )
-            elif event.get('type') == 'reset':       self.clear()
-            elif event.get('type') == 'embed':
-                self.embed( **event )
-            elif event.get('type') == 'plot':
-                embedded_data = event.get('value')
-                self.point_cloud.setPoints( embedded_data )
+            elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState()
+            else:
+                if event.get('type') == 'clear':
+                    activationFlowManager.clear()
+                    self.plotMarkers( reset=True )
+                elif event.get('type') == 'undo':
+                    self.plotMarkers( reset = True )
+                elif event.get('type') == 'spread':
+                    labels: xa.Dataset = event.get('labels')
+                    self.point_cloud.set_point_colors( labels=labels['C'] )
+                elif event.get('type') == 'distance':
+                    labels: xa.Dataset = event.get('labels')
+                    D = labels['D']
+                    self.point_cloud.color_by_metric( D )
+                elif event.get('type') == 'reset':       self.clear()
+                elif event.get('type') == 'embed':       self.embed( **event )
+                elif event.get('type') == 'plot':
+                    embedded_data = event.get('value')
+                    self.point_cloud.setPoints( embedded_data )
                 self.update_signal.emit( event )
         elif event.get('event') == 'pick':
             etype = event.get('type')
@@ -97,8 +110,9 @@ class UMAPManager(QObject,EventClient):
                 if self._current_mapper is not None:
                     try:
                         pid = event.get('pid')
-                        cid = event.get('cid', labelsManager.selectedClass )
-                        color = labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
+                        mark = event.get('mark')
+                        cid = labelsManager.selectedClass if mark else 0
+                        color =  labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
                         embedding = self._current_mapper.embedding
                         transformed_data: np.ndarray = embedding[ [pid] ]
                         labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
@@ -127,9 +141,8 @@ class UMAPManager(QObject,EventClient):
         mapper = self._mapper.get( mid )
         if ( mapper is None ):
             n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
-            n_epochs = dataManager.config.value("umap/nepochs", type=int)
             init = dataManager.config.value("umap/init", "random")
-            parms = dict( n_neighbors=n_neighbors, n_epochs=n_epochs, init=init ); parms.update( **self.conf, n_components=ndim )
+            parms = dict( n_neighbors=n_neighbors, init=init ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         self._current_mapper = mapper
@@ -181,7 +194,7 @@ class UMAPManager(QObject,EventClient):
     #     t2 = time.time()
     #     print(f"Completed computing  mixing space in {(t2 - t1)/60.0} min")
 
-    def embed( self, labels: xa.DataArray = None, **kwargs ) -> Optional[xa.DataArray]:
+    def embed( self, **kwargs ) -> Optional[xa.DataArray]:
         flow = activationFlowManager.getActivationFlow( self._point_data )
         if flow.nnd is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
@@ -189,11 +202,21 @@ class UMAPManager(QObject,EventClient):
             return None
         ndim = kwargs.get( "ndim", 3 )
         init_method = dataManager.config.value("umap/init", "random")
+        if self._state == self.INIT:
+            kwargs['nepochs'] = 1
+            self._state = self.NEW_DATA
+        elif self._state == self.NEW_DATA:
+            kwargs['nepochs'] = dataManager.config.value("umap/nepochs0", type=int)
+            kwargs['alpha'] = dataManager.config.value("umap/alpha0", type=float)
+            self._state = self.PROCESSED
+        elif self._state == self.PROCESSED:
+            kwargs['nepochs'] = dataManager.config.value("umap/nepochs1", type=int)
+            kwargs['alpha'] = dataManager.config.value("umap/alpha1", type=float)
         t0 = time.time()
         mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
         mapper.flow = flow
         t1 = time.time()
-        labels_data = None if labels is None else labels.values
+        labels_data: np.ndarray = labelsManager.labels_data().values
         if self._point_data.shape[1] <= ndim:
             mapper.set_embedding( self._point_data )
         else:
@@ -208,10 +231,10 @@ class UMAPManager(QObject,EventClient):
             elif etype == "spectral":
                 mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
             else: raise Exception( f" Unknown embedding type: {etype}")
-        if ndim == 3:
-            self.point_cloud.setPoints(mapper.embedding, labels_data)
+#        if ndim == 3:
+#            self.point_cloud.setPoints(mapper.embedding, labels_data)
         t2 = time.time()
-        self.update_signal.emit({})
+#        self.update_signal.emit({})
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )
         return self.wrap_embedding( self._point_data.coords['samples'], mapper.embedding )
 

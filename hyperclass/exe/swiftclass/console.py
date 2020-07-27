@@ -3,10 +3,10 @@ from hyperclass.gui.application import HCApplication
 import sys
 from hyperclass.gui.labels import labelsManager
 
-classes = [ ('Quasar', [1.0, 0.0, 0.0, 1.0]),
-            ('Pulsar', [0.0, 1.0, 0.0, 1.0]),
-            ('BlackHole', [1.0, 0.0, 1.0, 1.0]),
-            ('BinaryStar', [0.0, 0.0, 1.0, 1.0])]
+classes = [ ('class-1', [1.0, 0.0, 0.0, 1.0]),
+            ('class-2', [0.0, 1.0, 0.0, 1.0]),
+            ('class-3', [1.0, 0.0, 1.0, 1.0]),
+            ('class-4', [0.0, 0.0, 1.0, 1.0])]
 
 
 app = HCApplication()

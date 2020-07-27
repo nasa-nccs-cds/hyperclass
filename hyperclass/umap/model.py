@@ -1821,6 +1821,7 @@ class UMAP(BaseEstimator):
 
         nepochs = kwargs.get( 'nepochs', self.n_epochs )
         init_alpha = kwargs.get( 'alpha', self._initial_alpha )
+        print( f"Computing umap embedding with nepochs = {nepochs}, alpha = {init_alpha}" )
         self._embedding_ = simplicial_set_embedding(
             self._raw_data,  # JH why raw data?
             self.graph_,

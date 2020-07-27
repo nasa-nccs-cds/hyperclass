@@ -32,7 +32,7 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
             picked_point = picker.GetPointId()
             if picked_point >= 0:
                 print( f"Picked point {picked_point}, tolerance = {picker.GetTolerance()}, useCells = {picker.GetUseCells()}, nprops = {picker.GetPickList().GetNumberOfItems()}")
-                event = dict(event="pick", type="vtkpoint", pid=picked_point, transient=True)
+                event = dict(event="pick", type="vtkpoint", pid=picked_point, transient=True, mark=True )
                 self.submitEvent( event, EventMode.Gui )
             else:
                 print(f"Point pick failed")
@@ -100,6 +100,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.vtkWidget.setRenderer( self.renderer )
         self.setLayout(self.vl)
         self._key_state = None
+        self._key_state_modifiers = None
 
     @property
     def keyState(self):
@@ -107,6 +108,7 @@ class VTKFrame(QtWidgets.QFrame):
 
     def setKeyState(self, event ):
         self._key_state = event.get('key')
+        self._key_state_modifiers = event.get('modifiers')
         k = self._key_state
         k0 = Qt.Key_Control
         k1 = Qt.Key_Meta
@@ -115,9 +117,9 @@ class VTKFrame(QtWidgets.QFrame):
         if self._key_state == Qt.Key_Control:
             self.vtkWidget.iren.pick_enabled = True
 
-    def releaseKeyState(self, event ):
-        print( f'releaseKeyState: {event}')
+    def releaseKeyState( self ):
         self._key_state = None
+        self._key_state_modifiers = None
         self.vtkWidget.iren.pick_enabled = False
 
     @property

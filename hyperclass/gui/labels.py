@@ -42,6 +42,9 @@ class Marker:
         self.cid = cid
         self.pid = pid
 
+    def changeLocation(self, points: np.ndarray ):
+        self.location = points[ self.pid ].tolist()
+
     def isTransient(self):
         return self.cid == 0
 
@@ -86,10 +89,9 @@ class LabelsManager(QObject,EventClient):
         for marker in self._markers:
             self._labels_data[ marker.pid ] = marker.cid
 
-    @property
-    def labels_data(self) -> xa.DataArray:
+    def labels_data(self, copy = False ) -> xa.DataArray:
         self.updateLabels()
-        return self._labels_data
+        return self._labels_data.copy( copy )
 
     @classmethod
     def getSortedLabels(self, labels_dset: xa.Dataset ) -> Tuple[np.ndarray,np.ndarray]:
@@ -102,14 +104,14 @@ class LabelsManager(QObject,EventClient):
         filtered_distance = distance[selection]
         return filtered_labels, filtered_distance
 
-    def spread(self, n_iters = None) -> Optional[xa.Dataset]:
+    def spread(self, n_iters = None, update_labels = True ) -> Optional[xa.Dataset]:
         if self._flow is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )
             self.submitEvent( event, EventMode.Gui )
             return None
-        self.updateLabels()
+        labels_data = self.labels_data( not update_labels )
         niters = self.n_spread_iters if n_iters is None else n_iters
-        return self._flow.spread( self._labels_data, niters )
+        return self._flow.spread( labels_data, niters )
 
     def clearTransient(self):
         if len(self._markers) > 0 and self._markers[-1].cid == 0:
@@ -118,16 +120,19 @@ class LabelsManager(QObject,EventClient):
     def clearMarkers(self):
         self._markers = []
         self.initLabelsData()
-        event = dict( event="labels", type="clear" )
+        event = dict( event="gui", type="clear" )
         self.submitEvent( event, EventMode.Gui )
 
     def addMarker(self, marker: Marker ):
         self.clearTransient()
         self._markers.append(marker)
 
+    def moveMarkers(self, points: np.ndarray, **kwargs):
+        for marker in self._markers: marker.changeLocation( points )
+
     def popMarker(self) -> Marker:
         marker = self._markers.pop( -1 ) if len( self._markers ) else None
-        event = dict( event="labels", type="undo", marker=marker )
+        event = dict( event="gui", type="undo", marker=marker )
         self.submitEvent( event, EventMode.Gui )
         return marker
 
@@ -220,12 +225,12 @@ class LabelsManager(QObject,EventClient):
         elif etype == "neighbors":
             new_classes: Optional[xa.DataArray] = self.spread()
             if new_classes is not None:
-                event = dict( event="labels", type="spread", labels=new_classes )
+                event = dict( event="gui", type="spread", labels=new_classes )
                 self.submitEvent( event, EventMode.Gui )
         elif etype == "distance":
-            new_classes: Optional[xa.DataArray] = self.spread(100)
+            new_classes: Optional[xa.DataArray] = self.spread( 100, False )
             if new_classes is not None:
-                event = dict(event="labels", type="distance", labels=new_classes)
+                event = dict(event="gui", type="distance", labels=new_classes)
                 self.submitEvent(event, EventMode.Gui)
         elif etype == "embed":
             event = dict( event="gui", type="embed", alpha = 0.25 )

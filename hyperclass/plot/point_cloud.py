@@ -61,7 +61,7 @@ class PointCloud():
     def setPoints(self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData( points, **kwargs )
         if labels is not None: self.set_point_colors( labels = labels )
-        self.initMarkers( **kwargs )
+        self.updateMarkers( points, **kwargs )
 
     def getPolydata(self):
         return self.polydata
@@ -194,8 +194,13 @@ class PointCloud():
         self.initPolyData()
         self.initMarkers()
 
-    def initMarkers( self, **kwargs ):
+    def updateMarkers(self, points: np.ndarray, **kwargs ):
+        labelsManager.moveMarkers( points, **kwargs )
+        self.plotMarkers(reset=True)
+
+    def initMarkers( self, clear: bool = True, **kwargs ):
         if self.marker_actor is None:
+            clear = True
             marker_size = kwargs.get( 'marker_size', 10 )
             self.markers = vtk.vtkPolyData()
             self.marker_mapper = vtk.vtkPolyDataMapper()
@@ -203,23 +208,24 @@ class PointCloud():
             self.marker_actor = vtk.vtkActor()
             self.marker_actor.GetProperty().SetPointSize( marker_size )
             self.marker_actor.SetMapper( self.marker_mapper )
-        self.marker_points = vtk.vtkPoints()
-        self.marker_verts  = vtk.vtkCellArray()
-        self.marker_colors = vtk.vtkUnsignedCharArray()
-        self.marker_colors.SetNumberOfComponents(3)
-        self.marker_colors.SetName("colors")
-        self.markers.SetPoints( self.marker_points )
-        self.markers.SetVerts( self.marker_verts )
-        self.markers.GetPointData().SetScalars(self.marker_colors)
-        self.markers.GetPointData().SetActiveScalars('colors')
-        self.markers.Modified()
-        self.marker_actor.Modified()
-        self.marker_mapper.Modified()
+        if clear:
+            self.marker_points = vtk.vtkPoints()
+            self.marker_verts  = vtk.vtkCellArray()
+            self.marker_colors = vtk.vtkUnsignedCharArray()
+            self.marker_colors.SetNumberOfComponents(3)
+            self.marker_colors.SetName("colors")
+            self.markers.SetPoints( self.marker_points )
+            self.markers.SetVerts( self.marker_verts )
+            self.markers.GetPointData().SetScalars(self.marker_colors)
+            self.markers.GetPointData().SetActiveScalars('colors')
+            self.markers.Modified()
+            self.marker_actor.Modified()
+            self.marker_mapper.Modified()
 
     def plotMarkers(self, **kwargs  ):
         reset = kwargs.get( 'reset', False )
         if reset:
-            self.initMarkers( )
+            self.initMarkers()
         for marker in labelsManager.getMarkers():
             id = self.marker_points.InsertNextPoint( *marker.location  )
             self.marker_verts.InsertNextCell(1)

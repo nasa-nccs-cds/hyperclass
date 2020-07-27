@@ -65,6 +65,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.activate_event_listening()
 
         self.gui.setGeometry(self.left, self.top, self.width, self.height)
+        self.addMenues( self.gui.mainMenu, self.umgr.menu_actions )
         self.showMessage('Ready')
 
         widget =  QWidget( self.gui )

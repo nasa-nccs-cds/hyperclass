@@ -128,11 +128,12 @@ class DialogBase(QDialog):
         fileSelection.addWidget( selectButton )
         return fileSelection
 
-    def createGroupBox(self, label: str, widget_layouts: List[QLayout] ) -> QGroupBox :
+    def createGroupBox(self, label: str, widget_layouts: List[ Union[QLayout,QWidget] ] ) -> QGroupBox :
         groupBox = QGroupBox(label)
         box_layout = QVBoxLayout()
         for widget_layout in widget_layouts:
-            box_layout.addLayout( widget_layout )
+            try: box_layout.addLayout( widget_layout  )
+            except: box_layout.addWidget( widget_layout  )
         groupBox.setLayout( box_layout )
         return groupBox
 
