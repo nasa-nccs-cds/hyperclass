@@ -62,7 +62,7 @@ class DialogBase(QDialog):
         self.resize( 800, 400)
 
     def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None,
-                            update_dialog: bool = False, callback: Callable[[int],None] = None ) -> QLayout:
+                            update_dialog: bool = False, callback: Callable[[str],None] = None ) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
         comboBox = QComboBox()
         label = QLabel( label_text )
@@ -72,9 +72,10 @@ class DialogBase(QDialog):
         sizeSelectorLayout.addWidget( label )
         sizeSelectorLayout.addWidget(comboBox)
         def selectionchange( index ):
-            self.settings.setValue( settings_key, comboBox.currentText() )
+            value = comboBox.currentText()
+            self.settings.setValue( settings_key, value )
             if update_dialog: self.addContent()
-            if callback: callback( index )
+            if callback: callback( value )
         comboBox.currentIndexChanged.connect( selectionchange )
         self.settings.setValue(settings_key, comboBox.currentText())
         return sizeSelectorLayout

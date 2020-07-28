@@ -54,7 +54,7 @@ class SpectralPlot(QObject,EventClient):
     def activate( self, active: bool  ):
         self._active = active
         if self._active and (self.current_pid >= 0):
-            event = dict( event="pick", type="plot", pid=self.current_pid, cid=0 )
+            event = dict( event="pick", type="plot", pids=[self.current_pid], cid=0 )
             self.submitEvent(event, EventMode.Gui)
 
     def init( self ):
@@ -115,21 +115,21 @@ class SpectralPlot(QObject,EventClient):
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 if  self.ploty is not None:
-                    pid = event.get('pid')
-                    if pid >= 0:
-                        self.current_pid = event.get('pid')
-                        current_line = self.lines.get( self.current_pid, None )
-                        if (current_line is not None) and (current_line.cid > 0):    cid = current_line.cid
-                        else:                                                        cid = labelsManager.selectedClass
-                        labelsManager.setClassIndex( cid )
-                        self.clear_transients()
-                        print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
-                        self.plot_spectrum( cid, labelsManager.selectedColor )
-                        if self._titles is not None:
-                            self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
-                        self.update_marker()
-                        self.axes.set_title( "", {}, 'right' )
-                        self.update_signal.emit()
+                    for pid in event.get('pids'):
+                        if pid >= 0:
+                            self.current_pid = pid
+                            current_line = self.lines.get( self.current_pid, None )
+                            if (current_line is not None) and (current_line.cid > 0):    cid = current_line.cid
+                            else:                                                        cid = labelsManager.selectedClass
+                            labelsManager.setClassIndex( cid )
+                            self.clear_transients()
+                            print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
+                            self.plot_spectrum( cid, labelsManager.selectedColor )
+                            if self._titles is not None:
+                                self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
+                            self.update_marker()
+                            self.axes.set_title( "", {}, 'right' )
+                            self.update_signal.emit()
         elif event.get('event') == 'gui':
             if event.get('type') =='reset':
                 self.clear()

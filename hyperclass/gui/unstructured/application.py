@@ -44,9 +44,9 @@ class UnstructuredAppMainWindow(HCMainWindow):
         taskRunner.kill_all_tasks()
 
     def reinitDataset(self):
+        taskRunner.kill_all_tasks()
         event = dict(event='gui', type='reinit', label='reinit dataset' )
         self.submitEvent(event, EventMode.Gui)
-        taskRunner.kill_all_tasks()
 
     def getPreferencesDialog(self):
         from hyperclass.config.inputs import RuntimeDialog

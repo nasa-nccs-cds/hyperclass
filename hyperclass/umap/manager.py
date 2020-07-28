@@ -51,24 +51,26 @@ class UMAPManager(QObject,EventClient):
         return self._gui
 
     @classmethod
-    def newinit( cls, index: int ):
-        event = dict( event='gui', type='newinit', index=index )
-        taskRunner.submitEvent( event )
+    def newinit( cls, init_method: str ):
+        event = dict( event='gui', type='newinit', method=init_method )
+        taskRunner.submitEvent( event, EventMode.Foreground )
 
     @classmethod
     def config_gui(cls, base: DialogBase ):
         nNeighborsSelector = base.createComboSelector( "#Neighbors: ", list(range( 2, 16) ), "umap/nneighbors", 8 )
-        initSelector = base.createComboSelector( "Initialization: ", [ "random", "spectral", "autoencoder" ], "umap/init", "random", callback=cls.newinit )
+        initSelector = base.createComboSelector( "Initialization: ", [ "random",  "autoencoder" ], "umap/init", "random", callback=cls.newinit )  # "spectral",
 
-        nEpochsSelector0 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs0", 200 )
-        alphaSelector0 = base.createComboSelector("alpha: ", np.arange(0.1, 2.0, 0.1 ).tolist(), "umap/alpha0", 1.0)
-        embedBox = base.createGroupBox("embed", [nEpochsSelector0, alphaSelector0])
+        nEpochsSelector = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs", 200 )
+        alphaSelector = base.createComboSelector("alpha: ", np.arange(0.1, 2.0, 0.1 ).tolist(), "umap/alpha", 1.0)
+        target_weightSelector = base.createComboSelector("target_weight: ", np.arange( 0.1, 1.0, 0.1 ).tolist(), "umap/target_weight", 0.5)
 
-        nEpochsSelector1 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs1", 100 )
-        alphaSelector1 = base.createComboSelector("alpha: ", np.arange(0.1, 1.0, 0.1 ).tolist(), "umap/alpha1", 0.2 )
-        reEmbedBox = base.createGroupBox("reEmbed", [nEpochsSelector1, alphaSelector1] )
+#        embedBox = base.createGroupBox("embed", [nEpochsSelector0, alphaSelector0])
 
-        return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, embedBox, reEmbedBox ] )
+        # nEpochsSelector1 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs1", 100 )
+        # alphaSelector1 = base.createComboSelector("alpha: ", np.arange(0.1, 1.0, 0.1 ).tolist(), "umap/alpha1", 0.2 )
+        # reEmbedBox = base.createGroupBox("reEmbed", [nEpochsSelector1, alphaSelector1] )
+
+        return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, nEpochsSelector, alphaSelector, target_weightSelector ] )
 
     def plotMarkers(self, **kwargs ):
         reset = kwargs.get( 'reset', False )
@@ -107,12 +109,16 @@ class UMAPManager(QObject,EventClient):
                 elif event.get('type') == 'embed':       self.embed( **event )
                 elif event.get('type') == 'newinit':
                     self._state = self.INIT
-                    mapper = self.getMapper( self._point_data.attrs['dsid'], **event )
-                    mapper.clear_initialization()
+                    if self._point_data is not None:
+                        ndim = event.get('ndim', 3)
+                        mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
+                        mapper.clear_initialization()
                 elif event.get('type') == 'reinit':
                     ndim = event.get('ndim',3)
                     mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
-                    self.point_cloud.setPoints( mapper.initial )
+                    mapper.clear_embedding()
+                    if self._state == self.INIT: self.embed()
+                    self.point_cloud.setPoints( mapper.embedding )
                 elif event.get('type') == 'plot':
                     embedded_data = event.get('value')
                     self.point_cloud.setPoints( embedded_data )
@@ -122,13 +128,14 @@ class UMAPManager(QObject,EventClient):
             if etype in [ 'directory', "vtkpoint", "plot" ]:
                 if self._current_mapper is not None:
                     try:
-                        pid = event.get('pid')
+                        pids = event.get('pids')
                         mark = event.get('mark')
                         cid = labelsManager.selectedClass if mark else 0
                         color =  labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
                         embedding = self._current_mapper.embedding
-                        transformed_data: np.ndarray = embedding[ [pid] ]
-                        labelsManager.addMarker( Marker( transformed_data.tolist(), color, pid, cid ) )
+                        transformed_data: np.ndarray = embedding[ pids ].tolist()
+                        for ip, pid in enumerate(event.get('pids')):
+                            labelsManager.addMarker( Marker( transformed_data[ip], color, pid, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit({})
                     except Exception as err:
@@ -155,7 +162,8 @@ class UMAPManager(QObject,EventClient):
         if ( mapper is None ):
             n_neighbors = dataManager.config.value("umap/nneighbors", type=int)
             init = dataManager.config.value("umap/init", "random")
-            parms = dict( n_neighbors=n_neighbors, init=init ); parms.update( **self.conf, n_components=ndim )
+            target_weight = dataManager.config.value( "umap/target_weight", 0.5, type=float )
+            parms = dict( n_neighbors=n_neighbors, init=init, target_weight=target_weight ); parms.update( **self.conf, n_components=ndim )
             mapper = UMAP(**parms)
             self._mapper[mid] = mapper
         self._current_mapper = mapper
@@ -218,13 +226,10 @@ class UMAPManager(QObject,EventClient):
         if self._state == self.INIT:
             kwargs['nepochs'] = 1
             self._state = self.NEW_DATA
-        elif self._state == self.NEW_DATA:
-            kwargs['nepochs'] = dataManager.config.value("umap/nepochs0", type=int)
-            kwargs['alpha'] = dataManager.config.value("umap/alpha0", type=float)
+        else:
+            kwargs['nepochs'] = dataManager.config.value("umap/nepochs", type=int)
+            kwargs['alpha'] = dataManager.config.value("umap/alpha", type=float)
             self._state = self.PROCESSED
-        elif self._state == self.PROCESSED:
-            kwargs['nepochs'] = dataManager.config.value("umap/nepochs1", type=int)
-            kwargs['alpha'] = dataManager.config.value("umap/alpha1", type=float)
         t0 = time.time()
         mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
         mapper.flow = flow
@@ -235,17 +240,19 @@ class UMAPManager(QObject,EventClient):
         else:
             print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {self._point_data.shape[0]} samples")
             if mapper.embedding is not None:
+                mapper.clear_initialization()
                 mapper.init = mapper.embedding
             elif init_method == "autoencoder":
                 mapper.init = reductionManager.reduce( self._point_data.data, init_method, ndim )
-            etype = self.embedding_type.lower()
-            if etype == "umap":
-                mapper.embed(self._point_data.data, flow.nnd, labels_data, **kwargs)
-            elif etype == "spectral":
-                mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
-            else: raise Exception( f" Unknown embedding type: {etype}")
+            else:
+                mapper.init = init_method
+
+            mapper.embed(self._point_data.data, flow.nnd, labels_data, **kwargs)
+
+ #               mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
 #        if ndim == 3:
 #            self.point_cloud.setPoints(mapper.embedding, labels_data)
+
         t2 = time.time()
 #        self.update_signal.emit({})
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )

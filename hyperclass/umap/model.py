@@ -1367,9 +1367,15 @@ class UMAP(BaseEstimator):
     def clear_initialization( self ):
         self._init_embedding_ = None
 
+    def clear_embedding( self ):
+        self._embedding_ = None
+        self.external_embedding = None
+
     @property
     def embedding( self ) ->  np.ndarray:
-        return self.external_embedding.values if self.external_embedding is not None else self._embedding_
+        if self.external_embedding is not None: return self.external_embedding.values
+        if self._embedding_ is not None: return self._embedding_
+        return self._init_embedding_
 
     def _validate_parameters(self):
         if self.set_op_mix_ratio < 0.0 or self.set_op_mix_ratio > 1.0:

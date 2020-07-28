@@ -187,8 +187,8 @@ class LabelingConsole:
         if event['event'] == 'pick':
             transient = event.pop('transient',True)
             if event['type'] == 'vtkpoint':
-                point_index = event['pid']
-                self.mark_point( point_index, transient )
+                for point_index in event['pids']:
+                    self.mark_point( point_index, transient )
             elif event['type'] == 'image':
                 self.add_marker( self.get_image_selection_marker( event ), transient )
         elif event['event'] == 'key':

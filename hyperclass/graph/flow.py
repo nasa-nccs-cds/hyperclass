@@ -9,7 +9,7 @@ from hyperclass.data.spatial.manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QMessageBox
-import os, time, threading
+import os, time, threading, traceback
 
 @numba.njit(fastmath=True,
     locals={
@@ -152,15 +152,20 @@ class ActivationFlow(QObject,EventClient):
         t0 = time.time()
         converged = False
         for iter in range(nIter):
-            iterate_spread_labels( self.I, self.D, self.C, self.P )
-            new_label_count = np.count_nonzero(self.C)
-            if new_label_count == label_count:
-                print( "Converged!" )
-                converged = True
+            try:
+                iterate_spread_labels( self.I, self.D, self.C, self.P )
+                new_label_count = np.count_nonzero(self.C)
+                if new_label_count == label_count:
+                    print( "Converged!" )
+                    converged = True
+                    break
+                else:
+                    label_count = new_label_count
+ #                   print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
+            except Exception as err:
+                print(f"Error in graph flow iteration {iter}:")
+                traceback.print_exc(50)
                 break
-            else:
-                label_count = new_label_count
-                print(f"\n -->> Iter{iter + 1}: #C = {label_count}\n")
 
         t1 = time.time()
         result_attrs = dict( converged=converged, **sample_labels.attrs )

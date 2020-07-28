@@ -49,7 +49,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def activate(self, enable: bool ):
         self._enabled = enable
-        print( f" DirectoryWidget[{self.name}] enabled = {enable}")
+ #       print( f" DirectoryWidget[{self.name}] enabled = {enable}")
 
     def onCellClicked(self, row, col ):
         print( "dir on cell clicked")
@@ -65,12 +65,12 @@ class DirectoryWidget(QWidget,EventClient):
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):
-        print(f" DirectoryWidget[{self.name}] selectRow[{row}], enabled: {self._enabled}")
+ #       print(f" DirectoryWidget[{self.name}] selectRow[{row}], enabled: {self._enabled}")
         if self._enabled and (row >= 0):
             table_item: QTableWidgetItem = self.table.item( row, 0 )
             self._selected_row = row
             mark = rightClick and self.pick_enabled
-            event = dict( event="pick", type="directory", pid=int( table_item.text() ), mark = mark )
+            event = dict( event="pick", type="directory", pids=[int( table_item.text() )], mark = mark )
             self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
@@ -158,22 +158,25 @@ class DirectoryWidget(QWidget,EventClient):
                     mark = event.get('mark')
                     multi = self.shiftEnabled()
                     if multi and mark and (cid>0):
-                        self.sequence_bounds.append(event.get('pid'))
+                        pids = event.get('pids')
+                        self.sequence_bounds.append(pids[0])
                         if len( self.sequence_bounds ) == 2:
                             self.sequence_bounds.sort()
                             self.markRowSequence( *self.sequence_bounds )
                             self.sequence_bounds = []
                     else:
-                        self.current_pid = event.get('pid')
-                        self.selectRowByIndex( self.current_pid, mark )
+                        for pid in event.get('pids'):
+                            self.current_pid = pid
+                            self.selectRowByIndex( self.current_pid, mark )
                 elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
-                    self.current_pid = event.get('pid')
-                    self.addRow( self.current_pid )
-                else:
-                    pid = event.get('pid')
-                    mark = self.pick_enabled and cid > 0
-                    if self.selectRowByIndex(pid,mark):
+                    for pid in event.get('pids'):
                         self.current_pid = pid
+                        self.addRow( self.current_pid )
+                else:
+                    for pid in event.get('pids'):
+                        mark = self.pick_enabled and cid > 0
+                        if self.selectRowByIndex(pid,mark):
+                            self.current_pid = pid
 
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
@@ -214,7 +217,7 @@ class DirectoryWidget(QWidget,EventClient):
         marker = labelsManager.currentMarker
         try:
             if self.selectRowByIndex( marker.pid, True ):
-                event = dict(event="pick", type="directory", pid=marker.pid, mark=True )
+                event = dict(event="pick", type="directory", pids=[marker.pid], mark=True )
                 self.submitEvent(event, EventMode.Gui)
         except Exception as err:
             if marker is None:
@@ -255,7 +258,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._key_state_modifiers = event.get('modifiers')
         if self._key_state == Qt.Key_Control:
             self.pick_enabled = True
-            print( "directory pick enabled" )
+#            print( "directory pick enabled" )
 
     def releaseKeyState( self ):
         self._key_state = None
@@ -302,12 +305,13 @@ class DirectoryWidget(QWidget,EventClient):
         if row_range is None:
             print( "NULL row_range")
         else:
+            pids = []
             for iRow in range( row_range[0], row_range[1]+1 ):
                 item: QTableWidgetItem = self.table.item(iRow, 0)
-                try:
-                    event = dict(event="pick", type="directory", pid=int(item.text()), mark=True)
-                    self.submitEvent(event, EventMode.Gui)
+                try: pids.append( int(item.text()) )
                 except: break
+            event = dict( event="pick", type="directory", pids=pids, mark=True )
+            self.submitEvent(event, EventMode.Gui)
 
         # row_range = self.getRowRange( pid0, pid1 )
         # self.table.clearSelection()

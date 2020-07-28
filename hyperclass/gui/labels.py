@@ -63,6 +63,7 @@ class LabelsManager(QObject,EventClient):
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
         self._labels_data: xa.DataArray = None
+        self._optype = None
         self.template = None
         self.n_spread_iters = 1
 
@@ -89,9 +90,9 @@ class LabelsManager(QObject,EventClient):
         for marker in self._markers:
             self._labels_data[ marker.pid ] = marker.cid
 
-    def labels_data(self, copy = False ) -> xa.DataArray:
+    def labels_data( self ) -> xa.DataArray:
         self.updateLabels()
-        return self._labels_data.copy( copy )
+        return self._labels_data.copy( self._optype == "distance" )
 
     @classmethod
     def getSortedLabels(self, labels_dset: xa.Dataset ) -> Tuple[np.ndarray,np.ndarray]:
@@ -104,12 +105,15 @@ class LabelsManager(QObject,EventClient):
         filtered_distance = distance[selection]
         return filtered_labels, filtered_distance
 
-    def spread(self, n_iters = None, update_labels = True ) -> Optional[xa.Dataset]:
+    def spread(self, optype: str,  n_iters = None ) -> Optional[xa.Dataset]:
         if self._flow is None:
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The data has not yet been loaded" )
             self.submitEvent( event, EventMode.Gui )
             return None
-        labels_data = self.labels_data( not update_labels )
+        resume = ( optype == "neighbors" ) and ( self._optype == "neighbors" )
+        if not resume: self._flow.clear()
+        self._optype = optype
+        labels_data = self.labels_data()
         niters = self.n_spread_iters if n_iters is None else n_iters
         return self._flow.spread( labels_data, niters )
 
@@ -223,12 +227,12 @@ class LabelsManager(QObject,EventClient):
         if etype == "undo":     self.popMarker()
         elif etype == "clear":  self.clearMarkers()
         elif etype == "neighbors":
-            new_classes: Optional[xa.DataArray] = self.spread()
+            new_classes: Optional[xa.DataArray] = self.spread( etype )
             if new_classes is not None:
                 event = dict( event="gui", type="spread", labels=new_classes )
                 self.submitEvent( event, EventMode.Gui )
         elif etype == "distance":
-            new_classes: Optional[xa.DataArray] = self.spread( 100, False )
+            new_classes: Optional[xa.DataArray] = self.spread( etype, 100 )
             if new_classes is not None:
                 event = dict(event="gui", type="distance", labels=new_classes)
                 self.submitEvent(event, EventMode.Gui)
