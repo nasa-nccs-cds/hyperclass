@@ -36,8 +36,8 @@ class HCMainWindow(QMainWindow, EventClient):
         self.setWindowTitle(title)
         self.mainMenu = self.menuBar()
         self.mainMenu.setNativeMenuBar(False)
-        self.fileMenu = self.mainMenu.addMenu('File')
-        self.helpMenu = self.mainMenu.addMenu('Help')
+        self.fileMenu = self.mainMenu.addMenu('App')
+        self.datasetMenu = self.mainMenu.addMenu('Dataset')
         self.addMenuItems()
 
         prefButton = QAction( 'Preferences', self )
@@ -51,6 +51,8 @@ class HCMainWindow(QMainWindow, EventClient):
         exitButton.setStatusTip('Exit application')
         exitButton.triggered.connect(self.close)
         self.fileMenu.addAction(exitButton)
+
+#        self.helpMenu = self.mainMenu.addMenu('Help')
 
     def setPreferences(self):
         preferences =  self.getPreferencesDialog()

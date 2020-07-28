@@ -37,6 +37,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._head_row = 0
         self._selected_row = -1
         self.col_headers = []
+        self.sequence_bounds = []
         self.sort_column = 1
         self.pick_enabled = False
         self._key_state = None
@@ -116,7 +117,6 @@ class DirectoryWidget(QWidget,EventClient):
                     self.table.setItem( row, column, QTableWidgetItem( "" ) )
             for key in self.col_data.keys():
                 self.col_data[key] = []
-        self.col_headers = []
         self.update()
 
     def setRowData(self, row_data: List ) -> QTableWidgetItem:
@@ -138,6 +138,7 @@ class DirectoryWidget(QWidget,EventClient):
     def processEvent( self, event: Dict ):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata: List[xa.DataArray] = dataEventHandler.getMetadata( event )
+            self.col_headers = []
             for colIndeex, mdata_array in enumerate(plot_metadata):
                 if colIndeex == 0:
                     self.nRows = mdata_array.shape[0]
@@ -156,17 +157,22 @@ class DirectoryWidget(QWidget,EventClient):
                 if (self.name == "catalog") or (cid == 0):
                     mark = event.get('mark')
                     multi = self.shiftEnabled()
-                    if multi and mark:
-                        self.markRowSequence(self.current_pid,event.get('pid'))
+                    if multi and mark and (cid>0):
+                        self.sequence_bounds.append(event.get('pid'))
+                        if len( self.sequence_bounds ) == 2:
+                            self.sequence_bounds.sort()
+                            self.markRowSequence( *self.sequence_bounds )
+                            self.sequence_bounds = []
                     else:
                         self.current_pid = event.get('pid')
                         self.selectRowByIndex( self.current_pid, mark )
                 elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     self.current_pid = event.get('pid')
                     self.addRow( self.current_pid )
-                elif (labelsManager.selectedLabel.lower() == "unlabeled") and self.pick_enabled:
+                else:
                     pid = event.get('pid')
-                    if self.selectRowByIndex(pid,False):
+                    mark = self.pick_enabled and cid > 0
+                    if self.selectRowByIndex(pid,mark):
                         self.current_pid = pid
 
         elif event.get('event') == 'gui':
@@ -221,9 +227,13 @@ class DirectoryWidget(QWidget,EventClient):
         for itemRef, d in zip(labels, distance):
             label = labelsManager.labels[ itemRef[1] ]
             if label == self.name: self.addRow( itemRef[0], d )
-        self.sort_column = self.col_headers.index('distance')
-        self.table.sortItems(self.sort_column)
-        self.update()
+        try:
+            self.sort_column = self.col_headers.index('distance')
+            self.table.sortItems(self.sort_column)
+            self.update()
+        except Exception as err:
+            print( f"DirectoryWidget.addExtendedLabels Exception: {err} ")
+            print( f"Col headers: {self.col_headers}" )
 
     def clearMarker(self, marker: Marker ):
         if marker is not None:

@@ -886,9 +886,10 @@ def simplicial_set_embedding(
     n_vertices = graph.shape[1]
     graph.data[graph.data < (graph.data.max() / float(n_epochs))] = 0.0
     graph.eliminate_zeros()
+    init_embedding = None
 
     if isinstance(init, str) and init == "random":
-        embedding = random_state.uniform(
+        init_embedding = random_state.uniform(
             low=-10.0, high=10.0, size=(graph.shape[0], n_components)
         ).astype(np.float32)
     elif isinstance(init, str) and init == "spectral":
@@ -903,9 +904,9 @@ def simplicial_set_embedding(
         )
         expansion = 10.0 / np.abs(initialisation).max()
         spectral_embedding = (initialisation * expansion).astype(np.float32)
-        embedding = spectral_embedding + random_state.normal(scale=0.0001, size=[graph.shape[0], n_components]).astype( np.float32 )
+        init_embedding = spectral_embedding + random_state.normal(scale=0.0001, size=[graph.shape[0], n_components]).astype( np.float32 )
     else:
-        embedding = np.array(init)
+        init_embedding = np.array(init)
         # if len(init_data.shape) == 2:
         #     if np.unique(init_data, axis=0).shape[0] < init_data.shape[0]:
         #         tree = KDTree(init_data)
@@ -923,7 +924,7 @@ def simplicial_set_embedding(
 
     rng_state = random_state.randint(INT32_MIN, INT32_MAX, 3).astype(np.int64)
 
-    embedding = ( 10.0 * ( embedding - np.min(embedding, 0) ) / (np.max(embedding, 0) - np.min(embedding, 0)) ).astype(np.float32, order="C")
+    embedding = ( 10.0 * ( init_embedding - np.min(init_embedding, 0) ) / (np.max(init_embedding, 0) - np.min(init_embedding, 0)) ).astype(np.float32, order="C")
 
     t1 = time.time()
     embedding = optimize_layout_euclidean(
@@ -947,7 +948,7 @@ def simplicial_set_embedding(
 
     print( f"Completed simplicial_set_embedding, times = {(t1-t0)/60.0} {(t2-t1)/60.0} min")
 
-    return embedding
+    return init_embedding, embedding
 
 def optimize_layout_euclidean(
     head_embedding,
@@ -1331,6 +1332,7 @@ class UMAP(BaseEstimator):
         self.repulsion_strength = repulsion_strength
         self.learning_rate = learning_rate
         self._embedding_ = None
+        self._init_embedding_ = None
         self.external_embedding = None
 
         self.spread = spread
@@ -1357,6 +1359,13 @@ class UMAP(BaseEstimator):
 
     def set_embedding(self, embed_ : np.ndarray ):
         self.external_embedding = embed_
+
+    @property
+    def initial( self ) ->  np.ndarray:
+        return self._init_embedding_
+
+    def clear_initialization( self ):
+        self._init_embedding_ = None
 
     @property
     def embedding( self ) ->  np.ndarray:
@@ -1719,12 +1728,15 @@ class UMAP(BaseEstimator):
             self._a = self.a
             self._b = self.b
 
-        if isinstance(self.init, np.ndarray):
-            init = check_array(self.init, dtype=np.float32, accept_sparse=False)
-            print(f"Running umap[{self.n_components}] with init array, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
+        if self._init_embedding_ is not None:
+            init = self._init_embedding_
         else:
-            init = self.init
-            print(f"Running umap[{self.n_components}] with init {init}, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
+            if isinstance(self.init, np.ndarray):
+                init = check_array(self.init, dtype=np.float32, accept_sparse=False)
+                print(f"Running umap[{self.n_components}] with init array, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
+            else:
+                init = self.init
+                print(f"Running umap[{self.n_components}] with init {init}, input shape = {self._raw_data.shape}, #epochs = {self.n_epochs}")
 
         self._initial_alpha = self.learning_rate
         self._validate_parameters()
@@ -1822,7 +1834,7 @@ class UMAP(BaseEstimator):
         nepochs = kwargs.get( 'nepochs', self.n_epochs )
         init_alpha = kwargs.get( 'alpha', self._initial_alpha )
         print( f"Computing umap embedding with nepochs = {nepochs}, alpha = {init_alpha}" )
-        self._embedding_ = simplicial_set_embedding(
+        self._init_embedding_, self._embedding_ = simplicial_set_embedding(
             self._raw_data,  # JH why raw data?
             self.graph_,
             self.n_components,

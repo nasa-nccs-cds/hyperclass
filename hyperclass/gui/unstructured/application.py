@@ -25,16 +25,26 @@ class UnstructuredAppMainWindow(HCMainWindow):
         HCMainWindow.__init__( self, parent, title )
 
     def addMenuItems( self  ):
-        self.load_dataset = self.fileMenu.addMenu("Load Dataset")
+        self.load_dataset = self.datasetMenu.addMenu("load")
 
-        menuButton = QAction( "Clear Dataset", self )
-        menuButton.setStatusTip(f"Clear loaded data & reset to initial state")
+        menuButton = QAction( "reinit", self )
+        menuButton.setStatusTip(f"Return daset to initial state")
+        menuButton.triggered.connect(self.reinitDataset)
+        self.datasetMenu.addAction( menuButton )
+
+        menuButton = QAction( "clear", self )
+        menuButton.setStatusTip(f"Clear loaded data & reset app to initial state")
         menuButton.triggered.connect(self.clearDataset)
-        self.fileMenu.addAction( menuButton )
+        self.datasetMenu.addAction( menuButton )
 
     def clearDataset(self):
         labelsManager.clearMarkers()
         event = dict(event='gui', type='reset', label='clear dataset' )
+        self.submitEvent(event, EventMode.Gui)
+        taskRunner.kill_all_tasks()
+
+    def reinitDataset(self):
+        event = dict(event='gui', type='reinit', label='reinit dataset' )
         self.submitEvent(event, EventMode.Gui)
         taskRunner.kill_all_tasks()
 

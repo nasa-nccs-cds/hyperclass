@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import  QSettings
-from typing import List, Union, Tuple, Optional
+from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 from typing import List
 import sys
 
@@ -61,7 +61,8 @@ class DialogBase(QDialog):
         self.setLayout(self.mainLayout)
         self.resize( 800, 400)
 
-    def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None, update_dialog = False ) -> QLayout:
+    def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None,
+                            update_dialog: bool = False, callback: Callable[[int],None] = None ) -> QLayout:
         sizeSelectorLayout = QHBoxLayout()
         comboBox = QComboBox()
         label = QLabel( label_text )
@@ -73,6 +74,7 @@ class DialogBase(QDialog):
         def selectionchange( index ):
             self.settings.setValue( settings_key, comboBox.currentText() )
             if update_dialog: self.addContent()
+            if callback: callback( index )
         comboBox.currentIndexChanged.connect( selectionchange )
         self.settings.setValue(settings_key, comboBox.currentText())
         return sizeSelectorLayout

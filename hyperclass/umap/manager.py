@@ -51,9 +51,14 @@ class UMAPManager(QObject,EventClient):
         return self._gui
 
     @classmethod
+    def newinit( cls, index: int ):
+        event = dict( event='gui', type='newinit', index=index )
+        taskRunner.submitEvent( event )
+
+    @classmethod
     def config_gui(cls, base: DialogBase ):
         nNeighborsSelector = base.createComboSelector( "#Neighbors: ", list(range( 2, 16) ), "umap/nneighbors", 8 )
-        initSelector = base.createComboSelector( "Initialization: ", [ "random", "spectral", "autoencoder" ], "umap/init", "random" )
+        initSelector = base.createComboSelector( "Initialization: ", [ "random", "spectral", "autoencoder" ], "umap/init", "random", callback=cls.newinit )
 
         nEpochsSelector0 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs0", 200 )
         alphaSelector0 = base.createComboSelector("alpha: ", np.arange(0.1, 2.0, 0.1 ).tolist(), "umap/alpha0", 1.0)
@@ -100,6 +105,14 @@ class UMAPManager(QObject,EventClient):
                     self.point_cloud.color_by_metric( D )
                 elif event.get('type') == 'reset':       self.clear()
                 elif event.get('type') == 'embed':       self.embed( **event )
+                elif event.get('type') == 'newinit':
+                    self._state = self.INIT
+                    mapper = self.getMapper( self._point_data.attrs['dsid'], **event )
+                    mapper.clear_initialization()
+                elif event.get('type') == 'reinit':
+                    ndim = event.get('ndim',3)
+                    mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
+                    self.point_cloud.setPoints( mapper.initial )
                 elif event.get('type') == 'plot':
                     embedded_data = event.get('value')
                     self.point_cloud.setPoints( embedded_data )
