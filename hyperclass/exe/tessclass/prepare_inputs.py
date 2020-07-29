@@ -4,7 +4,7 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 from hyperclass.data.manager import dataManager
 import sys
 
-input_vars = dict( embedding='scaled_lcs', directory = [ "camera", "chip", "dec", 'ra', 'tics', 'tmag' ], plot= dict( y="lcs", x='times' ) )
+input_vars = dict( embedding='scaled_lcs', directory = [ 'tics', "camera", "chip", "dec", 'ra', 'tmag' ], plot= dict( y="lcs", x='times' ) )
 
 app = QApplication(sys.argv)
 dataManager.setProjectName("tessclass")

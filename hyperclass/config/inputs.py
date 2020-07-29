@@ -28,10 +28,11 @@ def prepare_inputs( input_vars, ssample = None ):
 #    values = { k: dataManager.config.value(k) for k in dataManager.config.allKeys() }
     np_embedding = dataManager.getInputFileData( input_vars['embedding'], subsample )
     dims = np_embedding.shape
+    mdata_vars = list(input_vars['directory'])
     xcoords = OrderedDict( samples = np.arange( dims[0] ), bands = np.arange(dims[1]) )
     xdims = OrderedDict( { dims[0]: 'samples', dims[1]: 'bands' } )
     data_vars = dict( embedding = xa.DataArray( np_embedding, dims=xcoords.keys(), coords=xcoords, name=input_vars['embedding'] ) )
-    data_vars.update( { f'dir-{idx}': getXarray( vid, xcoords, subsample, xdims ) for idx, vid in enumerate( input_vars['directory']) } )
+    data_vars.update( { vid: getXarray( vid, xcoords, subsample, xdims ) for vid in mdata_vars } )
     pspec = input_vars['plot']
     data_vars.update( { f'plot-{vid}': getXarray( pspec[vid], xcoords, subsample, xdims, norm=pspec.get('norm','')) for vid in [ 'x', 'y' ] } )
     reduction_method = dataManager.config.value("input.reduction/method",  'None')
@@ -42,6 +43,7 @@ def prepare_inputs( input_vars, ssample = None ):
        data_vars['reduction'] =  xa.DataArray( reduced_spectra, dims=['samples','model'], coords=coords )
 
     dataset = xa.Dataset( data_vars, coords=xcoords, attrs = {'type':'spectra'} )
+    dataset.attrs["colnames"] = mdata_vars
     projId = dataManager.config.value('project/id')
     file_name = f"raw" if reduction_method == "None" else f"{reduction_method}-{ndim}"
     if subsample > 1: file_name = f"{file_name}-ss{subsample}"

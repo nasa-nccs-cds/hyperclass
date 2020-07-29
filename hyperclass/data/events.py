@@ -12,7 +12,7 @@ class DataType(Enum):
 class DataEventHandler:
 
     def __init__(self):
-        self._loaded_data: xa.Dataset = Optional[Union[xa.Dataset,Block]]
+        self._loaded_data: Optional[xa.Dataset] = None
         self._subsample: int = None
 
     def reset( self, event: Dict ):
@@ -77,10 +77,9 @@ class DataEventHandler:
         dset_type = self._loaded_data.attrs.get('type')
         mdata: List[xa.DataArray] = []
         if dset_type == 'spectra':
-            for iDir in range(10):
-                vname = f"dir-{iDir}"
-                if vname not in self._loaded_data.variables.keys(): break
-                mdata.append( dataEventHandler.subsample(  self._loaded_data[vname] ) )
+            colnames = self._loaded_data.attrs['colnames']
+            for colname in colnames:
+                mdata.append( dataEventHandler.subsample(  self._loaded_data[colname] ) )
         return mdata
 
 

@@ -1,13 +1,46 @@
 from PyQt5.QtWidgets import *
 from hyperclass.gui.dialog import DialogBase
 import pathlib, glob
+from functools import partial
 import numpy as np
-from typing import List, Union, Tuple, Optional, Dict
+from typing import List, Union, Tuple, Optional, Dict, Callable
 from PyQt5.QtCore import QSettings, QCoreApplication
 import os, math, pickle
 QCoreApplication.setOrganizationName("ilab")
 QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
 QCoreApplication.setApplicationName("hyperclass")
+
+class SearchBar(QWidget):
+
+    def __init__( self, parent, findCallback: Callable[[str],None], selectCallback: Callable[[str],None] ):
+        QWidget.__init__(self, parent)
+
+        self.main_layout = QHBoxLayout()
+        self.textField = None
+        self.main_layout.setSpacing(5)
+        self.main_layout.setContentsMargins(2,2,2,2)
+
+        self.main_layout.addLayout( self.createInputField( "find", onChange=findCallback ) )
+        self.main_layout.addStretch( )
+        self.main_layout.addLayout( self.createInputField( "select", onReturn=selectCallback ) )
+
+        self.setLayout( self.main_layout )
+
+    def createInputField(self, label_text, **kwargs) -> QLayout:
+        layout = QHBoxLayout()
+        self.textField = QLineEdit("")
+        label = QLabel(label_text)
+        label.setBuddy(self.textField)
+        layout.addWidget(label)
+        layout.addWidget(self.textField)
+        self.textChangedCallback = kwargs.get( 'onChange', None )
+        if self.textChangedCallback: self.textField.textChanged.connect( self.textChangedCallback )
+        self.returnPressedCallback = kwargs.get( 'onReturn', None )
+        if self.returnPressedCallback: self.textField.returnPressed.connect( self.returnPressed )
+        return layout
+
+    def returnPressed( self ):
+        self.returnPressedCallback( self.textField.text() )
 
 class PreferencesDialog(DialogBase):
 

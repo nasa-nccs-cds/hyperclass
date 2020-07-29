@@ -1,5 +1,5 @@
 import xarray as xa
-import time, pickle
+import time, traceback
 import numpy as np
 
 from hyperclass.gui.dialog import DialogBase
@@ -238,16 +238,21 @@ class UMAPManager(QObject,EventClient):
         if self._point_data.shape[1] <= ndim:
             mapper.set_embedding( self._point_data )
         else:
-            print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {self._point_data.shape[0]} samples")
-            if mapper.embedding is not None:
-                mapper.clear_initialization()
-                mapper.init = mapper.embedding
-            elif init_method == "autoencoder":
-                mapper.init = reductionManager.reduce( self._point_data.data, init_method, ndim )
-            else:
-                mapper.init = init_method
+            try:
+                print(f"Completed data prep in {(t1 - t0)} sec, Now fitting umap[{ndim}] with {self._point_data.shape[0]} samples")
+                if mapper.embedding is not None:
+                    mapper.clear_initialization()
+                    mapper.init = mapper.embedding
+                elif init_method == "autoencoder":
+                    mapper.init = reductionManager.reduce( self._point_data.data, init_method, ndim )
+                else:
+                    mapper.init = init_method
 
-            mapper.embed(self._point_data.data, flow.nnd, labels_data, **kwargs)
+                mapper.embed(self._point_data.data, flow.nnd, labels_data, **kwargs)
+            except Exception as err:
+                print( f" Embedding error: {err}")
+                traceback.print_exc(50)
+                return None
 
  #               mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
 #        if ndim == 3:

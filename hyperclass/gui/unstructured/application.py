@@ -37,6 +37,27 @@ class UnstructuredAppMainWindow(HCMainWindow):
         menuButton.triggered.connect(self.clearDataset)
         self.datasetMenu.addAction( menuButton )
 
+        menuButton = QAction( "find", self )
+        menuButton.setStatusTip(f"Find row in table")
+        menuButton.triggered.connect( self.findTableRow )
+        self.editMenu.addAction( menuButton )
+
+        menuButton = QAction( "select", self )
+        menuButton.setStatusTip(f"Select rows in table")
+        menuButton.triggered.connect( self.selectTableRows )
+        self.editMenu.addAction( menuButton )
+
+    def findTableRow(self):
+        print("find")
+        # text: qt.QString = QInputDialog::getText(this, tr("QInputDialog::getText()"),
+        #                              tr("User name:"), QLineEdit::Normal,
+        #                                                           QDir::home().dirName(), & ok);
+        # if (ok & & !text.isEmpty())
+        # textLabel->setText(text);
+
+    def selectTableRows(self):
+        print( "select" )
+
     def clearDataset(self):
         labelsManager.clearMarkers()
         event = dict(event='gui', type='reset', label='clear dataset' )

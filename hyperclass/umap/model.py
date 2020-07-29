@@ -1389,7 +1389,7 @@ class UMAP(BaseEstimator):
         if self.min_dist < 0.0:
             raise ValueError("min_dist cannot be negative")
         if not isinstance(self.init, str) and not isinstance(self.init, np.ndarray):
-            raise ValueError("init must be a string or ndarray")
+            raise ValueError(f"init must be a string or ndarray: {self.init}")
         if isinstance(self.init, str) and self.init not in ("spectral", "random"):
             raise ValueError('string init values must be "spectral" or "random"')
         if (

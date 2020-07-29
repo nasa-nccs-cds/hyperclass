@@ -38,6 +38,7 @@ class HCMainWindow(QMainWindow, EventClient):
         self.mainMenu.setNativeMenuBar(False)
         self.fileMenu = self.mainMenu.addMenu('App')
         self.datasetMenu = self.mainMenu.addMenu('Dataset')
+        self.editMenu = self.mainMenu.addMenu('Edit')
         self.addMenuItems()
 
         prefButton = QAction( 'Preferences', self )

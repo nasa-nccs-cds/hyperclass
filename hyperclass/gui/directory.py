@@ -1,3 +1,4 @@
+from hyperclass.gui.config import SearchBar
 from hyperclass.util.config import tostr
 import xarray as xa, traceback
 from PyQt5.QtCore import *
@@ -30,6 +31,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.name = name
         self.nRows = 0
         self.layout = QVBoxLayout()
+        self.layout.setSpacing(0)
+        self.layout.setContentsMargins(10,2,10,2)
         self.setLayout(self.layout)
         self.table  = QTableWidget( self )
         self.table.cellClicked.connect( self.onCellClicked )
@@ -37,6 +40,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.verticalHeader().sectionClicked.connect( self.onRowSelection )
         self.table.horizontalHeader().sectionClicked.connect( self.onColumnSelection )
         self.layout.addWidget( self.table )
+        self.searchbar = SearchBar( self, self.findRow, self.selectRows )
+        self.layout.addWidget( self.searchbar )
         self.col_data = OrderedDict()
         self.current_pid = None
         self._head_row = 0
@@ -51,6 +56,12 @@ class DirectoryWidget(QWidget,EventClient):
         self._enabled = False
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
+
+    def findRow(self, searchStr: str  ):
+        print( f"FIND: {searchStr}")
+
+    def selectRows(self, searchStr: str  ):
+        print( f"FIND: {searchStr}")
 
     def activate(self, enable: bool ):
         self._enabled = enable
@@ -72,7 +83,7 @@ class DirectoryWidget(QWidget,EventClient):
     def selectRow( self, row: int, rightClick: bool ):
  #       print(f" DirectoryWidget[{self.name}] selectRow[{row}], enabled: {self._enabled}")
         if self._enabled and (row >= 0):
-            table_item: QTableWidgetItem = self.table.item( row, 0 )
+            table_item: QTableWidgetItem = self.table.item( row, self._index_column )
             self._selected_row = row
             mark = rightClick and self.pick_enabled
             event = dict( event="pick", type="directory", pids=[int( table_item.text() )], mark = mark )
@@ -91,8 +102,10 @@ class DirectoryWidget(QWidget,EventClient):
 
     @pyqtSlot()
     def build_table_slot(self):
+        ncols = len(self.col_headers)
         self.table.setRowCount( self.nRows )
-        self.table.setColumnCount( len(self.col_headers) )
+        self.table.setColumnCount(  ncols )
+        self._index_column = ncols - 1
 
         for column, cid in enumerate( self.col_headers ):
             self.table.setColumnWidth( column, 150 )
@@ -144,16 +157,16 @@ class DirectoryWidget(QWidget,EventClient):
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata: List[xa.DataArray] = dataEventHandler.getMetadata( event )
             self.col_headers = []
-            for colIndeex, mdata_array in enumerate(plot_metadata):
-                if colIndeex == 0:
-                    self.nRows = mdata_array.shape[0]
-                    self.col_data['index'] = range(self.nRows) if self.name == "catalog" else []
-                    self.col_headers.append('index')
+            self.nRows = None
+            for mdata_array in plot_metadata:
+                if not self.nRows: self.nRows = mdata_array.shape[0]
                 col_name = mdata_array.attrs['name']
                 self.col_data[col_name] = mdata_array.values.tolist() if self.name == "catalog" else []
                 self.col_headers.append( col_name )
             self.col_data['distance'] = []
             self.col_headers.append('distance')
+            self.col_data['index'] = range(self.nRows) if self.name == "catalog" else []
+            self.col_headers.append('index')
             self.build_table.emit()
         elif event.get('event') == 'pick':
             etype = event.get('type')
@@ -281,7 +294,7 @@ class DirectoryWidget(QWidget,EventClient):
     def getItemByIndex(self, pid: int) -> Optional[QTableWidgetItem]:
         rows = self.table.rowCount()
         for iRow in range( rows ):
-            item: QTableWidgetItem = self.table.item( iRow, 0 )
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             try:
                 if pid == int(item.text()): return item
             except: break
@@ -292,7 +305,7 @@ class DirectoryWidget(QWidget,EventClient):
         pindices = [ pid0, pid1 ]
         row_range = []
         for iRow in range( rows ):
-            item: QTableWidgetItem = self.table.item( iRow, 0 )
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             try:
                 if int(item.text()) in pindices:
                     row_range.append( iRow )
@@ -312,7 +325,7 @@ class DirectoryWidget(QWidget,EventClient):
         else:
             pids = []
             for iRow in range( row_range[0], row_range[1]+1 ):
-                item: QTableWidgetItem = self.table.item(iRow, 0)
+                item: QTableWidgetItem = self.table.item( iRow, self._index_column )
                 try: pids.append( int(item.text()) )
                 except: break
             event = dict( event="pick", type="directory", pids=pids, mark=True )
@@ -336,7 +349,7 @@ class DirectoryWidget(QWidget,EventClient):
         rows = self.table.rowCount()
         rv = False
         for iRow in range( rows ):
-            item: QTableWidgetItem = self.table.item( iRow, 0 )
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             if item == None: break
             try:
                 if pid == int( item.text() ):
@@ -364,7 +377,7 @@ class DirectoryWidget(QWidget,EventClient):
         rows = self.table.rowCount()
         self.table.clearSelection()
         for iRow in range(rows):
-            item: QTableWidgetItem = self.table.item(iRow, 0)
+            item: QTableWidgetItem = self.table.item(iRow, self._index_column )
             if item == None: break
             if pid == int(item.text()):
                 if iRow in self._marked_rows:
@@ -379,7 +392,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.clearSelection()
         self._selected_row = -1
         for iRow in range(rows):
-            item: QTableWidgetItem = self.table.item(iRow, 0)
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             if item == None: break
             if item.text() and (pid == int(item.text())):
                 for column in range(self.table.columnCount()):

@@ -4,7 +4,7 @@ from hyperclass.data.manager import dataManager
 from typing import List, Union, Dict, Callable, Tuple, Optional
 import sys
 
-input_vars = dict( embedding='scaled_specs', directory = [ "obsids", "target_names" ], plot= dict( y="specs", x='spectra_x_axis' ) )
+input_vars = dict( embedding='scaled_specs', directory = [  "target_names", "obsids" ], plot= dict( y="specs", x='spectra_x_axis' ) )
 
 app = QApplication(sys.argv)
 dataManager.setProjectName("swiftclass")
