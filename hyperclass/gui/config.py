@@ -11,9 +11,9 @@ QCoreApplication.setApplicationName("hyperclass")
 
 class PreferencesDialog(DialogBase):
 
-    def __init__( self, proj_name: str, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
+    def __init__( self, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
         self.spatial = spatial
-        super(PreferencesDialog, self).__init__( proj_name, dtype, callback, scope )
+        super(PreferencesDialog, self).__init__( dtype, callback, scope )
 
     def addApplicationContent( self, mainLayout ):
         from hyperclass.umap.manager import UMAPManager
@@ -91,13 +91,13 @@ class SettingsManager:
     def settings_dir(self) -> str:
         return os.path.join( self.root_dir(), 'config' )
 
-    def updateProjectName(self):
-        settings_path = os.path.join( self.system_settings_dir, QCoreApplication.organizationDomain() + "." + QCoreApplication.applicationName() )
-        sorted_inifiles = sorted( glob.glob(f"{settings_path}/*.ini"), key=lambda t: -os.stat(t).st_mtime)
-        self.project_name =  os.path.splitext( os.path.basename( sorted_inifiles[0] ) )[0]
+    # def updateProjectName(self):
+    #     settings_path = os.path.join( self.system_settings_dir, QCoreApplication.organizationDomain() + "." + QCoreApplication.applicationName() )
+    #     sorted_inifiles = sorted( glob.glob(f"{settings_path}/*.ini"), key=lambda t: -os.stat(t).st_mtime)
+    #     self.project_name =  os.path.splitext( os.path.basename( sorted_inifiles[0] ) )[0]
 
     def getSettings( self, scope: QSettings.Scope ) -> QSettings:
-        if self.project_name is None: self.updateProjectName()
+        assert self.project_name is not None, "Failed to set project_name"
         settings = QSettings( QSettings.IniFormat, scope, QCoreApplication.organizationDomain() + "." + QCoreApplication.applicationName(), self.project_name )
         for key, value in self.default_settings.items():
             current = settings.value(key)

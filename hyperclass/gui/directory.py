@@ -1,5 +1,5 @@
 from hyperclass.util.config import tostr
-import xarray as xa
+import xarray as xa, traceback
 from PyQt5.QtCore import *
 from collections import OrderedDict
 from PyQt5.QtWidgets import QWidget, QTableWidgetItem, QAction, QVBoxLayout, QTableWidget
@@ -14,8 +14,13 @@ from PyQt5.QtWidgets import QMessageBox
 class NumericTableWidgetItem(QTableWidgetItem):
 
     def __lt__(self, other):
-        t0, t1 = self.text(), other.text()
-        return float(t0) < float(t1)
+        try:
+            t0, t1 = self.text(), other.text()
+            return float(t0) < float(t1)
+        except:
+            print( f"NumericTableWidget comparison error: {self.text()} < {other.text()}")
+            traceback.print_exc( 50 )
+            return False
 
 class DirectoryWidget(QWidget,EventClient):
     build_table = pyqtSignal()

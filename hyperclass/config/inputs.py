@@ -52,16 +52,14 @@ def prepare_inputs( input_vars, ssample = None ):
 
 class ConfigurationDialog(PreferencesDialog):
 
-    def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
-        dataManager.setProjectName( proj_name )
-        super(ConfigurationDialog, self).__init__( proj_name, DialogBase.CONFIG, callback, scope, spatial=False )
+    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
+        super(ConfigurationDialog, self).__init__( DialogBase.CONFIG, callback, scope, spatial=False )
 
 class PrepareInputsDialog(PreferencesDialog):
 
-    def __init__( self, app_name: Optional[str], input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
+    def __init__( self, input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
         self.inputs = {} if input_vars is None else [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
-        dataManager.setProjectName( app_name )
-        super(PrepareInputsDialog, self).__init__( app_name, DialogBase.DATA_PREP, partial( prepare_inputs, input_vars, subsample ), scope, spatial=False )
+        super(PrepareInputsDialog, self).__init__( DialogBase.DATA_PREP, partial( prepare_inputs, input_vars, subsample ), scope, spatial=False )
 
     def addFileContent( self, inputsLayout: QBoxLayout ):
         for input_file_id in self.inputs:
@@ -77,8 +75,7 @@ class PrepareInputsDialog(PreferencesDialog):
 
 class RuntimeDialog(PreferencesDialog):
 
-    def __init__( self, proj_name: str, callback = None, scope: QSettings.Scope = QSettings.UserScope  ):
-        dataManager.setProjectName( proj_name )
-        super(RuntimeDialog, self).__init__( proj_name, DialogBase.RUNTIME, callback, scope, spatial=False )
+    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope  ):
+        super(RuntimeDialog, self).__init__( DialogBase.RUNTIME, callback, scope, spatial=False )
 
 

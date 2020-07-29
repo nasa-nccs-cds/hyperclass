@@ -13,10 +13,9 @@ class DialogBase(QDialog):
     DATA_PREP = 1
     RUNTIME = 2
 
-    def __init__( self, proj_name: str, dtype: int, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
+    def __init__( self, dtype: int, callback = None, scope: QSettings.Scope = QSettings.UserScope ):
         super(DialogBase, self).__init__(None)
         self.callback = callback
-        self.project_name = proj_name
         self.scope = scope
         self.updateSettings()
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
@@ -36,15 +35,14 @@ class DialogBase(QDialog):
     def getProjectList(self) -> Optional[List[str]]:
         return None
 
-    def updateSettings(self, proj_name = None):
+    def updateSettings(self):
         from hyperclass.data.manager import dataManager
-        if proj_name is not None: self.project_name = proj_name
-        dataManager.setProjectName( self.project_name )
         self.settings: QSettings = dataManager.getSettings(self.scope)
 
     def addContent( self, dtype: int ):
+        from hyperclass.data.manager import dataManager
         self.mainLayout = QVBoxLayout()
-        self.mainLayout.addLayout(self.createComboSelector("Project ID", [self.project_name], "project/id", self.project_name ) )
+        self.mainLayout.addLayout(self.createComboSelector("Project ID", [dataManager.project_name], "project/id", dataManager.project_name ) )
         inputsGroupBox = QGroupBox('inputs')
         inputsLayout = QVBoxLayout()
         inputsGroupBox.setLayout(inputsLayout)

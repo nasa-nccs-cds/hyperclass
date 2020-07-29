@@ -1022,13 +1022,15 @@ def optimize_layout_euclidean(
     epochs_per_negative_sample = epochs_per_sample / negative_sample_rate
     epoch_of_next_negative_sample = epochs_per_negative_sample.copy()
     epoch_of_next_sample = epochs_per_sample.copy()
+    plot_mod = 2
 
     optimize_fn = numba.njit( _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel )
     if n_epochs == 1:
         eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Foreground)
     else:
       for n in range(n_epochs):
-        eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
+        if n % plot_mod == 0:
+            eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
         optimize_fn(
             head_embedding,
             tail_embedding,

@@ -50,13 +50,14 @@ class UnstructuredAppMainWindow(HCMainWindow):
 
     def getPreferencesDialog(self):
         from hyperclass.config.inputs import RuntimeDialog
-        return RuntimeDialog( self.dsid )
+        return RuntimeDialog()
 
 class UnstructuredAppConsole(QObject, EventClient):
     def __init__( self, application_name: str, **kwargs ):
         QObject.__init__(self)
-        self.gui = UnstructuredAppMainWindow(None, application_name )
+        dataManager.setProjectName( application_name )
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
+        self.gui = UnstructuredAppMainWindow(None, application_name )
         self.umgr = UMAPManager( **kwargs )
         self.name = application_name
 
