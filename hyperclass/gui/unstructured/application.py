@@ -37,12 +37,12 @@ class UnstructuredAppMainWindow(HCMainWindow):
         menuButton.triggered.connect(self.clearDataset)
         self.datasetMenu.addAction( menuButton )
 
-        menuButton = QAction( "find", self )
+        menuButton = QAction( "find: ", self )
         menuButton.setStatusTip(f"Find row in table")
         menuButton.triggered.connect( self.findTableRow )
         self.editMenu.addAction( menuButton )
 
-        menuButton = QAction( "select", self )
+        menuButton = QAction( "select (regex): ", self )
         menuButton.setStatusTip(f"Select rows in table")
         menuButton.triggered.connect( self.selectTableRows )
         self.editMenu.addAction( menuButton )

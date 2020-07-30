@@ -1,6 +1,6 @@
 from hyperclass.gui.config import SearchBar
 from hyperclass.util.config import tostr
-import xarray as xa, traceback
+import xarray as xa, traceback, re
 from PyQt5.QtCore import *
 from collections import OrderedDict
 from PyQt5.QtWidgets import QWidget, QTableWidgetItem, QAction, QVBoxLayout, QTableWidget
@@ -45,7 +45,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.col_data = OrderedDict()
         self.current_pid = None
         self._head_row = 0
-        self._selected_row = 0
+        self._selected_row = -1
+        self._search_row = 0
         self.col_headers = []
         self.sequence_bounds = []
         self.sort_column = 1
@@ -54,28 +55,43 @@ class DirectoryWidget(QWidget,EventClient):
         self._key_state = None
         self._key_state_modifiers = None
         self._marked_rows = []
+        self._selected_pids = []
         self._enabled = False
         self._current_search_str = ""
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
     def findRow(self, searchStr: str  ):
-        if self.selectedColumn >= 0:
-            if not searchStr.startswith(self._current_search_str): self._selected_row = 0
+        if self.selectedColumn == -1:
+            Task.showMessage("Workflow violation", "", "Must select a table column before this operation can be applied", QMessageBox.Warning )
+        else:
+            if not searchStr.startswith(self._current_search_str): self._search_row = 0
             print( f"FIND: {searchStr}")
             rows = self.table.rowCount()
-            for iRow in range( self._selected_row, rows ):
+            for iRow in range( self._search_row, rows ):
                 item: QTableWidgetItem = self.table.item( iRow, self.selectedColumn )
                 try:
                     if item.text().startswith( searchStr ):
-                        self.selectRow( iRow, False )
+                        self.selectRowsByIndex( [iRow], False )
                         self._current_search_str = searchStr
-                        self._selected_row = iRow
+                        self._search_row = iRow
                         break
                 except: break
 
     def selectRows(self, searchStr: str  ):
-        print( f"FIND: {searchStr}")
+        if self.selectedColumn == -1:
+            Task.showMessage("Workflow violation", "", "Must select a table column before this operation can be applied", QMessageBox.Warning )
+        else:
+            print( f"SELECT: {searchStr}")
+            rows = self.table.rowCount()
+            srows = []
+            for iRow in range( rows ):
+                item: QTableWidgetItem = self.table.item( iRow, self.selectedColumn )
+                try:
+                    match: re.Match = re.match( searchStr, item.text() )
+                    if (match is not None): srows.append( iRow )
+                except: break
+            self.selectRowsByIndex( srows, False )
 
     def activate(self, enable: bool ):
         self._enabled = enable
@@ -138,6 +154,7 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.clearSelection()
         self._selected_row = -1
         self._head_row = 0
+        self._selected_pids = []
         if (self.name == "catalog") and not reset_catalog:
             brush = QBrush( QColor(255, 255, 255) )
             for row in self._marked_rows:
@@ -187,29 +204,33 @@ class DirectoryWidget(QWidget,EventClient):
             etype = event.get('type')
             if etype in [ 'vtkpoint', 'directory', 'plot' ]:
                 cid = labelsManager.selectedClass
+                mark = event.get('mark', False )
                 if (self.name == "catalog") or (cid == 0):
-                    mark = event.get('mark')
                     multi = self.shiftEnabled()
                     if multi and mark and (cid>0):
-                        pids = event.get('pids')
+                        pids = event.get('pids',[])
                         self.sequence_bounds.append(pids[0])
                         if len( self.sequence_bounds ) == 2:
                             self.sequence_bounds.sort()
                             self.markRowSequence( *self.sequence_bounds )
                             self.sequence_bounds = []
                     else:
-                        for pid in event.get('pids'):
+                        for pid in event.get('pids',[]):
                             self.current_pid = pid
-                            self.selectRowByIndex( self.current_pid, mark )
+                            self.selectRowByPID(self.current_pid, mark)
+                        rows = event.get('rows', [])
+                        self.selectRowsByIndex(rows, event.get('mark', mark))
                 elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     for pid in event.get('pids'):
                         self.current_pid = pid
                         self.addRow( self.current_pid )
                 else:
-                    for pid in event.get('pids'):
+                    for pid in event.get('pids',[]):
                         mark = self.pick_enabled and cid > 0
-                        if self.selectRowByIndex(pid,mark):
+                        if self.selectRowByPID(pid, mark):
                             self.current_pid = pid
+                    rows = event.get('rows',[])
+                    self.selectRowsByIndex( rows, mark )
 
         elif event.get('event') == 'gui':
             if event.get('type') == 'keyPress':      self.setKeyState( event )
@@ -224,7 +245,7 @@ class DirectoryWidget(QWidget,EventClient):
                 self.build_table.emit()
 
     def addRow( self, pid: int, distance: float = 0.0 ):
-        item = self.getItemByIndex(pid)
+        item = self.getItemByPID(pid)
         if item is None:
             plot_metadata = dataEventHandler.getMetadata()
             row_data = []
@@ -243,20 +264,24 @@ class DirectoryWidget(QWidget,EventClient):
             self.setRowData(row_data)
             self.update()
         else:
-            self.selectRowByIndex(pid,False)
+            self.selectRowByPID(pid, False)
 
     def markCurrentRow(self):
         self.enablePick()
-        marker = labelsManager.currentMarker
-        try:
-            if self.selectRowByIndex( marker.pid, True ):
-                event = dict(event="pick", type="directory", pids=[marker.pid], mark=True )
-                self.submitEvent(event, EventMode.Gui)
-        except Exception as err:
-            if marker is None:
-                Task.showMessage("Workflow violation", "", "Must select a point before this operation can be applied", QMessageBox.Critical)
-            else: print( f"Row selection error: {err}")
-        self.releasePick()
+        if len(self._selected_pids) > 0:
+            event = dict(event="pick", type="directory", pids=self._selected_pids, mark=True)
+            self.submitEvent(event, EventMode.Gui)
+        else:
+            marker = labelsManager.currentMarker
+            try:
+                if self.selectRowByPID(marker.pid, True):
+                    event = dict(event="pick", type="directory", pids=[marker.pid], mark=True )
+                    self.submitEvent(event, EventMode.Gui)
+            except Exception as err:
+                if marker is None:
+                    Task.showMessage("Workflow violation", "", "Must select a point before this operation can be applied", QMessageBox.Critical)
+                else: print( f"Row selection error: {err}")
+            self.releasePick()
 
     def addExtendedLabels(self, labels: xa.Dataset ):
         labels, distance = labelsManager.getSortedLabels(labels)
@@ -273,8 +298,8 @@ class DirectoryWidget(QWidget,EventClient):
 
     def clearMarker(self, marker: Marker ):
         if marker is not None:
-            if (self.name == "catalog"):    self.unselectRowByIndex( marker.pid )
-            else:                           self.clearRowByIndex( marker.pid )
+            if (self.name == "catalog"):    self.unselectRowByPID(marker.pid)
+            else:                           self.clearRowByPID(marker.pid)
 
     def enablePick(self):
         self.pick_enabled = True
@@ -306,7 +331,7 @@ class DirectoryWidget(QWidget,EventClient):
     def menu_actions(self) -> Dict:
         return self.canvas.menu_actions
 
-    def getItemByIndex(self, pid: int) -> Optional[QTableWidgetItem]:
+    def getItemByPID(self, pid: int) -> Optional[QTableWidgetItem]:
         rows = self.table.rowCount()
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, self._index_column )
@@ -361,7 +386,7 @@ class DirectoryWidget(QWidget,EventClient):
         #         break
         # self.update()
 
-    def selectRowByIndex( self, pid: int, mark: bool ) -> bool:
+    def selectRowByPID(self, pid: int, mark: bool) -> bool:
         rows = self.table.rowCount()
         rv = False
         for iRow in range( rows ):
@@ -371,25 +396,39 @@ class DirectoryWidget(QWidget,EventClient):
                 if pid == int( item.text() ):
                     rv = True
                     self._selected_row = iRow
-                    self.table.scrollToItem( item )
+                    mark_item: QTableWidgetItem = self.table.item( iRow, 0 )
                     if mark:
                         color = labelsManager.selectedColor
                         self.table.clearSelection()
                         qcolor = [int(color[ic] * 255.99) for ic in range(3)]
-                        item.setBackground( QBrush( QColor(*qcolor) ) )
+                        mark_item.setBackground( QBrush( QColor(*qcolor) ) )
                         self._marked_rows.append( iRow )
-#                        if multi: self.multiMark( )
                     else:
                         self.table.clearSelection()
                         self.table.selectRow(iRow)
+                    self.table.scrollToItem( mark_item )
                     break
             except: break
         self.update()
         return rv
 
-#    def markRows( self, )
+    def selectRowsByIndex(self, indices: List[int], mark: bool ):
+        if len( indices ) > 0:
+            for iRow in indices:
+                try:
+                    mark_item: QTableWidgetItem = self.table.item(iRow, 0)
+                    color = labelsManager.colors[0]
+                    qcolor = [int(color[ic] * 255.99) for ic in range(3)]
+                    mark_item.setBackground( QBrush( QColor(*qcolor) ) )
+                    pid_item: QTableWidgetItem = self.table.item( iRow, self._index_column )
+                    self._selected_pids.append( int(pid_item.text()) )
+                except: pass
+            self._selected_row = indices[ len(indices) // 2 ]
+            scroll_item = self.table.item( self._selected_row, 0)
+            self.table.scrollToItem( scroll_item )
+            self.update()
 
-    def unselectRowByIndex(self, pid: int):
+    def unselectRowByPID(self, pid: int):
         rows = self.table.rowCount()
         self.table.clearSelection()
         for iRow in range(rows):
@@ -403,7 +442,7 @@ class DirectoryWidget(QWidget,EventClient):
                 break
         self.update()
 
-    def clearRowByIndex(self, pid: int):
+    def clearRowByPID(self, pid: int):
         rows = self.table.rowCount()
         self.table.clearSelection()
         self._selected_row = -1
