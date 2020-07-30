@@ -45,20 +45,34 @@ class DirectoryWidget(QWidget,EventClient):
         self.col_data = OrderedDict()
         self.current_pid = None
         self._head_row = 0
-        self._selected_row = -1
+        self._selected_row = 0
         self.col_headers = []
         self.sequence_bounds = []
         self.sort_column = 1
+        self.selectedColumn = -1
         self.pick_enabled = False
         self._key_state = None
         self._key_state_modifiers = None
         self._marked_rows = []
         self._enabled = False
+        self._current_search_str = ""
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
     def findRow(self, searchStr: str  ):
-        print( f"FIND: {searchStr}")
+        if self.selectedColumn >= 0:
+            if not searchStr.startswith(self._current_search_str): self._selected_row = 0
+            print( f"FIND: {searchStr}")
+            rows = self.table.rowCount()
+            for iRow in range( self._selected_row, rows ):
+                item: QTableWidgetItem = self.table.item( iRow, self.selectedColumn )
+                try:
+                    if item.text().startswith( searchStr ):
+                        self.selectRow( iRow, False )
+                        self._current_search_str = searchStr
+                        self._selected_row = iRow
+                        break
+                except: break
 
     def selectRows(self, searchStr: str  ):
         print( f"FIND: {searchStr}")
@@ -78,6 +92,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def onColumnSelection( self, col  ):
         self.table.sortItems(col)
+        self.selectedColumn = col
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):
@@ -317,6 +332,7 @@ class DirectoryWidget(QWidget,EventClient):
                 break
         return None
 
+#    self.table.setRangeSelected(QTableWidgetSelectionRange)
     def markRowSequence( self, pid0, pid1 ):
         self._key_state_modifiers = None
         row_range = self.getRowRange( pid0, pid1 )
