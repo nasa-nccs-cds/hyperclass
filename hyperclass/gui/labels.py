@@ -59,7 +59,6 @@ class LabelsManager(QObject,EventClient):
         self.buttons: List[QRadioButton] = []
         self.selectedClass = 0
         self.console: QWidget = None
-        self.selectedColor = [1.0,1.0,1.0]
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
         self._labels_data: xa.DataArray = None
@@ -151,6 +150,10 @@ class LabelsManager(QObject,EventClient):
     @property
     def selectedLabel(self):
         return self._labels[ self.selectedClass ]
+
+    def selectedColor(self, mark: bool ):
+        icolor = self.selectedClass if mark else 0
+        return self._colors[ icolor ]
 
     @property
     def colors(self):
@@ -247,12 +250,10 @@ class LabelsManager(QObject,EventClient):
         radioButton = self.sender()
         if radioButton.isChecked():
             self.selectedClass = radioButton.index
-            self.selectedColor = self.colors[ radioButton.index ]
             print(f"Selected class {radioButton.index}")
 
     def setClassIndex(self, cid: int ):
         self.selectedClass = cid
-        self.selectedColor = self.colors[ cid ]
         for button in self.buttons:
             button.setChecked( cid == button.index )
         self.console.update()

@@ -128,13 +128,16 @@ class UMAPManager(QObject,EventClient):
             if etype in [ 'directory', "vtkpoint", "plot" ]:
                 if self._current_mapper is not None:
                     try:
-                        pids = event.get('pids',[])
+                        pids1 = event.get('pids',[])
+                        rspecs = event.get('rows', [])
+                        rows, pids2 = list( zip(*rspecs) )
+                        pids = pids1 + list(pids2)
                         mark = event.get('mark')
                         cid = labelsManager.selectedClass if mark else 0
-                        color =  labelsManager.selectedColor if etype == "vtkpoint" else labelsManager.colors[cid]
+                        color =  labelsManager.selectedColor() if etype == "vtkpoint" else labelsManager.colors[cid]
                         embedding = self._current_mapper.embedding
                         transformed_data: np.ndarray = embedding[ pids ].tolist()
-                        for ip, pid in enumerate(event.get('pids',[])):
+                        for ip, pid in enumerate(pids):
                             labelsManager.addMarker( Marker( transformed_data[ip], color, pid, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit({})
