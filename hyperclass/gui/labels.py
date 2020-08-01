@@ -151,9 +151,9 @@ class LabelsManager(QObject,EventClient):
     def selectedLabel(self):
         return self._labels[ self.selectedClass ]
 
-    def selectedColor(self, mark: bool ):
+    def selectedColor(self, mark: bool ) -> Tuple[int,List[float]]:
         icolor = self.selectedClass if mark else 0
-        return self._colors[ icolor ]
+        return icolor, self._colors[ icolor ]
 
     @property
     def colors(self):

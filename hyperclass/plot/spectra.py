@@ -124,7 +124,8 @@ class SpectralPlot(QObject,EventClient):
                             labelsManager.setClassIndex( cid )
                             self.clear_transients()
                             print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
-                            self.plot_spectrum( cid, labelsManager.selectedColor() )
+                            iclass, color = labelsManager.selectedColor( cid>0 )
+                            self.plot_spectrum( cid, color )
                             if self._titles is not None:
                                 self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
                             self.update_marker()
