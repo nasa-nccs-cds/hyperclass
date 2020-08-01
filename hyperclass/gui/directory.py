@@ -127,6 +127,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def onCellPressed(self, row, col ):
         mark = self.table.current_button == Qt.RightButton
+        self.selectedColumn = col
         self.selectRow( row, mark )
         self.update()
 
@@ -496,11 +497,15 @@ class DirectoryWidget(QWidget,EventClient):
         for iRow in range(rows):
             item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             if item == None: break
-            if item.text() and (pid == int(item.text())):
-                for column in range(self.table.columnCount()):
-                    self.table.setItem( iRow, column, QTableWidgetItem( "" ) )
-                self._head_row = iRow
-                break
+            try:
+                if item.text() and (pid == int(item.text())):
+                    for column in range(self.table.columnCount()):
+                        self.table.setItem( iRow, column, QTableWidgetItem( "" ) )
+                    self._head_row = iRow
+                    break
+            except Exception as err:
+                print( f"clearRowByPID error, r={iRow}, p={pid}, index col = {self._index_column}: {err}")
+                traceback.print_exc(50)
         self.update()
 
 
