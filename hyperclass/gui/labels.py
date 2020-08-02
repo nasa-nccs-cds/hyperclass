@@ -36,14 +36,14 @@ def set_alpha( color, alpha ):
     return color[:3] + [alpha]
 
 class Marker:
-    def __init__(self, location: List[float], color: List[float], pid: int, cid: int ):
-        self.location = location
+    def __init__(self, locations: List[List[float]], color: List[float], pids: List[int], cid: int ):
+        self.locations = locations
         self.color = color
         self.cid = cid
-        self.pid = pid
+        self.pids = pids
 
     def changeLocation(self, points: np.ndarray ):
-        self.location = points[ self.pid ].tolist()
+        self.locations = [ points[ pid ].tolist() for pid in self.pids ]
 
     def isTransient(self):
         return self.cid == 0
@@ -87,7 +87,8 @@ class LabelsManager(QObject,EventClient):
 
     def updateLabels(self):
         for marker in self._markers:
-            self._labels_data[ marker.pid ] = marker.cid
+            for pid in marker.pids:
+                self._labels_data[ pid ] = marker.cid
 
     def labels_data( self ) -> xa.DataArray:
         self.updateLabels()

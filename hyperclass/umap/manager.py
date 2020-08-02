@@ -134,13 +134,13 @@ class UMAPManager(QObject,EventClient):
                         mark = event.get('mark')
                         cid, color =  labelsManager.selectedColor(mark)
                         embedding = self._current_mapper.embedding
-                        transformed_data: np.ndarray = embedding[ pids ].tolist()
-                        for ip, pid in enumerate(pids):
-                            labelsManager.addMarker( Marker( transformed_data[ip], color, pid, cid ) )
+                        transformed_data= embedding[ pids ].tolist()
+                        labelsManager.addMarker( Marker( transformed_data, color, pids, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit({})
                     except Exception as err:
                         print( f"Point selection error: {err}")
+                        traceback.print_exc( 50 )
 
     def setClassColors(self ):
         self.class_labels: List[str] = labelsManager.labels

@@ -227,11 +227,12 @@ class PointCloud():
         if reset:
             self.initMarkers()
         for marker in labelsManager.getMarkers():
-            id = self.marker_points.InsertNextPoint( *marker.location  )
-            self.marker_verts.InsertNextCell(1)
-            self.marker_verts.InsertCellPoint(id)
-            vtk_color = [ int(marker.color[ic]*255.99) for ic in range(3) ]
-            self.marker_colors.InsertNextTuple3( *vtk_color )
+            for location in marker.locations:
+                id = self.marker_points.InsertNextPoint( *location  )
+                self.marker_verts.InsertNextCell(1)
+                self.marker_verts.InsertCellPoint(id)
+                vtk_color = [ int(marker.color[ic]*255.99) for ic in range(3) ]
+                self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.GetPointData().Modified()
         self.marker_points.Modified()
         self.marker_verts.Modified()
