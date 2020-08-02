@@ -287,8 +287,6 @@ class DirectoryWidget(QWidget,EventClient):
         if item is None:
             plot_metadata = dataEventHandler.getMetadata()
             row_data = []
-            self.col_data['index'].append(pid)
-            row_data.append( pid )
 
             for mdata_array in plot_metadata:
                 col_name = mdata_array.attrs['name']
@@ -298,24 +296,28 @@ class DirectoryWidget(QWidget,EventClient):
 
             self.col_data['distance'].append( distance )
             row_data.append(0.0)
-
+            self.col_data['index'].append(pid)
+            row_data.append( pid )
             self.setRowData(row_data)
         else:
             self.selectRowsByPID( [pid], False)
 
     def markSelectedRows(self):
         self.enablePick()
+        cid = labelsManager.selectedClass
+        rows = None
         if len(self._selected_rows) > 0:
-            event = dict(event="pick", type="directory", rows=self._selected_rows, mark=True)
-            self._selected_rows = []
-            self.submitEvent(event, EventMode.Gui)
+            if cid > 0:
+                rows = [ *self._selected_rows ]
+                self._selected_rows = []
         else:
             marker = labelsManager.currentMarker
             if marker is not None:
-                if self.selectRowsByPID(marker.pids, True):
-                    cid = labelsManager.selectedClass
-                    event = dict(event="pick", type="directory", rows=[ ( self._selected_row, marker.pid, cid ) ] , mark=True )
-                    self.submitEvent(event, EventMode.Gui)
+                selection = self.selectRowsByPID(marker.pids, True)
+                rows = [ (row, pid, cid) for (pid,row) in selection.items() ]
+        if rows:
+            event = dict(event="pick", type="directory", rows=rows, mark=True )
+            self.submitEvent(event, EventMode.Gui)
 
             # except Exception as err:
             #     if marker is None:
@@ -340,7 +342,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def clearMarker(self, marker: Marker ):
         if marker is not None:
-            if (self.name == "catalog"):    self.unselectRowsByPID(marker.pids)
+            if (self.name == "catalog"):    self.unmarkRowsByPID(marker.pids)
             else:                           self.clearRowsByPID(marker.pids)
 
     def enablePick(self):
@@ -470,7 +472,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.table.scrollToItem( scroll_item )
             self.update()
 
-    def unselectRowsByPID(self, pids: List[int]):
+    def unmarkRowsByPID(self, pids: List[int]):
         self.table.clearSelection()
         for iRow in self._marked_rows:
             item: QTableWidgetItem = self.table.item(iRow, self._index_column )
