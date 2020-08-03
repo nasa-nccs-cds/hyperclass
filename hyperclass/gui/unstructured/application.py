@@ -246,6 +246,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.loadCurrentProject()
 
     def processEvent(self, event: Dict ):
+        super().processEvent(event)
         if event.get('event') == 'task':
             if event.get('type') == 'completed':
                 print( "SwiftConsole: refreshing panels on task completion")

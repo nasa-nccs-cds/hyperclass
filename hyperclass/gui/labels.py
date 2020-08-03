@@ -80,6 +80,7 @@ class LabelsManager(QObject,EventClient):
     def processEvent( self, event: Dict ):
         from hyperclass.data.events import dataEventHandler
         from hyperclass.graph.flow import activationFlowManager
+        super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self.initLabelsData( point_data )

@@ -105,6 +105,7 @@ class SpectralPlot(QObject,EventClient):
         else: return self.ploty
 
     def processEvent(self, event: Dict ):
+        super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
             self.plotx = plot_data["plotx"]

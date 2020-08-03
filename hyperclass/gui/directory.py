@@ -118,8 +118,9 @@ class DirectoryWidget(QWidget,EventClient):
                         srows.append( (iRow, pid, 0) )
                 except: break
             self.selectRowsByIndex( srows, False )
-            event = dict( event="pick", type="directory", rows=srows, mark = False )
-            self.submitEvent( event, EventMode.Gui )
+            if (self.name == "catalog"):
+                event = dict( event="pick", type="directory", rows=srows, mark = False )
+                self.submitEvent( event, EventMode.Gui )
 
     def activate(self, enable: bool ):
         self._enabled = enable
@@ -143,8 +144,9 @@ class DirectoryWidget(QWidget,EventClient):
             self._selected_row = row
             mark = rightClick and self.pick_enabled
             if rightClick: self.clear_transients()
-            event = dict( event="pick", type="directory", rows=[ (row, int( table_item.text() ), 0) ], mark = mark )
-            self.submitEvent( event, EventMode.Gui )
+            if (self.name == "catalog"):
+                event = dict( event="pick", type="directory", rows=[ (row, int( table_item.text() ), 0) ], mark = mark )
+                self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
         self.selectRow( row, True )
@@ -224,6 +226,7 @@ class DirectoryWidget(QWidget,EventClient):
         return se1
 
     def processEvent( self, event: Dict ):
+        super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_metadata: List[xa.DataArray] = dataEventHandler.getMetadata( event )
             self.col_headers = []
@@ -315,7 +318,8 @@ class DirectoryWidget(QWidget,EventClient):
             if marker is not None:
                 selection = self.selectRowsByPID(marker.pids, True)
                 rows = [ (row, pid, cid) for (pid,row) in selection.items() ]
-        if rows:
+
+        if rows and (self.name == "catalog"):
             event = dict(event="pick", type="directory", rows=rows, mark=True )
             self.submitEvent(event, EventMode.Gui)
 
@@ -323,7 +327,7 @@ class DirectoryWidget(QWidget,EventClient):
             #     if marker is None:
             #         Task.showMessage("Workflow violation", "", "Must select a point before this operation can be applied", QMessageBox.Warning )
             #     else: print( f"Row selection error: {err}")
-            self.releasePick()
+        self.releasePick()
 
     def addExtendedLabels(self, labels: xa.Dataset ):
         labels, distance = labelsManager.getSortedLabels(labels)
@@ -414,8 +418,9 @@ class DirectoryWidget(QWidget,EventClient):
                 item: QTableWidgetItem = self.table.item( iRow, self._index_column )
                 try: pids.append( ( iRow, int(item.text()), cid ) )
                 except: break
-            event = dict( event="pick", type="directory", rows=pids, mark=True )
-            self.submitEvent(event, EventMode.Gui)
+            if (self.name == "catalog"):
+                event = dict( event="pick", type="directory", rows=pids, mark=True )
+                self.submitEvent(event, EventMode.Gui)
 
         # row_range = self.getRowRange( pid0, pid1 )
         # self.table.clearSelection()

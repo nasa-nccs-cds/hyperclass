@@ -4,27 +4,37 @@ from PyQt5.QtWidgets import QAction
 from enum import Enum
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, os
+import functools
 
 class EventMode(Enum):
     Foreground = 1
     Background = 2
     Gui = 3
 
+def etmatch( event: Dict, etype: Dict  ):
+    return ( event["event"] == etype["event"] ) and ( event["type"] == etype["type"] )
+
 class EventClient:
-    __metaclass__ = abc.ABCMeta
+    event_debug = True
+    uninteresting_events = [ dict( event="gui", type="keyRelease"), dict( event="gui", type="keyPress") ]
 
     def activate_event_listening(self):
         eventCentral.addClient( self )
+
+    def is_interesting( self, event ):
+        for etype in self.uninteresting_events:
+            if etmatch( event, etype ): return False
+        return True
 
     @pyqtSlot(dict)
     def process_event_slot(self, event: Dict):
         self.processEvent( event )
 
-    @abc.abstractmethod
     def processEvent(self, event: Dict ):
-        pass
+        if self.event_debug and self.is_interesting(event): print(f"CLASS {self.__class__.__name__}: process {event}")
 
     def submitEvent(self, event: Dict, mode: EventMode ):
+        if self.event_debug and self.is_interesting(event): print(f"CLASS {self.__class__.__name__}: submit {event}")
         eventCentral.submitEvent( event, mode )
 
 class EventCentral(QObject):

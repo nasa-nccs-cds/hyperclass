@@ -85,6 +85,7 @@ class UMAPManager(QObject,EventClient):
         self.update_signal.emit({})
 
     def processEvent( self, event: Dict ):
+        super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             self._point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self._state = self.INIT

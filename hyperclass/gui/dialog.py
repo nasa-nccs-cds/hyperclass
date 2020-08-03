@@ -122,7 +122,7 @@ class DialogBase(QDialog):
         selectButton.clicked.connect(select)
         def selectionchange( value ):
             print( f"{settings_key}: {value}")
-            self.settings.setValue( settings_key, value )
+            self.settings.setValue( settings_key, value.strip(' "') )
         lineEdit.textChanged.connect( selectionchange )
         fileSelection.addWidget( label )
         fileSelection.addWidget( lineEdit )

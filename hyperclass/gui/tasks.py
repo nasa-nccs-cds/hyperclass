@@ -91,6 +91,7 @@ class TaskRunner(QObject,EventClient):
         self.executing_tasks = []
 
     def processEvent( self, event: Dict ) :
+        super().processEvent(event)
         if event.get('event') == 'task':
             if event.get('type') == 'finished':
                 label = event.get('label')

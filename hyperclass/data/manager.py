@@ -24,6 +24,8 @@ class DataManager(SettingsManager):
                         subsampled = [ result[i] for i in range( 0, len(result), subsample ) ]
                         if isinstance( result[0], np.ndarray ):  return np.vstack( subsampled )
                         else:                                    return np.array( subsampled )
+            else:
+                print( f"Error, the input path '{input_file_path}' is not a file.")
         except Exception as err:
             print(f" Can't read data[{input_file_id}] file {input_file_path}: {err}")
 
