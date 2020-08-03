@@ -86,6 +86,11 @@ class LabelsManager(QObject,EventClient):
             self.initLabelsData( point_data )
             self._flow = activationFlowManager.getActivationFlow( point_data )
 
+    def getMarker( self, pid: int ) -> Optional[Marker]:
+        for marker in self._markers:
+            if pid in marker.pids: return marker
+        return None
+
     def updateLabels(self):
         for marker in self._markers:
             for pid in marker.pids:

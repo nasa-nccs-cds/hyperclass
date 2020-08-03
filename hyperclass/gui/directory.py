@@ -71,6 +71,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._selected_rows = []
         self._enabled = False
         self._current_search_str = ""
+        self._brushes = {}
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
@@ -144,9 +145,8 @@ class DirectoryWidget(QWidget,EventClient):
             self._selected_row = row
             mark = rightClick and self.pick_enabled
             if rightClick: self.clear_transients()
-            if (self.name == "catalog"):
-                event = dict( event="pick", type="directory", rows=[ (row, int( table_item.text() ), 0) ], mark = mark )
-                self.submitEvent( event, EventMode.Gui )
+            event = dict( event="pick", type="directory", rows=[ (row, int( table_item.text() ), 0) ], mark = mark )
+            self.submitEvent( event, EventMode.Gui )
 
     def onRowSelection( self, row  ):
         self.selectRow( row, True )
@@ -180,11 +180,12 @@ class DirectoryWidget(QWidget,EventClient):
 
     def clear_transients(self):
         marked_rows = []
-        brush = QBrush( QColor(255, 255, 255) )
         for (row,pid,ic) in self._selected_rows:
             if ic == 0:
                 item: QTableWidgetItem = self.table.item(row, 0)
-                item.setBackground( brush )
+                marker = labelsManager.getMarker( pid )
+                cid = ic if marker is None else marker.cid
+                item.setBackground( self.getBrush(cid) )
             else:
                 marked_rows.append( (row,pid,ic) )
         self._selected_rows = marked_rows
@@ -195,7 +196,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._head_row = 0
         if (self.name == "catalog") and not reset_catalog:
             [srows, spids, scids] = self.getSelection()
-            brush = QBrush( QColor(255, 255, 255) )
+            brush = self.getBrush()
             for row in (self._marked_rows + srows):
                 item: QTableWidgetItem = self.table.item(row, 0)
                 item.setBackground( brush )
@@ -448,29 +449,35 @@ class DirectoryWidget(QWidget,EventClient):
                 if pid in pids:
                     selection[pid] = iRow
                     mark_item = self.table.item( iRow, 0  )
-                    iclass, color = labelsManager.selectedColor(mark)
-                    qcolor = [int(color[ic] * 255.99) for ic in range(3)]
-                    mark_item.setBackground( QBrush( QColor(*qcolor) ) )
+                    cid = labelsManager.selectedClass if mark else 0
+                    mark_item.setBackground( self.getBrush(cid) )
                     if mark: self._marked_rows.append( iRow )
-                    else: self._selected_rows.append( (iRow, pid, iclass) )
+                    else: self._selected_rows.append( (iRow, pid, cid) )
             except: break
         if mark_item: self.table.scrollToItem(mark_item)
         self.update()
         return selection
 
+    def getBrush(self, cid: int = -1 ) -> QBrush:
+        return self._brushes.setdefault( cid, self._createBrush(cid) )
+
+    def _createBrush( self, cid: int ) -> QBrush:
+        color = labelsManager.colors[ cid ] if cid >= 0 else (1,1,1)
+        qcolor = [int(color[ic] * 255.99) for ic in range(3)]
+        return QBrush(QColor(*qcolor))
+
     def selectRowsByIndex(self, rspecs: List[Tuple], mark: bool ):
         if len( rspecs ) > 0:
             if not mark: self.clear_transients()
-            iclass, color = labelsManager.selectedColor( mark )
-            qcolor = [int(color[ic] * 255.99) for ic in range(3)]
-            brush = QBrush(QColor(*qcolor))
+            cid = labelsManager.selectedClass if mark else 0
+            brush = self.getBrush( cid )
             for rspec in rspecs:
                 try:
                     iRow = rspec[0]
                     mark_item: QTableWidgetItem = self.table.item(iRow, 0)
                     mark_item.setBackground( brush )
                     pid_item: QTableWidgetItem = self.table.item( iRow, self._index_column )
-                    if not mark: self._selected_rows.append( (iRow, int(pid_item.text()), iclass ) )
+                    if not mark: self._selected_rows.append( (iRow, int(pid_item.text()), cid ) )
                 except: pass
             self._selected_row = rspecs[ len(rspecs) // 2 ][0]
             scroll_item = self.table.item( self._selected_row, 0)
@@ -484,7 +491,7 @@ class DirectoryWidget(QWidget,EventClient):
             if item == None: break
             if int(item.text()) in pids:
                 if self._selected_row == iRow: self._selected_row = -1
-                item.setBackground( QBrush( QColor( 255, 255, 255 ) ) )
+                item.setBackground( self.getBrush() )
                 self._marked_rows.remove(iRow)
         self.update()
 
