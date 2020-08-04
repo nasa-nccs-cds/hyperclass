@@ -1,6 +1,6 @@
 from hyperclass.gui.config import SearchBar
 from hyperclass.util.config import tostr
-import xarray as xa, traceback, re
+import xarray as xa, traceback, re, time
 from PyQt5.QtCore import *
 from collections import OrderedDict
 from PyQt5.QtWidgets import QWidget, QTableWidgetItem, QAction, QVBoxLayout, QTableWidget, QTableView
@@ -11,6 +11,9 @@ from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.labels import labelsManager, Marker
 from hyperclass.gui.tasks import taskRunner, Task
 from PyQt5.QtWidgets import QMessageBox
+
+L = []
+
 
 class NumericTableWidgetItem(QTableWidgetItem):
 
@@ -151,7 +154,7 @@ class DirectoryWidget(QWidget,EventClient):
             table_item: QTableWidgetItem = self.table.item( row, self._index_column )
             self._selected_row = row
             mark = rightClick and self.pick_enabled
-            if rightClick: self.clear_transients()
+            self.clear_transients()
             event = dict( event="pick", type="directory", rows=[ (row, int( table_item.text() ), 0) ], mark = mark )
             self.submitEvent( event, EventMode.Gui )
 
@@ -192,7 +195,8 @@ class DirectoryWidget(QWidget,EventClient):
                 item: QTableWidgetItem = self.table.item(row, 0)
                 marker = labelsManager.getMarker( pid )
                 cid = ic if marker is None else marker.cid
-                item.setBackground( self.getBrush(cid) )
+                brush = self.getBrush() if (cid==0) else self.getBrush(cid)
+                item.setBackground( brush )
             else:
                 marked_rows.append( (row,pid,ic) )
         self._selected_rows = marked_rows
@@ -330,6 +334,7 @@ class DirectoryWidget(QWidget,EventClient):
         if rows and (self.name == "catalog"):
             event = dict(event="pick", type="directory", rows=rows, mark=True )
             self.submitEvent(event, EventMode.Gui)
+            for rspec in rows: self._marked_rows.append( rspec[0] )
 
             # except Exception as err:
             #     if marker is None:
@@ -458,7 +463,7 @@ class DirectoryWidget(QWidget,EventClient):
                     mark_item = self.table.item( iRow, 0  )
                     cid = labelsManager.selectedClass if mark else 0
                     mark_item.setBackground( self.getBrush(cid) )
-                    if mark: self._marked_rows.append( iRow )
+                    if mark and (cid>0): self._marked_rows.append( iRow )
                     else: self._selected_rows.append( (iRow, pid, cid) )
             except: break
         if mark_item: self.table.scrollToItem(mark_item)
@@ -493,13 +498,16 @@ class DirectoryWidget(QWidget,EventClient):
 
     def unmarkRowsByPID(self, pids: List[int]):
         self.table.clearSelection()
+        unmarked_rows = []
         for iRow in self._marked_rows:
-            item: QTableWidgetItem = self.table.item(iRow, self._index_column )
+            item = self.table.item(iRow, self._index_column )
             if item == None: break
             if int(item.text()) in pids:
                 if self._selected_row == iRow: self._selected_row = -1
-                item.setBackground( self.getBrush() )
-                self._marked_rows.remove(iRow)
+                mark_item = self.table.item( iRow, 0 )
+                mark_item.setBackground( self.getBrush() )
+                unmarked_rows.append( iRow )
+        for iRow in unmarked_rows: self._marked_rows.remove(iRow)
         self.update()
 
     def clearRowsByPID(self, pids: List[int] ):
