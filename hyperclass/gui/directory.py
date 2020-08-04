@@ -129,7 +129,6 @@ class DirectoryWidget(QWidget,EventClient):
 
     def onCellPressed(self, row, col ):
         mark = self.table.current_button == Qt.RightButton
-        self.selectedColumn = col
         self.selectRow( row, mark )
         self.update()
 
@@ -137,6 +136,8 @@ class DirectoryWidget(QWidget,EventClient):
         self.table.sortItems(col)
         self.selectedColumn = col
         self.table.clearSelection()
+#        brush = self.getBrush(0)
+#        self.table.horizontalHeader().setBackground(brush)
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):
