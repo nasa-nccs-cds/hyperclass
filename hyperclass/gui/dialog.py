@@ -100,8 +100,8 @@ class DialogBase(QDialog):
 
     def save(self):
         del self.settings
-        self.close()
         if self.callback: self.callback()
+        self.close()
 
     def cancel(self):
         self.close()

@@ -132,12 +132,17 @@ class DirectoryWidget(QWidget,EventClient):
         self.selectRow( row, mark )
         self.update()
 
+    def setSelectedColumnHeaderColor(self, color ):
+        header = QTableWidgetItem(self.col_headers[self.selectedColumn])
+        header.setBackground(QColor( color ))
+        self.table.setHorizontalHeaderItem(self.selectedColumn, header)
+
     def onColumnSelection( self, col  ):
         self.table.sortItems(col)
-        self.selectedColumn = col
         self.table.clearSelection()
-#        brush = self.getBrush(0)
-#        self.table.horizontalHeader().setBackground(brush)
+        if self.selectedColumn >= 0: self.setSelectedColumnHeaderColor( "white" )
+        self.selectedColumn = col
+        self.setSelectedColumnHeaderColor( "yellow" )
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):
