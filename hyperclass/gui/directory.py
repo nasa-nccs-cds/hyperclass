@@ -136,6 +136,7 @@ class DirectoryWidget(QWidget,EventClient):
     def onColumnSelection( self, col  ):
         self.table.sortItems(col)
         self.selectedColumn = col
+        self.table.clearSelection()
         self.update()
 
     def selectRow( self, row: int, rightClick: bool ):

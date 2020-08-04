@@ -47,7 +47,9 @@ def prepare_inputs( input_vars, ssample = None ):
     projId = dataManager.config.value('project/id')
     file_name = f"raw" if reduction_method == "None" else f"{reduction_method}-{ndim}"
     if subsample > 1: file_name = f"{file_name}-ss{subsample}"
-    output_file = os.path.join( dataManager.config.value('data/cache'), projId, file_name + ".nc" )
+    outputDir = os.path.join( dataManager.config.value('data/cache'), projId )
+    os.makedirs( outputDir, 777, True )
+    output_file = os.path.join( outputDir, file_name + ".nc" )
     print( f"Writing output to {output_file}")
     dataset.to_netcdf( output_file, format='NETCDF4', engine='netcdf4' )
 
