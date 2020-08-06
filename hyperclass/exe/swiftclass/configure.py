@@ -3,8 +3,9 @@ from PyQt5.QtWidgets import QApplication
 from hyperclass.data.manager import dataManager
 import sys
 
+default_settings = {}
 app = QApplication(sys.argv)
-dataManager.setProjectName("swiftclass")
+dataManager.initProject( "swiftclass", default_settings )
 preferences = ConfigurationDialog()
 preferences.show()
 sys.exit(app.exec_())

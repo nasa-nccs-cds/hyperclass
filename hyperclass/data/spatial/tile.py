@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xa
 from typing import List, Union, Tuple, Optional, Dict
 from pyproj import Proj, transform
-from .manager import dataManager
+from ..manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 import os, math, pickle
 from hyperclass.graph.flow import ActivationFlow
@@ -19,7 +19,7 @@ class Tile:
     @property
     def data(self) -> xa.DataArray:
         if self._data is None:
-            self._data: xa.DataArray = dataManager.getTileData(  **self.config )
+            self._data: xa.DataArray = dataManager.spatial.getTileData(  **self.config )
         return self._data
 
     def iparm(self, key: str ):
@@ -27,7 +27,7 @@ class Tile:
 
     @property
     def name(self) -> str:
-        return dataManager.tileFileName()
+        return dataManager.spatial.tileFileName()
 
     @property
     def transform(self) -> Optional[ProjectiveTransform]:
@@ -38,7 +38,7 @@ class Tile:
 
     def get_block_transform( self, iy, ix ) -> ProjectiveTransform:
         tr0 = self.data.attrs['transform']
-        iy0, ix0 = iy * dataManager.block_shape[0], ix * dataManager.block_shape[1]
+        iy0, ix0 = iy * dataManager.spatial.block_shape[0], ix * dataManager.spatial.block_shape[1]
         y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
         tr1 = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0, 0, 0, 1  ]
         print( f"Tile transform: {tr0}, Block transform: {tr1}, tile indices = [{dataManager.config.value('tile/indices')}], block indices = [ {iy}, {ix} ]" )
@@ -50,13 +50,11 @@ class Tile:
 
     @property
     def nBlocks(self) -> List[ List[int] ]:
-        return [ self.data.shape[i+1]//dataManager.block_shape[i] for i in range(2) ]
+        return [ self.data.shape[i+1]//dataManager.spatial.block_shape[i] for i in range(2) ]
 
     def getBlock(self, iy: int, ix: int, **kwargs ) -> Optional["Block"]:
-        init_graph = kwargs.get('init_graph',False)
         if self.data is None: return None
         block = Block( self, iy, ix, **kwargs )
-        if init_graph: block.flow_init()
         return block
 
     def getBandPointData( self, iband: int, **kwargs  ) -> xa.DataArray:
@@ -67,7 +65,7 @@ class Tile:
     def getPointData( self, **kwargs ) -> xa.DataArray:
         subsample = kwargs.get( 'subsample', None )
         if subsample is None: subsample = self.subsampling
-        point_data = dataManager.raster2points( self.data )
+        point_data = dataManager.spatial.raster2points( self.data )
         return point_data[::subsample]
 
     def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
@@ -147,7 +145,7 @@ class Block:
 
     @property
     def shape(self) -> Tuple[int,int]:
-        return dataManager.block_shape
+        return dataManager.spatial.block_shape
 
     def getBounds(self ) -> Tuple[ Tuple[int,int], Tuple[int,int] ]:
         y0, x0 = self.block_coords[0]*self.shape[0], self.block_coords[1]*self.shape[1]
@@ -156,7 +154,7 @@ class Block:
     def getPointData( self, **kwargs ) -> xa.DataArray:
         if self._point_data is None:
             subsample = kwargs.get( 'subsample', None )
-            result: xa.DataArray =  dataManager.raster2points( self.data )
+            result: xa.DataArray =  dataManager.spatial.raster2points( self.data )
             self._point_data =  result if subsample is None else result[::subsample]
             self._samples_axis = self._point_data.coords['samples']
             self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
@@ -188,8 +186,8 @@ class Block:
         elif band_range is not None:
             plot_data = self.data.isel( band=slice( band_range[0], band_range[1] ) ).mean(dim="band", skipna=True)
         else:
-            plot_data =  dataManager.getRGB(self.data)
-        dataManager.plotRaster( plot_data, **kwargs )
+            plot_data =  dataManager.spatial.getRGB(self.data)
+        dataManager.spatial.plotRaster( plot_data, **kwargs )
         return plot_data
 
     def coords2indices(self, cy, cx) -> Dict:

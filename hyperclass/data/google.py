@@ -1,7 +1,5 @@
-from matplotlib.image import AxesImage
-from .aviris.tile import Tile, Block
+from .spatial.tile import Tile, Block
 from typing import List, Union, Dict, Callable, Tuple, Optional
-from .aviris.manager import dataManager
 from urllib import request
 from io import BytesIO
 import matplotlib.pyplot as plt
@@ -25,6 +23,7 @@ class GoogleMaps:
 
     @property
     def api_key(self):
+        from .manager import dataManager
         return dataManager.config.value("google/api_key","")
 
     def extent(self, epsg: int ):

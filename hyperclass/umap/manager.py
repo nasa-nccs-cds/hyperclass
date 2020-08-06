@@ -229,8 +229,8 @@ class UMAPManager(QObject,EventClient):
             kwargs['nepochs'] = 1
             self._state = self.NEW_DATA
         else:
-            kwargs['nepochs'] = dataManager.config.value("umap/nepochs", type=int)
-            kwargs['alpha'] = dataManager.config.value("umap/alpha", type=float)
+            if 'nepochs' not in kwargs.keys(): kwargs['nepochs'] = dataManager.config.value("umap/nepochs", type=int)
+            if 'alpha' not in kwargs.keys():   kwargs['alpha']   = dataManager.config.value("umap/alpha", type=float)
             self._state = self.PROCESSED
         t0 = time.time()
         mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )

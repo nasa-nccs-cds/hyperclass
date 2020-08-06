@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QKeyEvent
 from PyQt5.QtCore import *
+from hyperclass.data.manager import dataManager
 from hyperclass.gui.events import EventClient, EventMode
 import os, abc, sys
 
@@ -31,9 +32,9 @@ class HCApplication( QApplication, EventClient ):
 class HCMainWindow(QMainWindow, EventClient):
     __metaclass__ = abc.ABCMeta
 
-    def __init__( self, parent, title: str ):
+    def __init__( self, parent ):
         QMainWindow.__init__( self, parent )
-        self.setWindowTitle(title)
+        self.setWindowTitle( dataManager.project_name )
         self.mainMenu = self.menuBar()
         self.mainMenu.setNativeMenuBar(False)
         self.fileMenu = self.mainMenu.addMenu('App')

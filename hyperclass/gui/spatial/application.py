@@ -1,21 +1,24 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import MplWidget, SpectralPlotCanvas, SatellitePlotCanvas, ReferenceImageCanvas
+from hyperclass.gui.mpl import MplWidget, SatellitePlotCanvas, ReferenceImageCanvas, satellitePlotManager
+from hyperclass.plot.spectra import SpectralPlot
+from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.config import PreferencesDialog
 from matplotlib.figure import Figure
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.data.spatial.manager import dataManager
+from hyperclass.gui.labels import labelsManager
+from hyperclass.data.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
-from hyperclass.gui.points import VTKFrame
+from hyperclass.data.events import dataEventHandler
 from typing import List, Union, Tuple
-
 
 class SpatialAppConsole(QMainWindow):
     def __init__( self, **kwargs ):
         QMainWindow.__init__(self)
+        dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
         self.umgr = UMAPManager( )
         self.title = 'hyperclass'
         self.left = 10
@@ -23,6 +26,8 @@ class SpatialAppConsole(QMainWindow):
         self.width = 1920
         self.height = 1080
         self.NFunctionButtons = 0
+        self.nSpectra = 8
+        self.spectral_plots = []
         self.labelingConsole = None
         self.vtkFrame = None
         self.message_stack = []
@@ -32,7 +37,6 @@ class SpatialAppConsole(QMainWindow):
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-
         self.showMessage('Ready')
 
         mainMenu = self.menuBar()
@@ -68,26 +72,35 @@ class SpatialAppConsole(QMainWindow):
         framesLayout = QHBoxLayout()
         vlay.addLayout(framesLayout)
 
-        buttonsLayout = QHBoxLayout()
-        vlay.addLayout(buttonsLayout)
-
         consoleLayout = QVBoxLayout()
         framesLayout.addLayout(consoleLayout, 10)
         vizLayout = QVBoxLayout()
         framesLayout.addLayout(vizLayout, 7)
 
-        self.vtkFrame = VTKFrame( self.umgr )
-        self.labelingConsole = MplWidget( self.umgr, self, **kwargs)
-        self.spectralPlot = SpectralPlotCanvas( widget, self.labelingConsole.spectral_plot )
-        self.satelliteCanvas = SatellitePlotCanvas( widget, self.labelingConsole.toolbar, self.labelingConsole.getBlock() )
-        self.satelliteCanvas.addEventListener(self.labelingConsole)
-        self.labelingConsole.addNavigationListener( self.satelliteCanvas )
+        self.labelingConsole = MplWidget( self, **kwargs)
+        self.satelliteCanvas = satellitePlotManager.gui()
+        self.satelliteCanvas.setBlock( self.labelingConsole.getBlock() )
         self.addMenues(mainMenu, self.labelingConsole.menu_actions)
 #        self.mixingFrame = MixingFrame( self.umgr )
+        self.labelsConsole = labelsManager.gui()
 
-        consoleLayout.addWidget(self.labelingConsole)
+        directoryLayout = QHBoxLayout()
+        directoryLayout.addWidget( self.labelingConsole, 10 )
+        directoryLayout.addWidget(self.labelsConsole, 2)
+        consoleLayout.addLayout(directoryLayout, 20 )
+
+        self.spectraTabs = QTabWidget()
+        for iS in range( self.nSpectra ):
+            spectral_plot = SpectralPlot( iS == 0 )
+            self.spectral_plots.append(spectral_plot)
+            tabId = "Spectra" if iS == 0 else str(iS)
+            self.spectraTabs.addTab( spectral_plot.gui(widget), tabId )
+        self.spectraTabs.currentChanged.connect( self.activate_spectral_plot )
+        self.spectraTabs.setTabEnabled( 0, True )
+        consoleLayout.addWidget( self.spectraTabs, 6 )
+
         vizTabs = QTabWidget()
-        vizTabs.addTab(  self.vtkFrame, "Embedding" )
+        vizTabs.addTab(  self.umgr.gui(), "Embedding" )
 #        vizTabs.addTab( self.mixingFrame, "Mixing")
         vizTabs.addTab( self.satelliteCanvas, "Satellite")
         for label, image_spec in self.tabs.items():
@@ -95,20 +108,18 @@ class SpatialAppConsole(QMainWindow):
                 refCanvas = ReferenceImageCanvas(widget, image_spec)
                 refCanvas.addEventListener(self.labelingConsole)
                 vizTabs.addTab( refCanvas, label )
-        vizLayout.addWidget( vizTabs, 15 )
-        vizLayout.addWidget( self.spectralPlot, 5 )
+        vizLayout.addWidget( vizTabs )
 
-        for label, callback in self.labelingConsole.button_actions.items():
-            pybutton = QPushButton( label, self )
-            pybutton.clicked.connect( callback )
-            buttonsLayout.addWidget(pybutton)
+    def activate_spectral_plot( self, index: int ):
+        for iS, plot in enumerate(self.spectral_plots):
+            plot.activate( iS == index )
 
     def loadCurrentBlock(self, **kwargs):
         filename = dataManager.config.value("data/init/file", None)
         if filename is not None:
             buttonReply = QMessageBox.question( self, 'Hyperclass Initialization', "Load current block?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes )
             if buttonReply == QMessageBox.Yes:
-                taskRunner.start(Task(f"Load Data File", self.openFile, filename, **kwargs))
+                taskRunner.start(Task(f"load dataset", self.openFile, filename, **kwargs))
 
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
@@ -171,7 +182,7 @@ class SpatialAppConsole(QMainWindow):
         self.settings = dataManager.config
 
     def setPreferences(self):
-        preferences =  PreferencesDialog()
+        preferences =  PreferencesDialog( PreferencesDialog.RUNTIME, spatial=True )
         preferences.show()
 
     def selectFile(self, *args, **kwargs):
@@ -181,15 +192,16 @@ class SpatialAppConsole(QMainWindow):
         dialog.setViewMode(QFileDialog.Detail)
         if (dialog.exec()):
             fileNames = dialog.selectedFiles()
-            taskRunner.start(Task(f"Load Data File", self.openFile, fileNames[0], **kwargs))
+            taskRunner.start(Task(f"load dataset", self.openFile, fileNames[0], **kwargs))
         dialog.close()
 
-    def openFile(self, fileName: str, **kwargs ):
+    def openFile(self, fileName: str, **kwargs ) -> Block:
         print( f"Opening file: {fileName}")
-        dataManager.setImageName( fileName )
+        dataManager.spatial.setImageName( fileName )
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
-        self.setBlock( block_indices, **kwargs )
+        result = self.setBlock( block_indices, **kwargs )
         self.fileChanged = True
+        return result
 
     def tabShape(self) -> QTabWidget.TabShape:
         return super().tabShape()
@@ -236,13 +248,13 @@ class SpatialAppConsole(QMainWindow):
             filename = dataManager.config.value("data/init/file", None)
             if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )
 
-    def setBlock(self, block_coords: Tuple[int], **kwargs ):
+    def setBlock(self, block_coords: Tuple[int], **kwargs ) -> Block:
         block = self.labelingConsole.setBlock( block_coords, **kwargs )
         self.satelliteCanvas.setBlock(block)
+        return block
 
     def show(self):
         QMainWindow.show(self)
-        self.vtkFrame.Initialize()
         self.loadCurrentBlock()
 
 

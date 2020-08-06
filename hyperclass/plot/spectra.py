@@ -32,7 +32,7 @@ class SpectralCanvas( FigureCanvas ):
 class SpectralPlot(QObject,EventClient):
     update_signal = pyqtSignal()
 
-    def __init__( self, active: bool, **kwargs ):
+    def __init__( self, active: bool = True, **kwargs ):
         QObject.__init__(self)
         self.figure: Optional[Figure] = None
         self._active = active
@@ -108,8 +108,8 @@ class SpectralPlot(QObject,EventClient):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
-            self.plotx = plot_data["plotx"]
-            self.ploty = plot_data["ploty"]
+            if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
+            else:                           self.plotx, self.ploty = plot_data.band,     plot_data
             self.nploty = self.normalize()
             self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
             self.configure( event )

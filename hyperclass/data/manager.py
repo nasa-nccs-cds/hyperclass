@@ -6,8 +6,9 @@ from hyperclass.gui.config import SettingsManager
 class DataManager(SettingsManager):
 
     def __init__( self, **kwargs ):
+        from .spatial.manager import SpatialDataManager
         SettingsManager.__init__(  self, **kwargs )
-        self.default_settings = {"umap/nneighbors": 8, "umap/nepochs": 300, "svm/ndim": 8}
+        self.spatial = SpatialDataManager( self, **kwargs )
 
     def getInputFileData(self, input_file_id: str, subsample: int = 1, dims: Tuple[int] = None ):
         input_file_path = self.config.value(f"data/init/{input_file_id}")

@@ -1,8 +1,7 @@
 import matplotlib.widgets
 import matplotlib.patches
-from hyperclass.plot.widgets import ColoredRadioButtons, ButtonBox
 from hyperclass.data.google import GoogleMaps
-from hyperclass.plot.spectra import SpectralPlot
+from hyperclass.gui.events import EventClient
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
@@ -11,8 +10,7 @@ from matplotlib.colors import Normalize
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from collections import OrderedDict
-from hyperclass.data.spatial.manager import dataManager
-from hyperclass.umap.manager import UMAPManager
+from hyperclass.data.manager import dataManager
 from PyQt5.QtWidgets import QMessageBox
 from functools import partial
 from pyproj import Proj, transform
@@ -23,12 +21,13 @@ from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
+from hyperclass.gui.labels import labelsManager
 import pandas as pd
 import xarray as xa
 import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, atexit, os
-from PyQt5.QtWidgets import QAction
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
@@ -104,13 +103,14 @@ class PageSlider(matplotlib.widgets.Slider):
         self.set_val(i)
         self._colorize(i)
 
-class LabelingConsole:
+class LabelingConsole(QObject,EventClient):
 
     RIGHT_BUTTON = 3
     MIDDLE_BUTTON = 2
     LEFT_BUTTON = 1
 
-    def __init__(self, umgr: UMAPManager, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
+    def __init__(self, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
+        QObject.__init__( self )
         self._debug = False
         self.currentFrame = 0
         self.block: Block = None
@@ -122,7 +122,6 @@ class LabelingConsole:
         self.marker_list: List[Dict] = []
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
-        self.umgr: UMAPManager = umgr
         self.svc: Optional[SVC] = None
         self.dataLims = {}
         self.key_mode = None
@@ -141,20 +140,8 @@ class LabelingConsole:
         self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
         self._tiles: Dict[List,Tile] = {}
-
-        self.read_markers()
-        self.spectral_plot = SpectralPlot()
         self.navigation_listeners = []
         self.setup_plot(**kwargs)
-
-        self.button_actions =  OrderedDict(model=   partial(self.run_task, self.build_model, "Computing embedding...", type=umgr.embedding_type ),
-                                           spread=  self.spread_labels,
-                                           undo=    self.undo_marker_selection,
-                                           clear=   self.clearLabels,
-#                                            mixing=  partial(self.run_task, self.computeMixingSpace, "Computing mixing space..." ),
-                                           learn=   partial(  self.run_task, self.learn_classification,   "Learning class boundaries..." ),
-                                           apply =  partial(  self.run_task, self.apply_classification,   "Applying learned classification..." )
-                                           )
 
         google_actions = [[maptype, None, None, partial(self.run_task, self.download_google_map, "Accessing Landsat Image...", maptype, task_context='newfig')] for maptype in ['satellite', 'hybrid', 'terrain', 'roadmap']]
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
@@ -165,7 +152,6 @@ class LabelingConsole:
                                                     [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
  #                                                   OrderedDict( GoogleMaps=google_actions )  ]  )
 
-        self.add_selection_controls( **kwargs )
         atexit.register(self.exit)
         self._update(0)
 
@@ -213,11 +199,11 @@ class LabelingConsole:
 
     def mark_point( self, point_index: int, transient: bool ):
         marker = self.block.pindex2coords(point_index)
-        self.add_marker( dict( c=0, **marker), transient, labeled=False )
+        self.add_marker( dict( c=labelsManager.selectedClass, pid=point_index, **marker), transient, labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         print( f"LabelingConsole setBlock: {block_coords}")
-        self.block: Block = self.tile.getBlock( *block_coords, init_graph=True, **self.umgr.conf )
+        self.block: Block = self.tile.getBlock( *block_coords )
         if self.block is not None:
             dataManager.config.setValue( 'block/indices', block_coords )
             self.nFrames = self.data.shape[0]
@@ -233,7 +219,6 @@ class LabelingConsole:
             self.initLabels()
 
             self.google = GoogleMaps( self.block )
-            self.umgr.clear_pointcloud()
             self.update_plot_axis_bounds()
             self.plot_markers_image()
             self.update_plots()
@@ -258,10 +243,10 @@ class LabelingConsole:
         task = Task( messsage, executable, *args, **kwargs )
         taskRunner.start( task )
 
-    def computeMixingSpace(self, *args, **kwargs):
-        labels: xa.DataArray = self.getExtendedLabelPoints()
-        self.umgr.computeMixingSpace( self.block, labels, **kwargs )
-        self.plot_markers_volume()
+    # def computeMixingSpace(self, *args, **kwargs):
+    #     labels: xa.DataArray = self.getExtendedLabelPoints()
+    #     self.umgr.computeMixingSpace( self.block, labels, **kwargs )
+    #     self.plot_markers_volume()
 
     def build_model(self, *args, **kwargs):
         if self.block is None:
@@ -334,24 +319,16 @@ class LabelingConsole:
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabelsFromMarkers()
-        labeledPointData = dataManager.raster2points( self.labels )
+        labeledPointData = dataManager.spatial.raster2points( self.labels )
         return labeledPointData
 
     def getExtendedLabelPoints( self ) -> xa.DataArray:
         if self.label_map is None: return self.getLabeledPointData( True )
-        return dataManager.raster2points( self.label_map )
+        return dataManager.spatial.raster2points( self.label_map )
 
     @property
     def data(self):
         return None if self.block is None else self.block.data
-
-    @property
-    def class_labels(self):
-        return self.umgr.class_labels
-
-    @property
-    def class_colors(self) -> Dict[str,List[float]]:
-        return self.umgr.class_colors
 
     @property
     def toolbarMode(self) -> str:
@@ -367,15 +344,15 @@ class LabelingConsole:
 
     def setup_plot(self, **kwargs):
         self.plot_grid: GridSpec = self.figure.add_gridspec( 4, 4 )
-        self.plot_axes = self.figure.add_subplot( self.plot_grid[:, 0:-1] )
+        self.plot_axes = self.figure.add_subplot( self.plot_grid[:,:] )
         self.figure.suptitle(f"Point Labeling Console",fontsize=14)
-        for iC in range(2):
-            y0,y1 = 2*iC, 2*(iC+1)
-            self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[y0:y1, -1] )
-            self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())
-            self.control_axes[iC].yaxis.set_major_locator(plt.NullLocator())
-        self.slider_axes: Axes = self.figure.add_axes([0.1, 0.01, 0.8, 0.04])  # [left, bottom, width, height]
-        self.plot_grid.update( left = 0.05, bottom = 0.1, top = 0.95, right = 0.95 )
+        # for iC in range(2):
+        #     y0,y1 = 2*iC, 2*(iC+1)
+        #     self.control_axes[iC] = self.figure.add_subplot( self.plot_grid[y0:y1, -1] )
+        #     self.control_axes[iC].xaxis.set_major_locator(plt.NullLocator())
+        #     self.control_axes[iC].yaxis.set_major_locator(plt.NullLocator())
+        self.slider_axes: Axes = self.figure.add_axes([0.01, 0.01, 0.95, 0.04])  # [left, bottom, width, height]
+        self.plot_grid.update( left = 0.01, bottom = 0.1, top = 0.99, right = 0.99 )
 
     def invert_yaxis(self):
         self.plot_axes.invert_yaxis()
@@ -392,7 +369,7 @@ class LabelingConsole:
     def create_image(self, **kwargs ) -> AxesImage:
         z: xa.DataArray =  self.data[ 0, :, : ]
         colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  dataManager.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
+        image: AxesImage =  dataManager.spatial.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
         self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
         self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
@@ -413,7 +390,7 @@ class LabelingConsole:
         if self.image is not None:
             frame_data: xa.DataArray = self.data[ self.currentFrame ]
             self.image.set_data( frame_data.values  )
-            drange = dataManager.get_color_bounds( frame_data )
+            drange = dataManager.spatial.get_color_bounds( frame_data )
             self.image.set_norm( Normalize( **drange ) )
             self.image.set_extent( self.block.extent() )
             plot_name = os.path.basename(self.data.name)
@@ -422,9 +399,6 @@ class LabelingConsole:
         if self.labels_image is not None:
             self.labels_image.set_extent( self.block.extent() )
             self.labels_image.set_alpha(0.0)
-
-    def addNavigationListener( self, listener ):
-        self.navigation_listeners.append( listener )
 
     def onMouseRelease(self, event):
         if event.inaxes ==  self.plot_axes:
@@ -438,38 +412,26 @@ class LabelingConsole:
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                marker = dict( y=event.ydata, x=event.xdata, c=self.selectedClass )
+                marker = dict( y=event.ydata, x=event.xdata, c=labelsManager.selectedClass )
                 self.add_marker( marker, rightButton )
                 self.dataLims = event.inaxes.dataLim
 
     def clear_transients(self):
         self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
-        self.spectral_plot.clear_current_line()
 
     def add_marker(self, marker: Dict, transient: bool, **kwargs ):
+        from hyperclass.gui.events import EventClient, EventMode
         self.clear_transients()
         if transient: self.transients = [ marker ]
         self.marker_list.append( marker )
-        taskRunner.start( Task( f"Plot marker at {marker['y']} {marker['x']}", self.plot_marker, marker ) )
+        event = dict( event="pick", type="directory", pids=[ marker['pid'] ], transient=True, mark=True )
+        self.submitEvent(event, EventMode.Gui)
         self.plot_markers_image( **kwargs )
-        self.plot_spectrum( marker )
-
-    def plot_spectrum(self, marker ):
-        [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
-        color = self.get_color(c)
-        pindex = self.block.coords2pindex( y, x )
-        if pindex >= 0:
-            pdata = self.block.getPointData( )
-            self.spectral_plot.plot_spectrum( pindex, marker.cid, pdata[pindex], color )
 
     def undo_marker_selection(self, **kwargs ):
         if len( self.marker_list ):
             self.marker_list.pop()
             self.update_marker_plots( **kwargs )
-
-    def update_marker_plots( self, **kwargs ):
-        taskRunner.start( Task( f"Plot markers", self.plot_markers_image, **kwargs )  )
-        taskRunner.start( Task( f"Plot markers", self.plot_markers_volume, reset=True, **kwargs ))
 
     def spread_labels(self, *args, **kwargs):
         if self.block is None:
@@ -483,12 +445,12 @@ class LabelingConsole:
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int32)
-        extent = dataManager.extent( self.label_map )
+        extent = dataManager.spatial.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
         class_alpha = kwargs.get( 'alpha', 0.7 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(self.class_colors.items()) ]
-            self.labels_image = dataManager.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
+            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(labelsManager.colors.items()) ]
+            self.labels_image = dataManager.spatial.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_plot.values  )
             self.labels_image.set_alpha(class_alpha  )
@@ -525,8 +487,8 @@ class LabelingConsole:
         Task.mainWindow().refresh_points()
 
     def get_color(self, class_index: int = None ) -> List[float]:
-        if class_index is None: class_index = self.selectedClass
-        return self.class_colors[self.class_labels[ class_index ]]
+        if class_index is None: class_index = labelsManager.selectedClass
+        return labelsManager.colors[self.class_labels[ class_index ]]
 
     def clear_unlabeled(self):
         if self.marker_list:
@@ -558,23 +520,8 @@ class LabelingConsole:
             reset = kwargs.get('reset', False)
             if reset: self.umgr.reset_markers()
 
-    def plot_marker(self, marker: Dict, **kwargs ):
-        self.umgr.plot_markers( self.block, [marker['y']], [marker['x']], [ self.get_color(marker['c']) ], **kwargs )
-
     def update_canvas(self):
         self.figure.canvas.draw_idle()
-
-    def read_markers(self):
-        dataManager.markers.readMarkers()
-        if dataManager.markers.hasData:
-            self.marker_list = dataManager.markers.markers
-            self.umgr.class_labels = dataManager.markers.names
-            self.umgr.class_colors = dataManager.markers.colors
-            print(f"Reading {len(self.marker_list)} point labels from file { dataManager.markers.file_path}")
-
-    def write_markers(self):
-        print(f"Writing {len(self.marker_list)} point labels to file {dataManager.markers.file_path}")
-        dataManager.markers.writeMarkers(self.class_labels, self.class_colors, self.marker_list)
 
     def mpl_pick_marker( self, event: PickEvent ):
         rightButton: bool = int(event.mouseevent.button) == self.RIGHT_BUTTON
@@ -615,23 +562,10 @@ class LabelingConsole:
             self.slider = PageSlider( self.slider_axes, self.nFrames )
             self.slider_cid = self.slider.on_changed(self._update)
 
-    def add_selection_controls( self, controls_window=0 ):
-        cax = self.control_axes[controls_window]
-        cax.title.set_text('Class Selection')
-        self.class_selector = ColoredRadioButtons( cax, self.class_labels, list(self.class_colors.values()), active=self.currentClass )
-
     def wait_for_key_press(self):
         keyboardClick = False
         while keyboardClick != True:
             keyboardClick = plt.waitforbuttonpress()
-
-    @property
-    def selectedClass(self) -> int:
-        return self.class_labels.index( self.class_selector.value_selected )
-
-    @property
-    def selectedClassLabel(self) -> str:
-        return self.class_selector.value_selected
 
     def _update( self, val ):
         if self.slider is not None:

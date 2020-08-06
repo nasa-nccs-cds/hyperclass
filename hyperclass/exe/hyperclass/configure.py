@@ -1,9 +1,11 @@
 from hyperclass.config.inputs import ConfigurationDialog
 from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import QSettings
+from hyperclass.data.manager import dataManager
 import sys
 
+default_settings = {}
 app = QApplication(sys.argv)
-preferences = ConfigurationDialog("hyperclass")
+dataManager.initProject( "hyperclass", default_settings )
+preferences = ConfigurationDialog()
 preferences.show()
 sys.exit(app.exec_())

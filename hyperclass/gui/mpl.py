@@ -3,27 +3,26 @@ import xarray as xa
 import rioxarray as rio
 from hyperclass.plot.console import LabelingConsole
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
-from hyperclass.plot.spectra import SpectralPlot
 from matplotlib.image import AxesImage
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
-from hyperclass.data.spatial.manager import DataManager
 from hyperclass.data.spatial.tile import Tile, Block
-from hyperclass.umap.manager import UMAPManager
+from PyQt5.QtCore import *
+from hyperclass.gui.events import EventClient, EventMode
 from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import collections.abc
 from hyperclass.data.google import GoogleMaps
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.plot.labels import format_colors
+from hyperclass.gui.labels import format_colors
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 class MplWidget(QWidget):
-    def __init__(self, umgr: UMAPManager, *args, **kwargs):
-        QWidget.__init__(self, *args, **kwargs)
+    def __init__(self, parent, **kwargs):
+        QWidget.__init__(self, parent, **kwargs)
         self.setLayout(QVBoxLayout())
-        self.canvas = MplCanvas(self, umgr, **kwargs )
+        self.canvas = MplCanvas(self, **kwargs )
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
@@ -38,9 +37,6 @@ class MplWidget(QWidget):
     def setBlock(self, block_coords: Tuple[int], **kwargs    ):
         return self.canvas.setBlock( block_coords, **kwargs  )
 
-    def addNavigationListener(self, listener):
-        self.canvas.console.addNavigationListener( listener )
-
     def getNewImage(self):
         return self.canvas.getNewImage()
 
@@ -52,17 +48,6 @@ class MplWidget(QWidget):
 
     def extent(self):
         return self.canvas.extent()
-
-    def keyPressEvent( self, event ):
-        event = dict( event="key", type="press", key=event.key() )
-        self.process_event(event)
-
-    def keyReleaseEvent(self, event):
-        event = dict( event="key", type="release", key=event.key() )
-        self.process_event(event)
-
-    def process_event( self, event: Dict ):
-        self.canvas.process_event(event )
 
     @property
     def button_actions(self) -> Dict[str, Callable]:
@@ -79,16 +64,13 @@ class MplWidget(QWidget):
 
 class MplCanvas(FigureCanvas):
 
-    def __init__(self, parent, umgr: UMAPManager, **kwargs ):
+    def __init__(self, parent,  **kwargs ):
         self.figure = Figure()
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
         FigureCanvas.setSizePolicy(self, QSizePolicy.Expanding, QSizePolicy.Expanding )
         FigureCanvas.updateGeometry(self)
-        self.console = LabelingConsole( umgr, figure=self.figure, **kwargs )
-
-    def process_event( self, event: Dict ):
-        self.console.process_event(event)
+        self.console = LabelingConsole( figure=self.figure, **kwargs )
 
     def setBlock(self, block_coords: Tuple[int], **kwargs   ):
         return self.console.setBlock( block_coords, **kwargs  )
@@ -115,21 +97,33 @@ class MplCanvas(FigureCanvas):
     def extent(self):
         return self.console.block.extent()
 
+class SatellitePlotManager(QObject, EventClient):
+
+    def __init__(self):
+        QObject.__init__(self)
+        self._gui = None
+
+    def gui( self  ):
+        if self._gui is None:
+            self._gui = SatellitePlotCanvas( self.process_mouse_event )
+        return self._gui
+
+    def process_mouse_event(self, event ):
+        self.submitEvent( event, EventMode.Gui )
+
 class SatellitePlotCanvas(FigureCanvas):
 
     RIGHT_BUTTON = 3
     MIDDLE_BUTTON = 2
     LEFT_BUTTON = 1
 
-    def __init__(self, parent, toolbar: NavigationToolbar, block: Block = None, **kwargs ):
+    def __init__( self, eventProcessor ):
         self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
         self.plot = None
         self.image = None
         self.block = None
-        self.mouse_listeners = []
-        #        self.setParent(parent)
-        self.toolbar = toolbar
+        self._eventProcessor = eventProcessor
         FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
         FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
         FigureCanvas.updateGeometry(self)
@@ -139,10 +133,6 @@ class SatellitePlotCanvas(FigureCanvas):
         self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
         self.google_maps_zoom_level = 17
         self.google = None
-        if block is not None: self.setBlock( block )
-
-    def addEventListener( self, listener ):
-        self.mouse_listeners.append( listener )
 
     def setBlock(self, block: Block, type ='satellite'):
         print(" SatelliteCanvas.setBlock ")
@@ -171,13 +161,11 @@ class SatellitePlotCanvas(FigureCanvas):
         if event.xdata != None and event.ydata != None:
             if event.inaxes ==  self.axes:
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button), transient=rightButton )
-                    listener.gui_process_event(event)
+                event = dict( event="pick", type="image", lat=event.ydata, lon=event.xdata, button=int(event.button), transient=rightButton )
+                self._eventProcessor( event )
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()
-#        self.repaint()
 
 class ReferenceImageCanvas(FigureCanvas):
 
@@ -224,4 +212,7 @@ class ReferenceImageCanvas(FigureCanvas):
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()
+
+
+satellitePlotManager = SatellitePlotManager()
 

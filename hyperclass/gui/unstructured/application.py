@@ -20,9 +20,8 @@ import os
 
 class UnstructuredAppMainWindow(HCMainWindow):
 
-    def __init__( self, parent, title: str ):
-        self.dsid = title
-        HCMainWindow.__init__( self, parent, title )
+    def __init__( self, parent ):
+        HCMainWindow.__init__( self, parent )
 
     def addMenuItems( self  ):
         self.load_dataset = self.datasetMenu.addMenu("load")
@@ -74,13 +73,11 @@ class UnstructuredAppMainWindow(HCMainWindow):
         return RuntimeDialog()
 
 class UnstructuredAppConsole(QObject, EventClient):
-    def __init__( self, application_name: str, **kwargs ):
+    def __init__( self,  **kwargs ):
         QObject.__init__(self)
-        dataManager.setProjectName( application_name )
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
-        self.gui = UnstructuredAppMainWindow(None, application_name )
+        self.gui = UnstructuredAppMainWindow( None )
         self.umgr = UMAPManager( **kwargs )
-        self.name = application_name
 
         self.left = 10
         self.top = 10
@@ -172,7 +169,7 @@ class UnstructuredAppConsole(QObject, EventClient):
 
     @property
     def datasetDir(self):
-        return os.path.join( dataManager.config.value('data/cache'), self.name )
+        return os.path.join( dataManager.config.value('data/cache'), dataManager.project_name )
 
     def populate_dataset_load_menu(self):
         for file in os.listdir( self.datasetDir ):

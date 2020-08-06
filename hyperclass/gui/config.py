@@ -101,10 +101,11 @@ class SettingsManager:
         self.system_settings_dir = self.settings_dir()
         QSettings.setPath(QSettings.IniFormat, QSettings.SystemScope, self.system_settings_dir )
         self.project_name = None
-        self.default_settings = {}
+        self.default_settings = kwargs.get('defaults',{})
 
-    def setProjectName(self, name: str ):
+    def initProject(self, name: str, default_settings: Dict ):
         self.project_name = name
+        self.default_settings = default_settings
 
     @property
     def config(self) -> QSettings:

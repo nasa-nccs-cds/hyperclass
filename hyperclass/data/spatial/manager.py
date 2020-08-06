@@ -68,22 +68,26 @@ class MarkerManager:
             print( f" Can't read markers: {err}" )
 
 
-@register_datamanager_accessor('spatial')
-class SpatialDataManager(SettingsManager):
+class SpatialDataManager():
 
-    def __init__( self, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
-        SettingsManager.__init__( self, **kwargs )
-        self.default_settings = {'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200,
-                            'block/indices': [0, 0], 'tile/indices': [0, 0], "svm/ndim": 8}
+    def __init__( self, settings: SettingsManager, **kwargs ):   # Tile shape (y,x) matches image shape (row,col)
+        self._settings = settings
         self.cacheTileData = kwargs.get( 'cache_tile', True )
-        self.image_name = None
-        self.setImageName( self.config.value("data/init/file") )
-        self.markers = MarkerManager( self.markerFileName() + ".pkl", self.config )
+        self._image_name = None
 
-    def setImageName( self, image_name: str ):
-        if image_name:
-            self.image_name = image_name[:-4] if image_name.endswith(".tif") else image_name
-            self.config.setValue('data/init/file', self.image_name)
+    @property
+    def config(self):
+        return self._settings.config
+
+    def setImageName( self, fileName: str ):
+        image_name = fileName[:-4] if fileName.endswith(".tif") else fileName
+        self.config.setValue( "data/init/file", image_name )
+
+    @property
+    def image_name(self):
+        if self._image_name is None:
+            self._image_name = self.config.value("data/init/file")
+        return self._image_name
 
     @property
     def tile_shape(self) -> List[int]:
@@ -179,7 +183,7 @@ class SpatialDataManager(SettingsManager):
         tile_raster.attrs['filename'] = tile_filename
         tile_raster.attrs['image']  = self.image_name
         tile_raster.attrs['image_shape'] = full_input_bands.shape
-        dataManager.config.setValue( self.image_name, image_attrs )
+        self.config.setValue( self.image_name, image_attrs )
         self.set_tile_transform( tile_raster )
         if self.cacheTileData: self.writeGeotiff( tile_raster, tile_filename )
         return tile_raster
@@ -191,7 +195,7 @@ class SpatialDataManager(SettingsManager):
         if tile_raster is not None:
             tile_raster.name = f"{self.image_name}: Band {iband+1}" if( iband >= 0 ) else self.image_name
             tile_raster.attrs['filename'] = tile_filename
-            image_specs = dataManager.config.value(self.image_name, None)
+            image_specs = self.config.value(self.image_name, None)
             self.setTilesPerImage( image_specs )
         return tile_raster
 
@@ -221,6 +225,9 @@ class SpatialDataManager(SettingsManager):
         try:
             input_file = os.path.join(self.config.value('data/dir'), filename)
             input_bands: xa.DataArray =  rio.open_rasterio(input_file)
+            if 'transform' not in input_bands.attrs.keys():
+                gts = input_bands.spatial_ref.GeoTransform.split()
+                input_bands.attrs['transform'] = [ float(gts[i]) for i in [ 1,2,0,4,5,3 ] ]
             print(f"Reading raster file {input_file}, dims = {input_bands.dims}, shape = {input_bands.shape}")
             if iband >= 0:  return input_bands[iband]
             else:           return input_bands
@@ -368,7 +375,5 @@ class SpatialDataManager(SettingsManager):
                 cbar.set_ticklabels( [ cval[1] for cval in colors ] )
         if showplot: plt.show()
         return img
-
-dataManager = DataManager()
 
 
