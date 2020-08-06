@@ -412,7 +412,8 @@ class LabelingConsole(QObject,EventClient):
         if event.xdata != None and event.ydata != None:
             if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                marker = dict( y=event.ydata, x=event.xdata, c=labelsManager.selectedClass )
+                pid = self.block.coords2pindex( event.ydata, event.xdata )
+                marker = dict( y=event.ydata, x=event.xdata, c=labelsManager.selectedClass, pid=pid )
                 self.add_marker( marker, rightButton )
                 self.dataLims = event.inaxes.dataLim
 
@@ -488,7 +489,7 @@ class LabelingConsole(QObject,EventClient):
 
     def get_color(self, class_index: int = None ) -> List[float]:
         if class_index is None: class_index = labelsManager.selectedClass
-        return labelsManager.colors[self.class_labels[ class_index ]]
+        return labelsManager.colors[ class_index ]
 
     def clear_unlabeled(self):
         if self.marker_list:
