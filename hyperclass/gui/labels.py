@@ -36,17 +36,20 @@ def set_alpha( color, alpha ):
     return color[:3] + [alpha]
 
 class Marker:
-    def __init__(self, locations: List[List[float]], color: List[float], pids: List[int], cid: int ):
-        self.locations = locations
+    def __init__(self, color: List[float], pids: List[int], cid: int ):
         self.color = color
         self.cid = cid
         self.pids = pids
 
-    def changeLocation(self, points: np.ndarray ):
-        self.locations = [ points[ pid ].tolist() for pid in self.pids ]
-
     def isTransient(self):
         return self.cid == 0
+
+    def deletePid( self, pid: int ) -> bool:
+        try:
+            self.pids.remove( pid )
+            return True
+        except: return False
+
 
 class LabelsManager(QObject,EventClient):
     update_signal = pyqtSignal()
@@ -136,15 +139,19 @@ class LabelsManager(QObject,EventClient):
     def addMarker(self, marker: Marker ):
         self.clearTransient()
         self._markers.append(marker)
-
-    def moveMarkers(self, points: np.ndarray, **kwargs):
-        for marker in self._markers: marker.changeLocation( points )
+        self._markers.append(marker)
 
     def popMarker(self) -> Marker:
         marker = self._markers.pop( -1 ) if len( self._markers ) else None
         event = dict( event="gui", type="undo", marker=marker )
         self.submitEvent( event, EventMode.Gui )
         return marker
+
+    def deletePid(self, pid: int ) -> List[Marker]:
+        markers = []
+        for marker in self._markers:
+            if marker.deletePid( pid ): markers.append( marker )
+        return markers
 
     @property
     def currentMarker(self) -> Marker:
@@ -184,6 +191,7 @@ class LabelsManager(QObject,EventClient):
 
     def gui(self, **kwargs ):
         self.show_unlabeled = kwargs.get( 'show_unlabeled', True )
+        with_learning = kwargs.get( 'learning', False )
         self.console = QWidget()
         console_layout = QVBoxLayout()
         self.console.setLayout( console_layout )
@@ -220,8 +228,11 @@ class LabelsManager(QObject,EventClient):
         title = QLabel( "Actions" )
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
+        actions = [ 'Mark', 'Neighbors', 'Distance', 'Embed' ]
+        if with_learning: actions = actions + [ 'Learn', 'Apply' ]
+        actions = actions + [ 'Undo', 'Clear' ]
 
-        for action in [ 'Mark', 'Neighbors', 'Distance', 'Embed', 'Undo', 'Clear' ]:
+        for action in actions:
             pybutton = QPushButton( action, self.console )
             pybutton.clicked.connect( partial( self.execute,action)  )
             buttons_frame_layout.addWidget(pybutton)
@@ -234,24 +245,23 @@ class LabelsManager(QObject,EventClient):
     def execute(self, action: str ):
         print( f"Executing action {action}" )
         etype = action.lower()
+        event = None
         if etype == "undo":     self.popMarker()
         elif etype == "clear":  self.clearMarkers()
         elif etype == "neighbors":
             new_classes: Optional[xa.DataArray] = self.spread( etype )
             if new_classes is not None:
                 event = dict( event="gui", type="spread", labels=new_classes )
-                self.submitEvent( event, EventMode.Gui )
         elif etype == "distance":
             new_classes: Optional[xa.DataArray] = self.spread( etype, 100 )
             if new_classes is not None:
                 event = dict(event="gui", type="distance", labels=new_classes)
-                self.submitEvent(event, EventMode.Gui)
         elif etype == "embed":
             event = dict( event="gui", type="embed", alpha = 0.25 )
-            self.submitEvent( event, EventMode.Gui )
-        elif etype == "mark":
-            event = dict( event='gui', type="mark" )
-            self.submitEvent( event, EventMode.Gui )
+        elif etype in [ "apply", "learn", "mark" ]:
+            event = dict( event='gui', type=etype )
+        if event is not None:
+            self.submitEvent(event, EventMode.Gui)
 
     def onClicked(self):
         radioButton = self.sender()

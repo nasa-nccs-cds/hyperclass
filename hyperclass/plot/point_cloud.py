@@ -61,7 +61,7 @@ class PointCloud():
     def setPoints(self, points: np.ndarray, labels: np.ndarray = None, **kwargs ):
         self.initPolyData( points, **kwargs )
         if labels is not None: self.set_point_colors( labels = labels )
-        self.updateMarkers( points, **kwargs )
+        self.plotMarkers(reset=True)
 
     def getPolydata(self):
         return self.polydata
@@ -194,10 +194,6 @@ class PointCloud():
         self.initPolyData()
         self.initMarkers()
 
-    def updateMarkers(self, points: np.ndarray, **kwargs ):
-        labelsManager.moveMarkers( points, **kwargs )
-        self.plotMarkers(reset=True)
-
     def initMarkers( self, clear: bool = True, **kwargs ):
         if self.marker_actor is None:
             clear = True
@@ -227,7 +223,8 @@ class PointCloud():
         if reset:
             self.initMarkers()
         for marker in labelsManager.getMarkers():
-            for location in marker.locations:
+            for pid in marker.pids:
+                location = self.polydata.GetPoint( pid )
                 id = self.marker_points.InsertNextPoint( *location  )
                 self.marker_verts.InsertNextCell(1)
                 self.marker_verts.InsertCellPoint(id)

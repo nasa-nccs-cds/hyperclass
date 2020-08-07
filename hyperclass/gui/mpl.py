@@ -18,11 +18,11 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
-class MplWidget(QWidget):
+class LabelingWidget(QWidget):
     def __init__(self, parent, **kwargs):
         QWidget.__init__(self, parent, **kwargs)
         self.setLayout(QVBoxLayout())
-        self.canvas = MplCanvas(self, **kwargs )
+        self.canvas = LabelingCanvas(self, **kwargs)
         self.toolbar = NavigationToolbar(self.canvas, self)
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
@@ -62,7 +62,7 @@ class MplWidget(QWidget):
         self.update()
         self.repaint()
 
-class MplCanvas(FigureCanvas):
+class LabelingCanvas(FigureCanvas):
 
     def __init__(self, parent,  **kwargs ):
         self.figure = Figure()

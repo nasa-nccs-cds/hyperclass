@@ -21,7 +21,7 @@ from hyperclass.gui.tasks import taskRunner, Task
 from hyperclass.svm.manager import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
-from hyperclass.gui.labels import labelsManager
+from hyperclass.gui.labels import labelsManager, Marker
 import pandas as pd
 import xarray as xa
 import numpy as np
@@ -119,7 +119,6 @@ class LabelingConsole(QObject,EventClient):
         self.labels = None
         self.transients = []
         self.plot_axes: Optional[Axes] = None
-        self.marker_list: List[Dict] = []
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
         self.svc: Optional[SVC] = None
@@ -153,6 +152,7 @@ class LabelingConsole(QObject,EventClient):
  #                                                   OrderedDict( GoogleMaps=google_actions )  ]  )
 
         atexit.register(self.exit)
+        self.activate_event_listening()
         self._update(0)
 
     @property
@@ -168,20 +168,24 @@ class LabelingConsole(QObject,EventClient):
     def transform(self):
         return self.block.transform
 
-    def process_event( self, event: Dict ):
-        print( f" LabelingConsole: process_event: {event}")
+    def processEvent( self, event: Dict ):
+        super().processEvent(event)
         if event['event'] == 'pick':
             transient = event.pop('transient',True)
             if event['type'] == 'vtkpoint':
+                cid = labelsManager.selectedClass
                 for point_index in event['pids']:
-                    self.mark_point( point_index, transient )
+                    self.mark_point( point_index, cid==0 )
             elif event['type'] == 'image':
                 self.add_marker( self.get_image_selection_marker( event ), transient )
         elif event['event'] == 'key':
             if   event['type'] == "press":   self.key_mode = event['key']
             elif event['type'] == "release": self.key_mode = None
+        elif event['event'] == 'gui':
+            if event['type'] == "learn":   self.learn_classification( **event )
+            elif event['type'] == "apply": self.apply_classification( **event )
 
-    def get_image_selection_marker( self, event ) -> Dict:
+    def get_image_selection_marker( self, event ) -> Marker:
         if 'lat' in event:
             lat, lon = event['lat'], event['lon']
             proj = Proj( self.data.spatial_ref.crs_wkt )
@@ -190,16 +194,19 @@ class LabelingConsole(QObject,EventClient):
             x, y = event['x'], event['y']
         if 'label' in event:
             self.class_selector.set_active( event['label'] )
-        return dict( c=self.selectedClass, x=x, y=y )
+        pid = self.block.coords2pindex( y, x )
+        ic, color = labelsManager.selectedColor( True )
+        return Marker( color, [pid], ic )
 
     def point_coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.block.getPointData().coords['samples']
         selected_sample: np.ndarray = samples[ point_index ].values
         return dict( y = selected_sample[1], x = selected_sample[0] )
 
-    def mark_point( self, point_index: int, transient: bool ):
-        marker = self.block.pindex2coords(point_index)
-        self.add_marker( dict( c=labelsManager.selectedClass, pid=point_index, **marker), transient, labeled=False )
+    def mark_point( self, pid: int, transient: bool ):
+        cid, color = labelsManager.selectedColor( not transient )
+        marker = Marker( color, [pid], cid )
+        self.add_marker( marker, transient, labeled=False )
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         print( f"LabelingConsole setBlock: {block_coords}")
@@ -261,7 +268,7 @@ class LabelingConsole(QObject,EventClient):
         if self.block is None:
             Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
         else:
-            ndim = kwargs.get('ndim',self.umgr.iparm("svm/ndim"))
+            ndim = kwargs.get( 'ndim', dataManager.config.get("svm/ndim") )
             full_labels: xa.DataArray = self.getExtendedLabelPoints()
             embedding, labels = self.umgr.learn( self.block, full_labels, ndim, **kwargs )
             if embedding is not None:
@@ -292,30 +299,26 @@ class LabelingConsole(QObject,EventClient):
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
-    def clearLabels( self, ask_permission = True ):
-        if ask_permission and (len(self.marker_list) > 0):
-            buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if buttonReply == QMessageBox.No: return
-        self.initLabels()
-        if len(self.marker_list) > 0:
-            self.marker_list = []
-            self.update_marker_plots()
-            self.plot_label_map( self.getLabeledPointData() )
-            self.block.flow.clear()
-            self.labels_image.set_alpha(0.0)
-            self.umgr.reset_markers()
-            self.spectral_plot.clear()
+    # def clearLabels( self, ask_permission = True ):
+    #     if ask_permission and (len(self.marker_list) > 0):
+    #         buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+    #         if buttonReply == QMessageBox.No: return
+    #     self.initLabels()
+    #     labelsManager.clearMarkers()
+    #     self.update_marker_plots()
+    #     self.plot_label_map( self.getLabeledPointData() )
+    #     self.labels_image.set_alpha(0.0)
 
     def updateLabelsFromMarkers(self):
-        print(f"Updating {len(self.marker_list)} labels")
-        self.clear_transients()
-        for marker in self.marker_list:
-            [y, x, c] = [marker[k] for k in ['y', 'x', 'c']]
-            index = self.block.coords2indices(y, x)
-            try:
-                self.labels[ index['iy'], index['ix'] ] = c
-            except:
-                print( f"Skipping out of bounds label at local row/col coords {index['iy']} {index['ix']}")
+        labelsManager.clearTransient()
+        for marker in labelsManager.getMarkers():
+            for pid in marker.pids:
+                coords = self.block.pindex2coords(pid)
+                index = self.block.coords2indices( coords['y'], coords['x'] )
+                try:
+                    self.labels[ index['iy'], index['ix'] ] = marker.cid
+                except:
+                    print( f"Skipping out of bounds label at local row/col coords {index['iy']} {index['ix']}")
 
     def getLabeledPointData( self, update = True ) -> xa.DataArray:
         if update: self.updateLabelsFromMarkers()
@@ -413,26 +416,23 @@ class LabelingConsole(QObject,EventClient):
             if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 pid = self.block.coords2pindex( event.ydata, event.xdata )
-                marker = dict( y=event.ydata, x=event.xdata, c=labelsManager.selectedClass, pid=pid )
-                self.add_marker( marker, rightButton )
+                cid = labelsManager.selectedClass
+                marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
+                labelsManager.addMarker( marker )
+                self.add_marker( marker, labelsManager.selectedClass == 0 )
                 self.dataLims = event.inaxes.dataLim
 
-    def clear_transients(self):
-        self.marker_list = [ marker for marker in self.marker_list if marker not in self.transients ]
-
-    def add_marker(self, marker: Dict, transient: bool, **kwargs ):
+    def add_marker(self, marker: Marker, transient: bool, **kwargs ):
         from hyperclass.gui.events import EventClient, EventMode
-        self.clear_transients()
-        if transient: self.transients = [ marker ]
-        self.marker_list.append( marker )
-        event = dict( event="pick", type="directory", pids=[ marker['pid'] ], transient=True, mark=True )
-        self.submitEvent(event, EventMode.Gui)
+        event = dict( event="pick", type="directory", pids=marker.pids, transient=transient, mark=True )
+        self.submitEvent(event, EventMode.Foreground )
         self.plot_markers_image( **kwargs )
+        self.update_canvas()
 
-    def undo_marker_selection(self, **kwargs ):
-        if len( self.marker_list ):
-            self.marker_list.pop()
-            self.update_marker_plots( **kwargs )
+    # def undo_marker_selection(self, **kwargs ):
+    #     if len( self.marker_list ):
+    #         self.marker_list.pop()
+    #         self.update_marker_plots( **kwargs )
 
     def spread_labels(self, *args, **kwargs):
         if self.block is None:
@@ -487,24 +487,21 @@ class LabelingConsole(QObject,EventClient):
         self.umgr.update_point_sizes( increase )
         Task.mainWindow().refresh_points()
 
-    def get_color(self, class_index: int = None ) -> List[float]:
-        if class_index is None: class_index = labelsManager.selectedClass
-        return labelsManager.colors[ class_index ]
-
-    def clear_unlabeled(self):
-        if self.marker_list:
-            self.marker_list = [ marker for marker in self.marker_list if marker['c'] > 0 ]
+    # def clear_unlabeled(self):
+    #     if self.marker_list:
+    #         self.marker_list = [ marker for marker in self.marker_list if marker['c'] > 0 ]
 
     def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
 #        labeled = kwargs.get( 'labeled', True )
-        if self.marker_list:
-            for marker in self.marker_list:
-                [y, x, c] = [ marker[k] for k in ['y', 'x', 'c'] ]
-                if self.block.inBounds(y,x):   #  and not ( labeled and (c==0) ):
-                    ycoords.append(y)
-                    xcoords.append(x)
-                    colors.append( self.get_color(c) )
+        for marker in labelsManager.getMarkers():
+            for pid in marker.pids:
+                coords = self.block.pindex2coords( pid )
+                if self.block.inBounds( coords['y'], coords['x'] ):   #  and not ( labeled and (c==0) ):
+                    ycoords.append( coords['y'] )
+                    xcoords.append( coords['x'] )
+                    cid, color = labelsManager.selectedColor(True)
+                    colors.append( color )
         return ycoords, xcoords, colors
 
     def plot_markers_image(self, **kwargs ):
@@ -531,20 +528,9 @@ class LabelingConsole(QObject,EventClient):
             self.update_marker_plots()
 
 
-    def delete_marker(self, y, x ):
+    def delete_marker(self, y, x ) -> List[Marker]:
         pindex = self.block.coords2pindex( y, x )
-        if len( self.marker_list ):
-            current_pindices = []
-            new_marker_list = []
-            for marker in self.marker_list:
-                pindex1 = self.block.coords2pindex(marker['y'], marker['x'])
-                if (pindex1 != pindex) and ( pindex1 not in current_pindices ):
-                    new_marker_list.append( marker )
-                    current_pindices.append( pindex1 )
-                else:
-                    print(f"Marker[{pindex1}] deleted at [{y} {x}]" )
-            self.marker_list = new_marker_list
-        print(f"#Markers remaining = {len(self.marker_list)}")
+        return labelsManager.deletePid( pindex )
 
     def initPlots(self, **kwargs):
         self.add_plots( **kwargs )

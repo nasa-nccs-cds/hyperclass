@@ -134,9 +134,7 @@ class UMAPManager(QObject,EventClient):
                         for rspec in rspecs: pids.append( rspec[1] )
                         mark = event.get('mark')
                         cid, color =  labelsManager.selectedColor(mark)
-                        embedding = self._current_mapper.embedding
-                        transformed_data= embedding[ pids ].tolist()
-                        labelsManager.addMarker( Marker( transformed_data, color, pids, cid ) )
+                        labelsManager.addMarker( Marker( color, pids, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit({})
                     except Exception as err:

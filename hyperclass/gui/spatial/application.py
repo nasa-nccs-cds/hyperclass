@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from hyperclass.umap.manager import UMAPManager
-from hyperclass.gui.mpl import MplWidget, SatellitePlotCanvas, ReferenceImageCanvas, satellitePlotManager
+from hyperclass.gui.mpl import LabelingWidget, SatellitePlotCanvas, ReferenceImageCanvas, satellitePlotManager
 from hyperclass.plot.spectra import SpectralPlot
 from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.config import PreferencesDialog
@@ -77,12 +77,12 @@ class SpatialAppConsole(QMainWindow):
         vizLayout = QVBoxLayout()
         framesLayout.addLayout(vizLayout, 7)
 
-        self.labelingConsole = MplWidget( self, **kwargs)
+        self.labelingConsole = LabelingWidget(self, **kwargs)
         self.satelliteCanvas = satellitePlotManager.gui()
         self.satelliteCanvas.setBlock( self.labelingConsole.getBlock() )
         self.addMenues(mainMenu, self.labelingConsole.menu_actions)
 #        self.mixingFrame = MixingFrame( self.umgr )
-        self.labelsConsole = labelsManager.gui()
+        self.labelsConsole = labelsManager.gui( learning=True )
 
         directoryLayout = QHBoxLayout()
         directoryLayout.addWidget( self.labelingConsole, 10 )

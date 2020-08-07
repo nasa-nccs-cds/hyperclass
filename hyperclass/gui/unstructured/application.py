@@ -114,7 +114,7 @@ class UnstructuredAppConsole(QObject, EventClient):
 
         directoryLayout = QHBoxLayout()
         self.directoryConsole = DirectoryWidget('catalog')
-        self.labelsConsole = labelsManager.gui()
+        self.labelsConsole = labelsManager.gui( learning=False )
 
         self.directoryTabs = QTabWidget()
         self.directoryTabs.addTab(  self.directoryConsole, "Catalog" )

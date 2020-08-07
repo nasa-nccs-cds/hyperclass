@@ -4,7 +4,7 @@ from hyperclass.data.manager import dataManager
 from hyperclass.gui.labels import labelsManager
 import sys
 
-classes = [ ('Vegetation', [1.0, 1.0, 0.0, 1.0]),
+classes = [ ('Vegetation', [0.0, 1.0, 1.0, 1.0]),
            ('Forest', [0.0, 1.0, 0.0, 1.0]),
            ('BareEarth', [1.0, 0.0, 1.0, 1.0]),
            ('Water', [0.0, 0.0, 1.0, 1.0])]
