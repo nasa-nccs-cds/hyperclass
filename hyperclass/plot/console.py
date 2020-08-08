@@ -1,7 +1,6 @@
 import matplotlib.widgets
 import matplotlib.patches
 from hyperclass.data.google import GoogleMaps
-from hyperclass.gui.events import EventClient
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
@@ -11,7 +10,7 @@ from matplotlib.backend_bases import PickEvent, MouseEvent
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from collections import OrderedDict
 from hyperclass.data.manager import dataManager
-from PyQt5.QtWidgets import QMessageBox
+from hyperclass.gui.events import EventClient, EventMode
 from functools import partial
 from pyproj import Proj, transform
 import matplotlib.pyplot as plt
@@ -184,6 +183,10 @@ class LabelingConsole(QObject,EventClient):
         elif event['event'] == 'gui':
             if event['type'] == "learn":   self.learn_classification( **event )
             elif event['type'] == "apply": self.apply_classification( **event )
+        elif event['event'] == 'plot':
+            if event['type'] == "classification":
+                labels = event['labels']
+                self.plot_label_map( labels )
 
     def get_image_selection_marker( self, event ) -> Marker:
         if 'lat' in event:
@@ -263,33 +266,17 @@ class LabelingConsole(QObject,EventClient):
             self.umgr.embed( self.block, labels, **kwargs )
             self.plot_markers_volume()
 
-    def learn_classification( self, *args, **kwargs  ):
-        t0 = time.time()
+    def learn_classification( self, **kwargs  ):
         if self.block is None:
             Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
         else:
-            ndim = kwargs.get( 'ndim', dataManager.config.get("svm/ndim") )
             full_labels: xa.DataArray = self.getExtendedLabelPoints()
-            embedding, labels = self.umgr.learn( self.block, full_labels, ndim, **kwargs )
-            if embedding is not None:
-                t1 = time.time()
-                print(f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1 - t0} sec")
-                score = self.get_svc(**kwargs).fit( embedding.values, labels.values, **kwargs )
-                if score is not None:
-                    print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+            event = dict(event="classify", type="learn", data=self.block, labels=full_labels, **kwargs )
+            self.submitEvent( event, EventMode.Background )
 
-    def get_svc( self, **kwargs ):
-        type = kwargs.get( 'svc_type', 'SVCL' )
-        if self.svc == None:
-            self.svc = SVC.instance( type )
-        return self.svc
-
-    def apply_classification( self, *args, **kwargs ):
-        embedding: Optional[xa.DataArray] = self.umgr.apply( self.block, **kwargs )
-        if embedding is not None:
-            prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
-            sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
-            self.plot_label_map( sample_labels )
+    def apply_classification( self, **kwargs ):
+        event = dict(event="classify", type="apply", data=self.block, **kwargs )
+        self.submitEvent(event, EventMode.Background)
 
     def initLabels(self):
         nodata_value = -2
@@ -493,15 +480,13 @@ class LabelingConsole(QObject,EventClient):
 
     def get_markers( self, **kwargs ) -> Tuple[ List[float], List[float], List[List[float]] ]:
         ycoords, xcoords, colors = [], [], []
-#        labeled = kwargs.get( 'labeled', True )
         for marker in labelsManager.getMarkers():
             for pid in marker.pids:
                 coords = self.block.pindex2coords( pid )
                 if self.block.inBounds( coords['y'], coords['x'] ):   #  and not ( labeled and (c==0) ):
                     ycoords.append( coords['y'] )
                     xcoords.append( coords['x'] )
-                    cid, color = labelsManager.selectedColor(True)
-                    colors.append( color )
+                    colors.append( marker.color )
         return ycoords, xcoords, colors
 
     def plot_markers_image(self, **kwargs ):
@@ -567,5 +552,5 @@ class LabelingConsole(QObject,EventClient):
         self.exit()
 
     def exit(self):
-        self.write_markers()
+        pass
 

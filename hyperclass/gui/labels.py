@@ -139,7 +139,6 @@ class LabelsManager(QObject,EventClient):
     def addMarker(self, marker: Marker ):
         self.clearTransient()
         self._markers.append(marker)
-        self._markers.append(marker)
 
     def popMarker(self) -> Marker:
         marker = self._markers.pop( -1 ) if len( self._markers ) else None
