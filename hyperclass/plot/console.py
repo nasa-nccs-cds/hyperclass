@@ -168,7 +168,7 @@ class LabelingConsole(QObject,EventClient):
         return self.block.transform
 
     def processEvent( self, event: Dict ):
-        super().processEvent(event)
+#        super().processEvent(event)
         if event['event'] == 'pick':
             transient = event.pop('transient',True)
             if event['type'] == 'vtkpoint':
@@ -181,12 +181,15 @@ class LabelingConsole(QObject,EventClient):
             if   event['type'] == "press":   self.key_mode = event['key']
             elif event['type'] == "release": self.key_mode = None
         elif event['event'] == 'gui':
-            if event['type'] == "learn":   self.learn_classification( **event )
-            elif event['type'] == "apply": self.apply_classification( **event )
+            if event['type'] == "undo":
+                self.plot_markers_image(**event)
         elif event['event'] == 'plot':
             if event['type'] == "classification":
                 labels = event['labels']
                 self.plot_label_map( labels )
+        elif event['event'] == 'classify':
+            if event['type'] == "learn.prep":   self.learn_classification( **event )
+            elif event['type'] == "apply.prep": self.apply_classification( **event )
 
     def get_image_selection_marker( self, event ) -> Marker:
         if 'lat' in event:
@@ -271,12 +274,14 @@ class LabelingConsole(QObject,EventClient):
             Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
         else:
             full_labels: xa.DataArray = self.getExtendedLabelPoints()
-            event = dict(event="classify", type="learn", data=self.block, labels=full_labels, **kwargs )
-            self.submitEvent( event, EventMode.Background )
+            print( f"Learning Classification, labels shape = {full_labels.shape}")
+            event = dict(event="classify", type="learn", data=self.block, labels=full_labels )
+            self.submitEvent( event, EventMode.Gui )
 
     def apply_classification( self, **kwargs ):
-        event = dict(event="classify", type="apply", data=self.block, **kwargs )
-        self.submitEvent(event, EventMode.Background)
+        print(f"Applying Classification")
+        event = dict( event="classify", type="apply", data=self.block  )
+        self.submitEvent(event, EventMode.Gui )
 
     def initLabels(self):
         nodata_value = -2
@@ -403,18 +408,21 @@ class LabelingConsole(QObject,EventClient):
             if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
                 pid = self.block.coords2pindex( event.ydata, event.xdata )
-                cid = labelsManager.selectedClass
-                marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
-                labelsManager.addMarker( marker )
-                self.add_marker( marker, labelsManager.selectedClass == 0 )
-                self.dataLims = event.inaxes.dataLim
+                if pid >= 0:
+                    cid = labelsManager.selectedClass
+                    marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
+                    labelsManager.addMarker( marker )
+                    self.add_marker( marker, labelsManager.selectedClass == 0 )
+                    self.dataLims = event.inaxes.dataLim
 
     def add_marker(self, marker: Marker, transient: bool, **kwargs ):
         from hyperclass.gui.events import EventClient, EventMode
-        event = dict( event="pick", type="directory", pids=marker.pids, transient=transient, mark=True )
-        self.submitEvent(event, EventMode.Foreground )
-        self.plot_markers_image( **kwargs )
-        self.update_canvas()
+        pids = [pid for pid in marker.pids if pid >= 0]
+        if len(pids) > 0:
+            event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True )
+            self.submitEvent(event, EventMode.Foreground )
+            self.plot_markers_image( **kwargs )
+            self.update_canvas()
 
     # def undo_marker_selection(self, **kwargs ):
     #     if len( self.marker_list ):
@@ -433,18 +441,19 @@ class LabelingConsole(QObject,EventClient):
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int32)
+        print( f"plot_label_map, labels shape = {self.label_map.shape}")
         extent = dataManager.spatial.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
         class_alpha = kwargs.get( 'alpha', 0.7 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate(labelsManager.colors.items()) ]
+            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate( zip( labelsManager.labels, labelsManager.colors ) ) ]
             self.labels_image = dataManager.spatial.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_plot.values  )
             self.labels_image.set_alpha(class_alpha  )
 
         self.labels_image.set_extent( extent )
-        taskRunner.start( Task( "Plot labels", self.color_pointcloud, sample_labels)  )
+        self.color_pointcloud( sample_labels )
 
     def show_labels(self):
         if self.labels_image is not None:

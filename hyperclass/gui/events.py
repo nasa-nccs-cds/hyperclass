@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import QAction
 from enum import Enum
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, os
-import functools
+import traceback
 
 class EventMode(Enum):
     Foreground = 1
@@ -28,7 +28,10 @@ class EventClient:
 
     @pyqtSlot(dict)
     def process_event_slot(self, event: Dict):
-        self.processEvent( event )
+        try: self.processEvent( event )
+        except Exception as err:
+            print( f" processEvent error: {err}")
+            traceback.print_exc( 250 )
 
     def processEvent(self, event: Dict ):
         if self.event_debug and self.is_interesting(event): print(f"CLASS {self.__class__.__name__}: process {event}")

@@ -23,6 +23,7 @@ class Task(QRunnable,EventClient):
         QRunnable.__init__(self)
         self.label = label
         self.fn = fn
+        self.tid = id(self)
         self.args = args
         self.context = kwargs.pop('task_context','console')
         self.kwargs = kwargs
@@ -39,7 +40,7 @@ class Task(QRunnable,EventClient):
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
-            event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc() )
+            event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc(), tid = self.tid )
             self.submitEvent(  event, EventMode.Gui )
         else:
             self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Gui )  # Return the result of the processing
@@ -68,16 +69,11 @@ class TaskRunner(QObject,EventClient):
     def __init__(self, *args, **kwargs):
         super(TaskRunner, self).__init__()
         self.threadpool = QThreadPool()
-        self.executing_tasks = []
         print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
     def start(self, task: Task, **kwargs ):
-        if task.label not in self.executing_tasks:
-            print(f"Task[{task.context}] running: {task.label}")
-            self.executing_tasks.append( task.label )
-            self.threadpool.start(task)
-        else:
-            print( f"Task already running: {task.label}")
+        print(f"Task[{task.context}] running: {task.label}")
+        self.threadpool.start(task)
 
     def message(self, message: Tuple ):
         Task.showMessage( *message )
@@ -94,9 +90,7 @@ class TaskRunner(QObject,EventClient):
         super().processEvent(event)
         if event.get('event') == 'task':
             if event.get('type') == 'finished':
-                label = event.get('label')
-                self.executing_tasks.remove( label )
-                print(f"Task completed: {label}")
+                print(f"Task completed: {event.get('label')}")
         elif event.get('event') == "message":
             icon = None
             type: str = event.get('type').lower()

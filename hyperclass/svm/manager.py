@@ -9,7 +9,7 @@ from hyperclass.gui.tasks import taskRunner, Task
 import abc, time
 import numpy as np
 
-class SVC(QObject,EventClient):
+class SVC:
     __metaclass__ = abc.ABCMeta
 
     def __init__(self, **kwargs):
@@ -33,14 +33,6 @@ class SVC(QObject,EventClient):
     def instance(cls, type: str, **kwargs ):
         if type == "SVCL": return SVCL( **kwargs )
         raise Exception( f"Unknown SVC type: {type}")
-
-    def processEvent(self, event: Dict ):
-        super().processEvent(event)
-        if event.get('event') == 'gui':
-            if event.get('type') == 'learn': self.learn( **event )
-            if event.get('type') == 'apply': self.apply(**event)
-
-
 
 class SVCL(SVC):
 

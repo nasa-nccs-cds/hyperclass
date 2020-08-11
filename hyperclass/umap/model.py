@@ -1297,7 +1297,7 @@ class UMAP(BaseEstimator):
         metric_kwds=None,
         output_metric="euclidean",
         output_metric_kwds=None,
-        n_epochs=0,
+        n_epochs=50,
         learning_rate=1.0,
         init="random",
         min_dist=0.1,
@@ -1408,10 +1408,6 @@ class UMAP(BaseEstimator):
         if self.target_n_neighbors < 2 and self.target_n_neighbors != -1:
             raise ValueError("target_n_neighbors must be greater than 1")
         if not isinstance(self.n_components, int):
-            if isinstance(self.n_components, str):
-                raise ValueError("n_components must be an int")
-            if self.n_components % 1 != 0:
-                raise ValueError("n_components must be a whole number")
             try:
                 # this will convert other types of int (eg. numpy int64)
                 # to Python int

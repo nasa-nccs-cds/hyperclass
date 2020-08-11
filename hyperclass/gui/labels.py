@@ -52,6 +52,7 @@ class Marker:
 
 
 class LabelsManager(QObject,EventClient):
+    from hyperclass.graph.flow import ActivationFlow
     update_signal = pyqtSignal()
 
     def __init__( self ):
@@ -68,6 +69,9 @@ class LabelsManager(QObject,EventClient):
         self._optype = None
         self.template = None
         self.n_spread_iters = 1
+
+    def flow(self) -> Optional[ActivationFlow]:
+        return self._flow
 
     def initLabelsData( self, point_data: xa.DataArray = None ):
         nodata_value = -1
@@ -251,16 +255,23 @@ class LabelsManager(QObject,EventClient):
             new_classes: Optional[xa.DataArray] = self.spread( etype )
             if new_classes is not None:
                 event = dict( event="gui", type="spread", labels=new_classes )
+                self.submitEvent(event, EventMode.Gui)
         elif etype == "distance":
             new_classes: Optional[xa.DataArray] = self.spread( etype, 100 )
             if new_classes is not None:
                 event = dict(event="gui", type="distance", labels=new_classes)
+                self.submitEvent(event, EventMode.Gui)
         elif etype == "embed":
             event = dict( event="gui", type="embed", alpha = 0.25 )
-        elif etype in [ "apply", "learn", "mark" ]:
+            self.submitEvent( event, EventMode.Gui )
+        elif etype == "mark":
             event = dict( event='gui', type=etype )
-        if event is not None:
-            self.submitEvent(event, EventMode.Gui)
+            self.submitEvent( event, EventMode.Gui )
+        elif etype in [ "apply", "learn" ]:
+            event = dict( event='classify', type= etype + ".prep" )
+            self.submitEvent( event, EventMode.Gui )
+
+
 
     def onClicked(self):
         radioButton = self.sender()
