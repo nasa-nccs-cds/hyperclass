@@ -1029,7 +1029,7 @@ def optimize_layout_euclidean(
         eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Foreground)
     else:
       for n in range(n_epochs):
-        if n % plot_mod == 0:
+        if (n % plot_mod == 0) and (dim < 4):
             eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
         optimize_fn(
             head_embedding,

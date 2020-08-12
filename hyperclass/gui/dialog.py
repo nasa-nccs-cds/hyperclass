@@ -50,10 +50,8 @@ class DialogBase(QDialog):
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Data Directory", self.DIRECTORY, "data/dir", "data/dir"))
         inputsLayout.addLayout( self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir"))
         self.addFileContent( inputsLayout )
-
-        if dtype == self.DATA_PREP: self.addDataPrepContent( inputsLayout )
+        self.addDataPrepContent( inputsLayout )
         if dtype == self.RUNTIME: self.addApplicationContent( inputsLayout )
-
         self.mainLayout.addWidget(inputsGroupBox)
         self.mainLayout.addWidget( self.buttonBox )
         self.setLayout(self.mainLayout)

@@ -7,6 +7,8 @@ from ..manager import dataManager
 from hyperclass.gui.tasks import taskRunner, Task
 import os, math, pickle
 from hyperclass.graph.flow import ActivationFlow
+from ...reduction.manager import reductionManager
+
 
 class Tile:
 
@@ -57,16 +59,11 @@ class Tile:
         block = Block( self, iy, ix, **kwargs )
         return block
 
-    def getBandPointData( self, iband: int, **kwargs  ) -> xa.DataArray:
-        band_data: xa.DataArray = self.data[iband]
-        point_data = band_data.stack(samples=band_data.dims).dropna(dim="samples")
-        return point_data[::self.subsampling]
-
-    def getPointData( self, **kwargs ) -> xa.DataArray:
-        subsample = kwargs.get( 'subsample', None )
-        if subsample is None: subsample = self.subsampling
-        point_data = dataManager.spatial.raster2points( self.data )
-        return point_data[::subsample]
+    # def getPointData( self, **kwargs ) -> xa.DataArray:
+    #     subsample = kwargs.get( 'subsample', None )
+    #     if subsample is None: subsample = self.subsampling
+    #     point_data = dataManager.spatial.raster2points( self.data )
+    #     return point_data[::subsample]
 
     def coords2index(self, cy, cx ) -> Tuple[int,int]:     # -> iy, ix
         coords = self.transform.inverse(np.array([[cx, cy], ]))
@@ -155,11 +152,21 @@ class Block:
         if self._point_data is None:
             subsample = kwargs.get( 'subsample', None )
             result: xa.DataArray =  dataManager.spatial.raster2points( self.data )
-            self._point_data =  result if subsample is None else result[::subsample]
+            ptData: xa.DataArray = result if subsample is None else result[::subsample]
+            self._point_data =  self.reduce( ptData )
             self._samples_axis = self._point_data.coords['samples']
             self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
             self._point_data.attrs['type'] = 'block'
         return self._point_data
+
+    def reduce(self, data: xa.DataArray):
+        reduction_method = dataManager.config.value("input.reduction/method", 'None')
+        ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
+        if reduction_method != "None":
+            reduced_spectra = reductionManager.reduce( data.values, reduction_method, ndim )
+            coords = dict(samples=data.coords['samples'], band=np.arange(ndim))
+            return xa.DataArray(reduced_spectra, dims=['samples', 'band'], coords=coords)
+        return data
 
     @property
     def samples_axis(self) -> xa.DataArray:
