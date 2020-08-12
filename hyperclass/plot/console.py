@@ -183,6 +183,9 @@ class LabelingConsole(QObject,EventClient):
         elif event['event'] == 'gui':
             if event['type'] == "undo":
                 self.plot_markers_image(**event)
+            elif event.get('type') == 'spread':
+                labels: xa.Dataset = event.get('labels')
+                self.plot_label_map( labels['C'] )
         elif event['event'] == 'plot':
             if event['type'] == "classification":
                 labels = event['labels']
@@ -429,15 +432,15 @@ class LabelingConsole(QObject,EventClient):
     #         self.marker_list.pop()
     #         self.update_marker_plots( **kwargs )
 
-    def spread_labels(self, *args, **kwargs):
-        if self.block is None:
-            Task.taskNotAvailable( "Workflow violation", "Must load a block and label some points first", **kwargs )
-        else:
-            print( "Submitting training set" )
-            labels: xa.DataArray = self.getLabeledPointData()
-            sample_labels: Optional[xa.DataArray] = self.block.flow.spread( labels, self.flow_iterations, **kwargs )
-            if sample_labels is not None:
-                self.plot_label_map( sample_labels )
+    # def spread_labels(self, *args, **kwargs):
+    #     if self.block is None:
+    #         Task.taskNotAvailable( "Workflow violation", "Must load a block and label some points first", **kwargs )
+    #     else:
+    #         print( "Submitting training set" )
+    #         labels: xa.DataArray = self.getLabeledPointData()
+    #         sample_labels: Optional[xa.DataArray] = self.block.flow.spread( labels, self.flow_iterations, **kwargs )
+    #         if sample_labels is not None:
+    #             self.plot_label_map( sample_labels )
 
     def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int32)
@@ -454,6 +457,9 @@ class LabelingConsole(QObject,EventClient):
 
         self.labels_image.set_extent( extent )
         self.color_pointcloud( sample_labels )
+        self.update_canvas()
+        event = dict( event="gui", type="update" )
+        self.submitEvent(event, EventMode.Gui)
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -481,7 +487,8 @@ class LabelingConsole(QObject,EventClient):
     def update_point_sizes( self, increase: bool, *args, **kwargs  ):
         print( " ...update_point_sizes...  ")
         self.umgr.update_point_sizes( increase )
-        Task.mainWindow().refresh_points()
+        event = dict( event="gui", type="update" )
+        self.submitEvent(event, EventMode.Gui)
 
     # def clear_unlabeled(self):
     #     if self.marker_list:

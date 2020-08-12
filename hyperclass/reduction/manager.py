@@ -19,8 +19,8 @@ class ReductionManager(QObject,EventClient):
         ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
         return base.createGroupBox("reduction", [methodSelector, nDimSelector, ssSelector])
 
-    def reduce(self, inputs: np.ndarray, reduction_method: str, ndim: int ) -> np.ndarray:
-        if reduction_method.lower() == "autoencoder": return self.autoencoder( inputs, ndim )
+    def reduce(self, inputs: np.ndarray, reduction_method: str, ndim: int, nepochs: int = 1  ) -> np.ndarray:
+        if reduction_method.lower() == "autoencoder": return self.autoencoder( inputs, ndim, nepochs )
 
     def xreduce(self, inputs: xa.DataArray, reduction_method: str, ndim: int ) -> xa.DataArray:
         if reduction_method.lower() == "autoencoder":
@@ -45,7 +45,7 @@ class ReductionManager(QObject,EventClient):
         print(f"Completed spectral_embedding in {(time.time() - t0) / 60.0} min.")
         return rv
 
-    def autoencoder( self, encoder_input: np.ndarray, ndim: int ) -> np.ndarray:
+    def autoencoder( self, encoder_input: np.ndarray, ndim: int, epochs: int = 1 ) -> np.ndarray:
         input_dims = encoder_input.shape[1]
         inputlayer = Input( shape=[input_dims] )
         activation = 'tanh'
@@ -67,7 +67,7 @@ class ReductionManager(QObject,EventClient):
         encoder = Model(inputs=[inputlayer], outputs=[encoded])
         autoencoder.compile(loss='mse', optimizer='rmsprop')
 
-        autoencoder.fit( encoder_input, encoder_input, epochs=1, batch_size=256, shuffle=True )
+        autoencoder.fit( encoder_input, encoder_input, epochs=epochs, batch_size=256, shuffle=True )
         return  encoder.predict( encoder_input )
 
 reductionManager = ReductionManager( )

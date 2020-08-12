@@ -239,7 +239,10 @@ class UMAPManager(QObject,EventClient):
             t1 = time.time()
             svc = self.get_svc( **kwargs )
             print(f"Computed embedding[{ndim}] (shape: {embedding.shape}) in {t1 - t0} sec")
-            score = svc.fit( embedding.values, labels.values, **kwargs )
+            labels_mask = (labels > 0)
+            filtered_labels: xa.DataArray = labels.where(labels_mask, drop=True)
+            filtered_point_data: xa.DataArray = embedding.where(labels_mask, drop=True)
+            score = svc.fit( filtered_point_data.values, filtered_labels.values, **kwargs )
             if score is not None:
                 print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
 

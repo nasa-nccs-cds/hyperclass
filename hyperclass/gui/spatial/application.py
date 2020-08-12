@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
 from hyperclass.data.events import dataEventHandler
-from typing import List, Union, Tuple
+from hyperclass.gui.events import EventClient, EventMode
+from typing import List, Union, Tuple, Dict
 
-class SpatialAppConsole(QMainWindow):
+class SpatialAppConsole(QMainWindow,EventClient):
     def __init__( self, **kwargs ):
         QMainWindow.__init__(self)
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
@@ -131,6 +132,12 @@ class SpatialAppConsole(QMainWindow):
     def populate_load_menues(self):
         self.populate_block_load_menu()
         self.populate_tile_load_menu()
+
+    def processEvent(self, event: Dict ):
+        if event.get('event') == 'gui':
+            if event.get('type') == 'update':
+                self.refresh_points( **event )
+                self.refresh_images( **event )
 
     def populate_block_load_menu(self):
         nBlocks = dataManager.config.value("block/array_shape", [ 1, 1 ], type=int )

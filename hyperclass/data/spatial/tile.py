@@ -160,10 +160,11 @@ class Block:
         return self._point_data
 
     def reduce(self, data: xa.DataArray):
-        reduction_method = dataManager.config.value("input.reduction/method", 'None')
-        ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
+        reduction_method = dataManager.config.value("input.reduction/method", None)
+        ndim = int(dataManager.config.value("input.reduction/ndim", 32 ) )
+        epochs = int( dataManager.config.value("input.reduction/epochs", 8 ) )
         if reduction_method != "None":
-            reduced_spectra = reductionManager.reduce( data.values, reduction_method, ndim )
+            reduced_spectra = reductionManager.reduce( data.values, reduction_method, ndim, epochs )
             coords = dict(samples=data.coords['samples'], band=np.arange(ndim))
             return xa.DataArray(reduced_spectra, dims=['samples', 'band'], coords=coords)
         return data

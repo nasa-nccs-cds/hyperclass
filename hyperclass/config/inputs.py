@@ -36,9 +36,10 @@ def prepare_inputs( input_vars, ssample = None ):
     pspec = input_vars['plot']
     data_vars.update( { f'plot-{vid}': getXarray( pspec[vid], xcoords, subsample, xdims, norm=pspec.get('norm','')) for vid in [ 'x', 'y' ] } )
     reduction_method = dataManager.config.value("input.reduction/method",  'None')
-    ndim = int(dataManager.config.value("input.reduction/ndim", '32 '))
+    ndim = int(dataManager.config.value("input.reduction/ndim", 32 ))
+    epochs = int(dataManager.config.value("input.reduction/epochs", 1))
     if reduction_method != "None":
-       reduced_spectra = reductionManager.reduce( data_vars['embedding'], reduction_method, ndim )
+       reduced_spectra = reductionManager.reduce( data_vars['embedding'], reduction_method, ndim, epochs )
        coords = dict( samples=xcoords['samples'], model=np.arange(ndim) )
        data_vars['reduction'] =  xa.DataArray( reduced_spectra, dims=['samples','model'], coords=coords )
 
