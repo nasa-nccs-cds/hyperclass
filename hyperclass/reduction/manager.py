@@ -47,18 +47,19 @@ class ReductionManager(QObject,EventClient):
 
     def autoencoder( self, encoder_input: np.ndarray, ndim: int, epochs: int = 1 ) -> np.ndarray:
         input_dims = encoder_input.shape[1]
+        reduction_factor = 1.7
         inputlayer = Input( shape=[input_dims] )
         activation = 'tanh'
         encoded = None
         layer_dims, x = input_dims, inputlayer
         while layer_dims > ndim:
             x = Dense(layer_dims, activation=activation)(x)
-            layer_dims = layer_dims // 2
+            layer_dims = int( round( layer_dims / reduction_factor ))
         layer_dims = ndim
         while layer_dims < input_dims:
             x = Dense(layer_dims, activation=activation)(x)
             if encoded is None: encoded = x
-            layer_dims = layer_dims * 2
+            layer_dims = int( round( layer_dims * reduction_factor ))
         decoded = Dense( input_dims, activation='sigmoid' )(x)
 
 #        modelcheckpoint = ModelCheckpoint('xray_auto.weights', monitor='loss', verbose=1, save_best_only=True, save_weights_only=True, mode='auto', period=1)

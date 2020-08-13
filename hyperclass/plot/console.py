@@ -76,7 +76,6 @@ class PageSlider(matplotlib.widgets.Slider):
     def refesh(self):
         self.axes.figure.canvas.draw()
 
-
     def _update(self, event):
         super(PageSlider, self)._update(event)
         i = int(self.val)
@@ -108,7 +107,7 @@ class LabelingConsole(QObject,EventClient):
     MIDDLE_BUTTON = 2
     LEFT_BUTTON = 1
 
-    def __init__(self, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
+    def __init__( self, **kwargs ):   # class_labels: [ [label, RGBA] ... ]
         QObject.__init__( self )
         self._debug = False
         self.currentFrame = 0
@@ -145,9 +144,7 @@ class LabelingConsole(QObject,EventClient):
         self.menu_actions = OrderedDict( Layers = [ [ "Increase Labels Alpha", 'Ctrl+>', None, partial( self.update_image_alpha, "labels", True ) ],
                                                     [ "Decrease Labels Alpha", 'Ctrl+<', None, partial( self.update_image_alpha, "labels", False ) ],
                                                     [ "Increase Band Alpha",   'Alt+>',  None, partial( self.update_image_alpha, "bands", True ) ],
-                                                    [ "Decrease Band Alpha",   'Alt+<',  None, partial( self.update_image_alpha, "bands", False ) ],
-                                                    [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
-                                                    [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
+                                                    [ "Decrease Band Alpha",   'Alt+<',  None, partial( self.update_image_alpha, "bands", False ) ] ] )
  #                                                   OrderedDict( GoogleMaps=google_actions )  ]  )
 
         atexit.register(self.exit)
@@ -423,7 +420,7 @@ class LabelingConsole(QObject,EventClient):
         pids = [pid for pid in marker.pids if pid >= 0]
         if len(pids) > 0:
             event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True )
-            self.submitEvent(event, EventMode.Foreground )
+            self.submitEvent( event, EventMode.Foreground )
             self.plot_markers_image( **kwargs )
             self.update_canvas()
 
@@ -442,7 +439,7 @@ class LabelingConsole(QObject,EventClient):
     #         if sample_labels is not None:
     #             self.plot_label_map( sample_labels )
 
-    def plot_label_map(self, sample_labels: xa.DataArray, **kwargs ):
+    def plot_label_map( self, sample_labels: xa.DataArray, **kwargs ):
         self.label_map: xa.DataArray =  sample_labels.unstack(fill_value=-2).astype(np.int32)
         print( f"plot_label_map, labels shape = {self.label_map.shape}")
         extent = dataManager.spatial.extent( self.label_map )
@@ -452,8 +449,8 @@ class LabelingConsole(QObject,EventClient):
             label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate( zip( labelsManager.labels, labelsManager.colors ) ) ]
             self.labels_image = dataManager.spatial.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
-            self.labels_image.set_data( label_plot.values  )
-            self.labels_image.set_alpha(class_alpha  )
+            self.labels_image.set_data( label_plot.values )
+            self.labels_image.set_alpha( class_alpha )
 
         self.labels_image.set_extent( extent )
         self.color_pointcloud( sample_labels )

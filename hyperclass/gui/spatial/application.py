@@ -81,7 +81,8 @@ class SpatialAppConsole(QMainWindow,EventClient):
         self.labelingConsole = LabelingWidget(self, **kwargs)
         self.satelliteCanvas = satellitePlotManager.gui()
         self.satelliteCanvas.setBlock( self.labelingConsole.getBlock() )
-        self.addMenues(mainMenu, self.labelingConsole.menu_actions)
+        self.addMenues( mainMenu, self.labelingConsole.menu_actions )
+        self.addMenues( mainMenu, self.umgr.menu_actions )
 #        self.mixingFrame = MixingFrame( self.umgr )
         self.labelsConsole = labelsManager.gui( learning=True )
 

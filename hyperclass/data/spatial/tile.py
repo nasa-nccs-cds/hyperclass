@@ -164,9 +164,11 @@ class Block:
         ndim = int(dataManager.config.value("input.reduction/ndim", 32 ) )
         epochs = int( dataManager.config.value("input.reduction/epochs", 8 ) )
         if reduction_method != "None":
-            reduced_spectra = reductionManager.reduce( data.values, reduction_method, ndim, epochs )
-            coords = dict(samples=data.coords['samples'], band=np.arange(ndim))
-            return xa.DataArray(reduced_spectra, dims=['samples', 'band'], coords=coords)
+            dave, dmag =  data.values.mean(0), 2.0*data.values.std(0)
+            normed_data = ( data.values - dave ) / dmag
+            reduced_spectra = reductionManager.reduce( normed_data, reduction_method, ndim, epochs )
+            coords = dict( samples=data.coords['samples'], band=np.arange(ndim) )
+            return xa.DataArray( reduced_spectra, dims=['samples', 'band'], coords=coords )
         return data
 
     @property
