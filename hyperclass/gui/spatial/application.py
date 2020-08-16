@@ -259,6 +259,7 @@ class SpatialAppConsole(QMainWindow,EventClient):
             dataManager.config.setValue( "tile/indices", tile_coords )
             filename = dataManager.config.value("data/init/file", None)
             if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )
+            self.populate_tile_load_menu()
 
     def setBlock(self, block_coords: Tuple[int], **kwargs ) -> Block:
         dataManager.config.setValue( 'block/indices', block_coords )
