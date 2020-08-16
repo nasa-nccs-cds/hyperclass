@@ -35,6 +35,7 @@ class SpatialAppConsole(QMainWindow,EventClient):
         self.newfig : Figure = None
         self.fileChanged = True
         self.initSettings(kwargs)
+        self.activate_event_listening()
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
@@ -209,6 +210,8 @@ class SpatialAppConsole(QMainWindow,EventClient):
         block_indices = dataManager.config.value( 'block/indices', [0,0], type=int )
         result = self.setBlock( block_indices, **kwargs )
         self.fileChanged = True
+        event = dict( event="gui", type="update" )
+        self.submitEvent(event, EventMode.Gui)
         return result
 
     def tabShape(self) -> QTabWidget.TabShape:
@@ -235,8 +238,8 @@ class SpatialAppConsole(QMainWindow,EventClient):
     def refresh_points( self, **kwargs ):
         if self.vtkFrame is not None:
             self.vtkFrame.update( **kwargs )
-        if self.mixingFrame is not None:
-            self.mixingFrame.update(**kwargs)
+        # if self.mixingFrame is not None:
+        #     self.mixingFrame.update(**kwargs)
 
     def refresh_images( self, **kwargs ):
         try: self.labelingConsole.mpl_update()
@@ -252,6 +255,7 @@ class SpatialAppConsole(QMainWindow,EventClient):
     def setTile(self, tile_coords: Tuple[int], **kwargs ):
         current_tile_coords = dataManager.config.value( "tile/indices", None )
         if current_tile_coords is None or current_tile_coords != tile_coords:
+            print( f"Setting tile indices = {tile_coords}" )
             dataManager.config.setValue( "tile/indices", tile_coords )
             filename = dataManager.config.value("data/init/file", None)
             if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )

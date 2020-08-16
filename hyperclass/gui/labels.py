@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QAction, QVBoxLayout,  QHBoxLayout, QRadioButton, QLabel, QPushButton, QFrame
+from PyQt5.QtWidgets import QWidget, QVBoxLayout,  QRadioButton, QLabel, QPushButton, QFrame, QMessageBox
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from collections import OrderedDict
 from hyperclass.gui.events import EventClient, EventMode
@@ -85,13 +85,17 @@ class LabelsManager(QObject,EventClient):
             self._labels_data.attrs[ 'long_name' ] = [ "labels" ]
 
     def processEvent( self, event: Dict ):
+        from hyperclass.gui.tasks import taskRunner, Task
         from hyperclass.data.events import dataEventHandler
         from hyperclass.graph.flow import activationFlowManager
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             point_data = dataEventHandler.getPointData( event, DataType.Embedding )
-            self.initLabelsData( point_data )
-            self._flow = activationFlowManager.getActivationFlow( point_data )
+            if point_data.size == 0:
+                Task.showMessage("Data access warning", "", "This block does not have any valid data", QMessageBox.Warning)
+            else:
+                self.initLabelsData( point_data )
+                self._flow = activationFlowManager.getActivationFlow( point_data )
 
     def getMarker( self, pid: int ) -> Optional[Marker]:
         for marker in self._markers:
@@ -137,8 +141,6 @@ class LabelsManager(QObject,EventClient):
     def clearMarkers(self):
         self._markers = []
         self.initLabelsData()
-        event = dict( event="gui", type="clear" )
-        self.submitEvent( event, EventMode.Gui )
 
     def addMarker(self, marker: Marker ):
         self.clearTransient()
@@ -231,7 +233,7 @@ class LabelsManager(QObject,EventClient):
         title = QLabel( "Actions" )
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
-        actions = [ 'Mark', 'Neighbors', 'Distance', 'Embed' ]
+        actions = [ 'Mark', 'Spread', 'Distance', 'Embed' ]
         if with_learning: actions = actions + [ 'Learn', 'Apply' ]
         actions = actions + [ 'Undo', 'Clear' ]
 
@@ -250,8 +252,11 @@ class LabelsManager(QObject,EventClient):
         etype = action.lower()
         event = None
         if etype == "undo":     self.popMarker()
-        elif etype == "clear":  self.clearMarkers()
-        elif etype == "neighbors":
+        elif etype == "clear":
+            self.clearMarkers()
+            event = dict( event="gui", type="clear" )
+            self.submitEvent( event, EventMode.Gui )
+        elif etype == "spread":
             new_classes: Optional[xa.DataArray] = self.spread( etype )
             if new_classes is not None:
                 event = dict( event="gui", type="spread", labels=new_classes )

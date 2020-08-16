@@ -293,13 +293,15 @@ class SpatialDataManager():
         return result
 
     def rescale(self, raster: xa.DataArray, **kwargs ) -> xa.DataArray:
-        norm_type = kwargs.get('norm', 'spatial')
+        norm_type = kwargs.get('norm', 'none')
         refresh = kwargs.get('refresh', False )
         if norm_type == "none":
             result = raster
         else:
-            if norm_type == "spatial":     norm: xa.DataArray = self._computeSpatialNorm( raster, refresh)
-            elif norm_type == "spectral":  norm: xa.DataArray = raster.mean( dim=['band'], skipna=True )
+            if norm_type == "spatial":
+                norm: xa.DataArray = self._computeSpatialNorm( raster, refresh )
+            elif norm_type == "spectral":
+                norm: xa.DataArray = raster.mean( dim=['band'], skipna=True )
             result =  raster / norm
             result.attrs = raster.attrs
         return result

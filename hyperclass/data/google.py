@@ -87,10 +87,8 @@ class GoogleMaps:
             for y in range(rows):
                 dxn = width * (0.5 + x)
                 dyn = height * (0.5 + y)
-                latn, lonn = self.pixels2latlon(
-                    ulx + dxn, uly - dyn - self.LOGO_CUTOFF / 2, zoom)
+                latn, lonn = self.pixels2latlon( ulx + dxn, uly - dyn - self.LOGO_CUTOFF / 2, zoom)
                 position = ','.join((str(latn / self.DEGREE), str(lonn / self.DEGREE)))
-                print(x, y, position)
                 urlparams = {
                     'center': position,
                     'zoom': str(zoom),
@@ -99,7 +97,6 @@ class GoogleMaps:
                     'sensor': 'false',
                     'scale': 1
                 }
-
                 urlparams['key'] = self.api_key
                 urlparams['maptype'] = type
                 url = 'http://maps.google.com/maps/api/staticmap'

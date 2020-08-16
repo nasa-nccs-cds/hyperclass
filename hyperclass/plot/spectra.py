@@ -108,11 +108,12 @@ class SpectralPlot(QObject,EventClient):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
-            if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
-            else:                           self.plotx, self.ploty = plot_data.band,     plot_data
-            self.nploty = self.normalize()
-            self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
-            self.configure( event )
+            if plot_data.size > 0:
+                if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
+                else:                           self.plotx, self.ploty = plot_data.band,     plot_data
+                self.nploty = self.normalize()
+                self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
+                self.configure( event )
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 if  self.ploty is not None:

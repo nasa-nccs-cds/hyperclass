@@ -83,8 +83,8 @@ class PreferencesDialog(DialogBase):
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
     def createInitGroupBox(self):
-        blockSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "block/indices")
-        blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "tile/indices")
+        blockSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "tile/indices")
+        blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "block/indices")
         return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
 
     def createSVMGroupBox(self):
@@ -136,5 +136,5 @@ class SettingsManager:
         for key, value in self.default_settings.items():
             current = settings.value(key)
             if not current: settings.setValue(key, value)
-        print(f"Saving {scope} settings for project {self.project_name} to {settings.fileName()}, writable = {settings.isWritable()}")
+#        print(f"Saving {scope} settings for project {self.project_name} to {settings.fileName()}, writable = {settings.isWritable()}")
         return settings

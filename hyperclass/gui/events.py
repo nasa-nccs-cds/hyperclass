@@ -15,7 +15,7 @@ def etmatch( event: Dict, etype: Dict  ):
     return ( event["event"] == etype["event"] ) and ( event["type"] == etype["type"] )
 
 class EventClient:
-    event_debug = True
+    event_debug = False
     uninteresting_events = [ dict( event="gui", type="keyRelease"), dict( event="gui", type="keyPress") ]
 
     def activate_event_listening(self):

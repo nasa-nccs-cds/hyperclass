@@ -59,6 +59,7 @@ class Task(QRunnable,EventClient):
         msg_dialog = QtWidgets.QMessageBox()
         msg_dialog.setIcon( icon )
         msg_dialog.setText( caption )
+        msg_dialog.setStyleSheet( "QMessageBox{ font-family: Arial; font-style: normal; font-size: 18pt; color: #000000; }" )
         msg_dialog.setMinimumSize(400,100)
         msg_dialog.setInformativeText(label)
         msg_dialog.setWindowTitle(title)

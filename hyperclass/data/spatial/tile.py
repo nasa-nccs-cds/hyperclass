@@ -4,7 +4,6 @@ import xarray as xa
 from typing import List, Union, Tuple, Optional, Dict
 from pyproj import Proj, transform
 from ..manager import dataManager
-from hyperclass.gui.tasks import taskRunner, Task
 import os, math, pickle
 from hyperclass.graph.flow import ActivationFlow
 from ...reduction.manager import reductionManager
@@ -152,8 +151,11 @@ class Block:
         if self._point_data is None:
             subsample = kwargs.get( 'subsample', None )
             result: xa.DataArray =  dataManager.spatial.raster2points( self.data )
-            ptData: xa.DataArray = result if subsample is None else result[::subsample]
-            self._point_data =  self.reduce( ptData )
+            if result.size > 0:
+                ptData: xa.DataArray = result if subsample is None else result[::subsample]
+                self._point_data =  self.reduce( ptData )
+            else:
+                self._point_data = result
             self._samples_axis = self._point_data.coords['samples']
             self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
             self._point_data.attrs['type'] = 'block'
@@ -162,7 +164,7 @@ class Block:
     def reduce(self, data: xa.DataArray):
         reduction_method = dataManager.config.value("input.reduction/method", None)
         ndim = int(dataManager.config.value("input.reduction/ndim", 32 ) )
-        epochs = int( dataManager.config.value("input.reduction/epochs", 8 ) )
+        epochs = int( dataManager.config.value("input.reduction/epochs", 3 ) )
         if reduction_method != "None":
             dave, dmag =  data.values.mean(0), 2.0*data.values.std(0)
             normed_data = ( data.values - dave ) / dmag

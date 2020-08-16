@@ -6,7 +6,7 @@ from matplotlib.gridspec import GridSpec, SubplotSpec
 from matplotlib.lines import Line2D
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
-from matplotlib.backend_bases import PickEvent, MouseEvent
+from matplotlib.backend_bases import PickEvent, MouseEvent, MouseButton
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from collections import OrderedDict
 from hyperclass.data.manager import dataManager
@@ -183,6 +183,11 @@ class LabelingConsole(QObject,EventClient):
             elif event.get('type') == 'spread':
                 labels: xa.Dataset = event.get('labels')
                 self.plot_label_map( labels['C'] )
+            elif event.get('type') == 'clear':
+                self.clearLabels()
+                self.update_plots()
+                self.clearMarkersPlot()
+                self.update_canvas()
         elif event['event'] == 'plot':
             if event['type'] == "classification":
                 labels = event['labels']
@@ -227,14 +232,14 @@ class LabelingConsole(QObject,EventClient):
             self.y_axis = kwargs.pop('y', 1)
             self.y_axis_name = self.data.dims[self.y_axis]
 
-            self.add_plots(**kwargs)
-            self.add_slider(**kwargs)
-            self.initLabels()
+            if self.initPlots(**kwargs) is not None:
+                self.add_slider(**kwargs)
+                self.initLabels()
 
-            self.google = GoogleMaps( self.block )
-            self.update_plot_axis_bounds()
-            self.plot_markers_image()
-            self.update_plots()
+                self.google = GoogleMaps( self.block )
+                self.update_plot_axis_bounds()
+                self.plot_markers_image()
+                self.update_plots()
 
         return self.block
 
@@ -274,7 +279,7 @@ class LabelingConsole(QObject,EventClient):
             Task.taskNotAvailable( "Workflow violation", "Must load a block and spread some labels first", **kwargs )
         else:
             full_labels: xa.DataArray = self.getExtendedLabelPoints()
-            print( f"Learning Classification, labels shape = {full_labels.shape}")
+            print( f"Learning Classification, labels shape = {full_labels.shape}, nLabels = {np.count_nonzero( full_labels > 0 )}")
             event = dict(event="classify", type="learn", data=self.block, labels=full_labels )
             self.submitEvent( event, EventMode.Gui )
 
@@ -291,15 +296,10 @@ class LabelingConsole(QObject,EventClient):
         self.labels.name = self.block.data.name + "_labels"
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
-    # def clearLabels( self, ask_permission = True ):
-    #     if ask_permission and (len(self.marker_list) > 0):
-    #         buttonReply = QMessageBox.question( None, 'Hyperclass', "Are you sure you want to delete all current labels?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-    #         if buttonReply == QMessageBox.No: return
-    #     self.initLabels()
-    #     labelsManager.clearMarkers()
-    #     self.update_marker_plots()
-    #     self.plot_label_map( self.getLabeledPointData() )
-    #     self.labels_image.set_alpha(0.0)
+    def clearLabels( self):
+         self.initLabels()
+         labelsManager.clearMarkers()
+         self.labels_image.set_alpha(0.0)
 
     def updateLabelsFromMarkers(self):
         labelsManager.clearTransient()
@@ -361,16 +361,19 @@ class LabelingConsole(QObject,EventClient):
     def get_coord(self,   iCoord: int ) -> np.ndarray:
         return self.data.coords[  self.data.dims[iCoord] ].values
 
-    def create_image(self, **kwargs ) -> AxesImage:
+    def create_image(self, **kwargs ) -> Optional[AxesImage]:
+        image = None
         z: xa.DataArray =  self.data[ 0, :, : ]
-        colorbar = kwargs.pop( 'colorbar', False )
-        image: AxesImage =  dataManager.spatial.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
-        self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
-        self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
-        self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
-        overlays = kwargs.get( "overlays", {} )
-        for color, overlay in overlays.items():
-            overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
+        nValid = np.count_nonzero(~np.isnan(z))
+        if nValid > 0:
+            colorbar = kwargs.pop( 'colorbar', False )
+            image: AxesImage =  dataManager.spatial.plotRaster( z, ax=self.plot_axes, colorbar=colorbar, alpha=0.5, **kwargs )
+            self._cidpress = image.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+            self._cidrelease = image.figure.canvas.mpl_connect('button_release_event', self.onMouseRelease )
+            self.plot_axes.callbacks.connect('ylim_changed', self.on_lims_change)
+            overlays = kwargs.get( "overlays", {} )
+            for color, overlay in overlays.items():
+                overlay.plot( ax=self.plot_axes, color=color, linewidth=2 )
         return image
 
     def on_lims_change(self, ax ):
@@ -394,6 +397,8 @@ class LabelingConsole(QObject,EventClient):
         if self.labels_image is not None:
             self.labels_image.set_extent( self.block.extent() )
             self.labels_image.set_alpha(0.0)
+        event = dict( event="gui", type="update" )
+        self.submitEvent(event, EventMode.Gui)
 
     def onMouseRelease(self, event):
         if event.inaxes ==  self.plot_axes:
@@ -420,7 +425,7 @@ class LabelingConsole(QObject,EventClient):
         pids = [pid for pid in marker.pids if pid >= 0]
         if len(pids) > 0:
             event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True )
-            self.submitEvent( event, EventMode.Foreground )
+            self.submitEvent( event, EventMode.Gui )
             self.plot_markers_image( **kwargs )
             self.update_canvas()
 
@@ -444,19 +449,18 @@ class LabelingConsole(QObject,EventClient):
         print( f"plot_label_map, labels shape = {self.label_map.shape}")
         extent = dataManager.spatial.extent( self.label_map )
         label_plot = self.label_map.where( self.label_map >= 0, 0 )
-        class_alpha = kwargs.get( 'alpha', 0.7 )
+        class_alpha = kwargs.get( 'alpha', 0.9 )
         if self.labels_image is None:
-            label_map_colors: List = [ [ ic, label, color[0:3] + [class_alpha] ] for ic, (label, color) in enumerate( zip( labelsManager.labels, labelsManager.colors ) ) ]
+            label_map_colors: List = [ [ ic, label, color[0:3] + [0.0 if (ic == 0) else class_alpha] ] for ic, (label, color) in enumerate( zip( labelsManager.labels, labelsManager.colors ) ) ]
             self.labels_image = dataManager.spatial.plotRaster( label_plot, colors=label_map_colors, ax=self.plot_axes, colorbar=False )
         else:
             self.labels_image.set_data( label_plot.values )
             self.labels_image.set_alpha( class_alpha )
 
         self.labels_image.set_extent( extent )
-        self.color_pointcloud( sample_labels )
         self.update_canvas()
-        event = dict( event="gui", type="update" )
-        self.submitEvent(event, EventMode.Gui)
+#        event = dict( event="gui", type="update" )
+#        self.submitEvent(event, EventMode.Gui)
 
     def show_labels(self):
         if self.labels_image is not None:
@@ -520,7 +524,7 @@ class LabelingConsole(QObject,EventClient):
         self.figure.canvas.draw_idle()
 
     def mpl_pick_marker( self, event: PickEvent ):
-        rightButton: bool = int(event.mouseevent.button) == self.RIGHT_BUTTON
+        rightButton: bool = event.mouseevent.button == MouseButton.RIGHT
         if ( event.name == "pick_event" ) and ( event.artist == self.marker_plot ) and rightButton: #  and ( self.key_mode == Qt.Key_Shift ):
             self.delete_marker( event.mouseevent.ydata, event.mouseevent.xdata )
             self.update_marker_plots()
@@ -530,17 +534,23 @@ class LabelingConsole(QObject,EventClient):
         pindex = self.block.coords2pindex( y, x )
         return labelsManager.deletePid( pindex )
 
-    def initPlots(self, **kwargs):
-        self.add_plots( **kwargs )
-
-    def add_plots(self, **kwargs ):
+    def initPlots(self, **kwargs) -> Optional[AxesImage]:
         if self.image is None:
             self.image = self.create_image(**kwargs)
-            self.marker_plot = self.plot_axes.scatter( [], [], s=50, zorder=2, alpha=1, picker=True )
-            self.marker_plot.set_edgecolor([0, 0, 0])
-            self.marker_plot.set_linewidth(2)
-            self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )
-            self.plot_markers_image()
+            if self.image is None: self.initMarkersPlot()
+        return self.image
+
+    def clearMarkersPlot(self):
+        offsets = np.ma.column_stack([[], []])
+        self.marker_plot.set_offsets( offsets )
+        self.plot_markers_image()
+
+    def initMarkersPlot(self):
+        self.marker_plot: PathCollection = self.plot_axes.scatter([], [], s=50, zorder=2, alpha=1, picker=True)
+        self.marker_plot.set_edgecolor([0, 0, 0])
+        self.marker_plot.set_linewidth(2)
+        self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker)
+        self.plot_markers_image()
 
     def add_slider(self,  **kwargs ):
         if self.slider is None:
