@@ -217,8 +217,11 @@ class Block:
         return dict( iy = iy, ix = ix )
 
     def pindex2coords(self, point_index: int) -> Dict:
-        selected_sample: List = self.samples_axis.values[point_index]
-        return dict( y = selected_sample[0], x = selected_sample[1] )
+        try:
+            selected_sample: List = self.samples_axis.values[point_index]
+            return dict( y = selected_sample[0], x = selected_sample[1] )
+        except Exception as err:
+            print( f" --> pindex2coords Error: {err}" )
 
     def indices2pindex( self, iy, ix ) -> int:
         return self.index_array.values[ iy, ix ]

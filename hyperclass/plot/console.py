@@ -223,7 +223,6 @@ class LabelingConsole(QObject,EventClient):
         print( f"LabelingConsole setBlock: {block_coords}")
         self.block: Block = self.tile.getBlock( *block_coords )
         if self.block is not None:
-            dataManager.config.setValue( 'block/indices', block_coords )
             self.nFrames = self.data.shape[0]
             self.band_axis = kwargs.pop('band', 0)
             self.z_axis_name = self.data.dims[self.band_axis]
@@ -500,7 +499,7 @@ class LabelingConsole(QObject,EventClient):
         for marker in labelsManager.getMarkers():
             for pid in marker.pids:
                 coords = self.block.pindex2coords( pid )
-                if self.block.inBounds( coords['y'], coords['x'] ):   #  and not ( labeled and (c==0) ):
+                if (coords is not None) and self.block.inBounds( coords['y'], coords['x'] ):   #  and not ( labeled and (c==0) ):
                     ycoords.append( coords['y'] )
                     xcoords.append( coords['x'] )
                     colors.append( marker.color )
@@ -509,8 +508,9 @@ class LabelingConsole(QObject,EventClient):
     def plot_markers_image(self, **kwargs ):
         if self.marker_plot:
             ycoords, xcoords, colors = self.get_markers( **kwargs )
-            self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
-            self.marker_plot.set_facecolor(colors)
+            if len(ycoords) > 0:
+                self.marker_plot.set_offsets(np.c_[xcoords, ycoords])
+                self.marker_plot.set_facecolor(colors)
 
     def plot_markers_volume(self, **kwargs):
         ycoords, xcoords, colors = self.get_markers( **kwargs )

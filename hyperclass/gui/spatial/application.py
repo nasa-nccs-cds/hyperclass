@@ -261,8 +261,10 @@ class SpatialAppConsole(QMainWindow,EventClient):
             if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )
 
     def setBlock(self, block_coords: Tuple[int], **kwargs ) -> Block:
+        dataManager.config.setValue( 'block/indices', block_coords )
         block = self.labelingConsole.setBlock( block_coords, **kwargs )
         self.satelliteCanvas.setBlock(block)
+        self.populate_block_load_menu()
         return block
 
     def show(self):
