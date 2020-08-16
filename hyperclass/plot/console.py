@@ -231,7 +231,8 @@ class LabelingConsole(QObject,EventClient):
             self.y_axis = kwargs.pop('y', 1)
             self.y_axis_name = self.data.dims[self.y_axis]
 
-            if self.initPlots(**kwargs) is not None:
+            image = self.initPlots(**kwargs)
+            if image is not None:
                 self.add_slider(**kwargs)
                 self.initLabels()
 
@@ -537,7 +538,7 @@ class LabelingConsole(QObject,EventClient):
     def initPlots(self, **kwargs) -> Optional[AxesImage]:
         if self.image is None:
             self.image = self.create_image(**kwargs)
-            if self.image is None: self.initMarkersPlot()
+            if self.image is not None: self.initMarkersPlot()
         return self.image
 
     def clearMarkersPlot(self):

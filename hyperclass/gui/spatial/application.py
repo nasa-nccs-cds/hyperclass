@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.umap.manager import UMAPManager
 from hyperclass.gui.mpl import LabelingWidget, SatellitePlotCanvas, ReferenceImageCanvas, satellitePlotManager
 from hyperclass.plot.spectra import SpectralPlot
@@ -17,6 +18,9 @@ from hyperclass.gui.events import EventClient, EventMode
 from typing import List, Union, Tuple, Dict
 
 class SpatialAppConsole(QMainWindow,EventClient):
+    update_block_load_menu = pyqtSignal()
+    update_tile_load_menu = pyqtSignal()
+
     def __init__( self, **kwargs ):
         QMainWindow.__init__(self)
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
@@ -48,6 +52,8 @@ class SpatialAppConsole(QMainWindow,EventClient):
         tilesMenu: QMenu = mainMenu.addMenu('Tiles')
         self.load_tile = tilesMenu.addMenu("load tile")
         self.load_block = tilesMenu.addMenu("load block")
+        self.update_tile_load_menu.connect(self.populate_tile_load_menu)
+        self.update_block_load_menu.connect(self.populate_block_load_menu)
 
         openButton = QAction( 'Open', self )
         openButton.setShortcut('Ctrl+O')
@@ -141,6 +147,7 @@ class SpatialAppConsole(QMainWindow,EventClient):
                 self.refresh_points( **event )
                 self.refresh_images( **event )
 
+    @pyqtSlot()
     def populate_block_load_menu(self):
         nBlocks = dataManager.config.value("block/array_shape", [ 1, 1 ], type=int )
         block_indices = dataManager.config.value("block/indices", [-1, -1], type=int)
@@ -156,6 +163,7 @@ class SpatialAppConsole(QMainWindow,EventClient):
                     menuButton.triggered.connect( partial( self.runSetBlock, [ib0, ib1] ) )
                     self.load_block.addAction(menuButton)
 
+    @pyqtSlot()
     def populate_tile_load_menu(self):
         nTiles = dataManager.config.value("tile/array_shape", [1, 1], type=int)
         tile_indices = dataManager.config.value("tile/indices", [-1, -1], type=int)
@@ -259,13 +267,13 @@ class SpatialAppConsole(QMainWindow,EventClient):
             dataManager.config.setValue( "tile/indices", tile_coords )
             filename = dataManager.config.value("data/init/file", None)
             if filename is not None: taskRunner.start(Task(f"Load New Tile", self.openFile, filename, **kwargs) )
-            self.populate_tile_load_menu()
+            self.update_tile_load_menu.emit()
 
     def setBlock(self, block_coords: Tuple[int], **kwargs ) -> Block:
         dataManager.config.setValue( 'block/indices', block_coords )
         block = self.labelingConsole.setBlock( block_coords, **kwargs )
         self.satelliteCanvas.setBlock(block)
-        self.populate_block_load_menu()
+        self.update_block_load_menu.emit()
         return block
 
     def show(self):
