@@ -1,17 +1,19 @@
 import vtk, numpy as np
 from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from PyQt5.QtWidgets import QApplication
+from typing import List, Union, Dict, Callable, Tuple, Optional
 from PyQt5.QtGui import QCursor
 from hyperclass.plot.point_cloud import PointCloud
 from hyperclass.gui.events import EventClient, EventMode
 
-class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient):
+class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
 
-    def __init__(self, picker: vtk.vtkPointPicker ):
+    def __init__(self, picker: vtk.vtkPointPicker, submit_event: Callable ):
         self.debug = True
         vtk.vtkGenericRenderWindowInteractor.__init__(self)
+        self.submit_event = submit_event
         self.renderer = None
         self.pick_enabled = False
         self.SetPicker(picker)
@@ -19,7 +21,6 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
         self.SetInteractorStyle(interactorStyle)
         interactorStyle.KeyPressActivationOff()
         interactorStyle.SetEnabled(1)
-        self.activate_event_listening()
 
     def setRenderer( self, renderer: vtk.vtkRenderer ):
         self.renderer = renderer
@@ -33,20 +34,21 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor,EventClient)
             if picked_point >= 0:
                 print( f"Picked point {picked_point}, tolerance = {picker.GetTolerance()}, useCells = {picker.GetUseCells()}, nprops = {picker.GetPickList().GetNumberOfItems()}")
                 event = dict(event="pick", type="vtkpoint", pids=[picked_point], transient=True, mark=True )
-                self.submitEvent( event, EventMode.Gui )
+                self.submit_event( event, EventMode.Gui )
             else:
                 print(f"Point pick failed")
         else:
             vtk.vtkGenericRenderWindowInteractor.RightButtonPressEvent(self, *args)
 
 
-class VTKWidget(QVTKRenderWindowInteractor):
+class VTKWidget(QVTKRenderWindowInteractor,EventClient):
     def __init__(self, parent, point_cloud: PointCloud ):
         self.rw: vtk.vtkRenderWindow = vtk.vtkRenderWindow()
         self.point_cloud: PointCloud = point_cloud
-        self.iren = HCRenderWindowInteractor( point_cloud.picker )
+        self.iren = HCRenderWindowInteractor( point_cloud.picker, self.submitEvent )
         self.iren.SetRenderWindow( self.rw )
         QVTKRenderWindowInteractor.__init__( self, parent, iren=self.iren, rw=self.rw )
+        self.activate_event_listening()
 
     @staticmethod
     def _getPixelRatio():

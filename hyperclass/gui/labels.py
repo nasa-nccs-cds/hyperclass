@@ -16,18 +16,18 @@ def h2c( hexColor: str ) -> List[float]:
     return [ c/255 for c in cv ]
 
 def isIntRGB( color ):
-    for val in color:
-        if val > 1: return True
+    if isinstance(color, collections.abc.Sequence):
+        for val in color:
+            if val > 1: return True
     return False
 
-def format_colors( classes: List[Tuple[str,Union[str,List[float]]]] ) -> List[List[float]]:
-    test_item = classes[0][1]
-    if isinstance(test_item, str):
-        return [  h2c(color)  for (label,color) in classes ]
-    elif isinstance( test_item, collections.abc.Sequence ) and isIntRGB( test_item ):
-        return [ [ c/255 for c in color ] for (label,color) in classes ]
-    else:
-        return [ color for (label,color) in classes ]
+def format_color( color: Union[str,List[Union[float,int]]] ) -> List[float]:
+    if isinstance(color, str):  return h2c(color)
+    elif isIntRGB(color):       return [c / 255 for c in color]
+    else:                       return color
+
+def format_colors( classes: List[Tuple[str,Union[str,List[Union[float,int]]]]] ) -> List[List[float]]:
+    return [ format_color(color) for (label, color) in classes ]
 
 def set_alphas( colors, alpha ):
     return [ set_alpha(color, alpha) for color in colors ]
