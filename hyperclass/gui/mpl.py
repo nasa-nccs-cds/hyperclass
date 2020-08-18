@@ -106,10 +106,18 @@ class SatellitePlotManager(QObject, EventClient):
     def gui( self  ):
         if self._gui is None:
             self._gui = SatellitePlotCanvas( self.process_mouse_event )
+            self.activate_event_listening()
         return self._gui
 
     def process_mouse_event(self, event ):
         self.submitEvent( event, EventMode.Gui )
+
+    def processEvent( self, event ):
+        if event.get('event') == "gui":
+            if self._gui is not None:
+                if event.get('type') == "zoom":
+                    xlim, ylim = event.get('xlim'), event.get('ylim')
+                    self._gui.set_axis_limits( xlim, ylim )
 
 class SatellitePlotCanvas(FigureCanvas):
 
@@ -152,10 +160,10 @@ class SatellitePlotCanvas(FigureCanvas):
 
     def set_axis_limits( self, xlims, ylims ):
         if self.image is not None:
-            xlims, ylims = self.block.project_extent( xlims, ylims, 4326 )
-            self.axes.set_xlim(*xlims )
-            self.axes.set_ylim(*ylims)
-            print( f"Setting satellite image bounds: {xlims} {ylims}")
+            xlims1, ylims1 = self.block.project_extent( xlims, ylims, 4326 )
+            self.axes.set_xlim(*xlims1 )
+            self.axes.set_ylim(*ylims1)
+            print( f"Setting satellite image bounds: {xlims} {ylims} -> {xlims1} {ylims1}")
             self.figure.canvas.draw_idle()
 
     def onMouseClick(self, event):

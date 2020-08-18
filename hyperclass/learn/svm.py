@@ -38,8 +38,10 @@ class SVCL(SVC):
 
     def __init__(self, **kwargs ):
         SVC.__init__(self, **kwargs )
+        norm = kwargs.get( 'norm', True )
         tol = kwargs.pop( 'tol', 1e-5 )
-        self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
+        if norm: self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
+        else:    self.svc = LinearSVC(tol=tol, dual=False, fit_intercept=False, **kwargs)
 
     def fit( self, X: np.ndarray, y: np.ndarray, **kwargs ) -> Optional[np.ndarray]:
         t0 = time.time()
@@ -56,6 +58,7 @@ class SVCL(SVC):
 #        self._support_vectors = X[ self.support_vector_indices ]
 
     def predict( self, X: np.ndarray ) -> np.ndarray:
+        print(f"Running SVC predict, X shape: {X.shape})")
         return self.svc.predict( X ).astype( int )
 
     @property

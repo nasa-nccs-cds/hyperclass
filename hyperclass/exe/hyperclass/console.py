@@ -9,7 +9,7 @@ classes = [ ('Vegetation', [0.0, 1.0, 1.0, 1.0]),
            ('BareEarth', [1.0, 0.0, 1.0, 1.0]),
            ('Water', [0.0, 0.0, 1.0, 1.0])]
 
-valid_bands = [[3, 193], [210, 287], [313, 421]]
+valid_bands = [[0, 212], [216, 312], [316, 421]]
 default_settings = {'block/size': 300, "umap/nneighbors": 8, "umap/nepochs": 300, 'tile/size': 1200, 'block/indices': [0, 0], 'tile/indices': [0, 0], "svm/ndim": 8}
 
 app = HCApplication()

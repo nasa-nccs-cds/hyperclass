@@ -24,17 +24,6 @@ class UnstructuredAppMainWindow(HCMainWindow):
         HCMainWindow.__init__( self, parent )
 
     def addMenuItems( self  ):
-        self.load_dataset = self.datasetMenu.addMenu("load")
-
-        menuButton = QAction( "reinit", self )
-        menuButton.setStatusTip(f"Return daset to initial state")
-        menuButton.triggered.connect(self.reinitDataset)
-        self.datasetMenu.addAction( menuButton )
-
-        menuButton = QAction( "clear", self )
-        menuButton.setStatusTip(f"Clear loaded data & reset app to initial state")
-        menuButton.triggered.connect(self.clearDataset)
-        self.datasetMenu.addAction( menuButton )
 
         menuButton = QAction( "find: ", self )
         menuButton.setStatusTip(f"Find row in table")
@@ -57,16 +46,7 @@ class UnstructuredAppMainWindow(HCMainWindow):
     def selectTableRows(self):
         print( "select" )
 
-    def clearDataset(self):
-        labelsManager.clearMarkers()
-        event = dict(event='gui', type='reset', label='clear dataset' )
-        self.submitEvent(event, EventMode.Gui)
-        taskRunner.kill_all_tasks()
 
-    def reinitDataset(self):
-        taskRunner.kill_all_tasks()
-        event = dict(event='gui', type='reinit', label='reinit dataset' )
-        self.submitEvent(event, EventMode.Gui)
 
     def getPreferencesDialog(self):
         from hyperclass.config.inputs import RuntimeDialog

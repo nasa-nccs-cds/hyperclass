@@ -223,6 +223,13 @@ class Block:
         except Exception as err:
             print( f" --> pindex2coords Error: {err}" )
 
+    def pindex2indices(self, point_index: int) -> Dict:
+        try:
+            selected_sample: List = self.samples_axis.values[point_index]
+            return self.coords2indices( selected_sample[0], selected_sample[1] )
+        except Exception as err:
+            print( f" --> pindex2coords Error: {err}" )
+
     def indices2pindex( self, iy, ix ) -> int:
         return self.index_array.values[ iy, ix ]
 

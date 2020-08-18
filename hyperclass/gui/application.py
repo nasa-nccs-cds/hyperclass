@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QKeyEvent
 from PyQt5.QtCore import *
+from hyperclass.gui.tasks import taskRunner, Task
+from hyperclass.gui.labels import labelsManager
 from hyperclass.data.manager import dataManager
 from hyperclass.gui.events import EventClient, EventMode
 import os, abc, sys
@@ -32,7 +34,7 @@ class HCApplication( QApplication, EventClient ):
 class HCMainWindow(QMainWindow, EventClient):
     __metaclass__ = abc.ABCMeta
 
-    def __init__( self, parent ):
+    def __init__( self, parent = None ):
         QMainWindow.__init__( self, parent )
         self.setWindowTitle( dataManager.project_name )
         self.mainMenu = self.menuBar()
@@ -41,6 +43,16 @@ class HCMainWindow(QMainWindow, EventClient):
         self.datasetMenu = self.mainMenu.addMenu('Dataset')
         self.editMenu = self.mainMenu.addMenu('Edit')
         self.addMenuItems()
+
+        menuButton = QAction( "reinit", self )
+        menuButton.setStatusTip(f"Return daset to initial state")
+        menuButton.triggered.connect(self.reinitDataset)
+        self.datasetMenu.addAction( menuButton )
+
+        menuButton = QAction( "clear", self )
+        menuButton.setStatusTip(f"Clear loaded data & reset app to initial state")
+        menuButton.triggered.connect(self.clearDataset)
+        self.datasetMenu.addAction( menuButton )
 
         prefButton = QAction( 'Preferences', self )
         prefButton.setShortcut('Ctrl+P')
@@ -67,3 +79,14 @@ class HCMainWindow(QMainWindow, EventClient):
     @abc.abstractmethod
     def getPreferencesDialog(self):
         pass
+
+    def clearDataset(self):
+        labelsManager.clearMarkers()
+        event = dict(event='gui', type='reset', label='clear dataset' )
+        self.submitEvent(event, EventMode.Gui)
+        taskRunner.kill_all_tasks()
+
+    def reinitDataset(self):
+        taskRunner.kill_all_tasks()
+        event = dict(event='gui', type='reinit', label='reinit dataset' )
+        self.submitEvent(event, EventMode.Gui)

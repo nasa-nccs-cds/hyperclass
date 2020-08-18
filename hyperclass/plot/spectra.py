@@ -123,12 +123,14 @@ class SpectralPlot(QObject,EventClient):
                         if pid >= 0:
                             self.current_pid = pid
                             current_line = self.lines.get( self.current_pid, None )
-                            if (current_line is not None) and (current_line.cid > 0):    cid = current_line.cid
-                            else:                                                        cid = labelsManager.selectedClass
-                            labelsManager.setClassIndex( cid )
+                            if (current_line is not None) and (current_line.cid > 0):
+                                cid = current_line.cid
+                            else:
+                                classification = event.get('classification',-1)
+                                cid = classification if (classification > 0) else labelsManager.selectedClass
                             self.clear_transients()
                             print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
-                            iclass, color = labelsManager.selectedColor( cid>0 )
+                            color = labelsManager.colors[cid]
                             self.plot_spectrum( cid, color )
                             if self._titles is not None:
                                 self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )

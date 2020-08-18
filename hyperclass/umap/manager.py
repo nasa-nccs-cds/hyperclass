@@ -12,7 +12,7 @@ from hyperclass.data.events import dataEventHandler, DataType
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.points import VTKFrame
 from hyperclass.umap.model import UMAP
-from hyperclass.svm.manager import SVC
+from hyperclass.learn.svm import SVC
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
@@ -145,12 +145,12 @@ class UMAPManager(QObject,EventClient):
                         print( f"Point selection error: {err}")
                         traceback.print_exc( 50 )
         elif self.event_match( event, 'classify', "learn" ):
-            block = event.get('data',None)
-            labels = event.get('labels',None)
-            if (block is not None) and (labels is not None):
-                self.learn_classification( block, labels  )
+            block: Block = event.get('data',None)
+            labels1: xa.DataArray = event.get('labels',None)
+            if (block is not None) and (labels1 is not None):
+                self.learn_classification( block, labels1  )
         elif self.event_match(event, 'classify', "apply" ):
-            block = event.get('data')
+            block: Block = event.get('data')
             if (block is not None):
                 sample_labels = self.apply_classification( block )
                 event = dict( event='plot', type='classification', labels=sample_labels )
@@ -165,13 +165,18 @@ class UMAPManager(QObject,EventClient):
         return False
 
     def apply_classification( self, block: Block, **kwargs ):
-        embedding: Optional[xa.DataArray] = self.apply( block, **kwargs )
+        embed = kwargs.get('embed', False)
         sample_labels = None
-        if embedding is not None:
-            prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
-            self.point_cloud.set_point_colors( labels=prediction, **kwargs )
-            sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
-            self.update_signal.emit({})
+        try:
+            embedding: Optional[xa.DataArray] = self.apply( block, **kwargs ) if embed else block.getPointData( **kwargs )
+            if embedding is not None:
+                prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
+                self.point_cloud.set_point_colors( labels=prediction, **kwargs )
+                sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
+                self.update_signal.emit({})
+        except Exception as err:
+            Task.showErrorMessage( f"learn_classification error: {err}")
+            traceback.print_exc( 50 )
         return sample_labels
 
     def setClassColors(self ):
@@ -231,20 +236,25 @@ class UMAPManager(QObject,EventClient):
 
     def learn_classification( self, block: Block, labels: xa.DataArray, **kwargs  ):
         t0 = time.time()
+        embed = kwargs.get( 'embed', False )
         ndim = kwargs.get( 'ndim', dataManager.config.value("svm/ndim") )
         nepochs = kwargs.pop('nepochs', int( dataManager.config.value("umap/nepochs") ) )
         args = dict( nepochs = nepochs, **kwargs )
-        embedding, labels = self.supervised( block, labels, ndim, **args )
-        if embedding is not None:
-            t1 = time.time()
-            svc = self.get_svc( **kwargs )
-            labels_mask = (labels > 0)
-            filtered_labels: np.ndarray = labels.where(labels_mask, drop=True).values
-            filtered_point_data: np.ndarray = embedding.where(labels_mask, drop=True).values
-            print(f"Computed embedding[{ndim}] ( shape: {embedding.shape}  ) in {t1 - t0} sec, Learning mapping with {filtered_labels.shape[0]} labels.")
-            score = svc.fit( filtered_point_data, filtered_labels, **kwargs )
-            if score is not None:
-                print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+        try:
+            embedding, labels = self.supervised( block, labels, ndim, **args ) if embed else block.getPointData( **kwargs ), labels
+            if embedding is not None:
+                t1 = time.time()
+                svc = self.get_svc( **kwargs )
+                labels_mask = (labels > 0)
+                filtered_labels: np.ndarray = labels.where(labels_mask, drop=True).values
+                filtered_point_data: np.ndarray = embedding.where(labels_mask, drop=True).values
+                print(f"Computed embedding[{ndim}] ( shape: {embedding.shape}  ) in {t1 - t0} sec, Learning mapping with {filtered_labels.shape[0]} labels.")
+                score = svc.fit( filtered_point_data, filtered_labels, **kwargs )
+                if score is not None:
+                    print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+        except Exception as err:
+            Task.showErrorMessage( f"learn_classification error: {err}")
+            traceback.print_exc( 50 )
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
         if (self.learned_mapping is None) or (self.learned_mapping.embedding is None):

@@ -13,16 +13,17 @@ from hyperclass.data.manager import dataManager
 import matplotlib.pyplot as plt
 from collections import Mapping
 from functools import partial
+from hyperclass.gui.application import HCMainWindow
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 from typing import List, Union, Tuple, Dict
 
-class SpatialAppConsole(QMainWindow,EventClient):
+class SpatialAppConsole(HCMainWindow):
     update_block_load_menu = pyqtSignal()
     update_tile_load_menu = pyqtSignal()
 
     def __init__( self, **kwargs ):
-        QMainWindow.__init__(self)
+        HCMainWindow.__init__(self)
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
         self.umgr = UMAPManager( )
         self.title = 'hyperclass'
@@ -45,34 +46,6 @@ class SpatialAppConsole(QMainWindow,EventClient):
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.showMessage('Ready')
 
-        mainMenu = self.menuBar()
-        mainMenu.setNativeMenuBar(False)
-        fileMenu = mainMenu.addMenu('File')
-        helpMenu = mainMenu.addMenu('Help')
-        tilesMenu: QMenu = mainMenu.addMenu('Tiles')
-        self.load_tile = tilesMenu.addMenu("load tile")
-        self.load_block = tilesMenu.addMenu("load block")
-        self.update_tile_load_menu.connect(self.populate_tile_load_menu)
-        self.update_block_load_menu.connect(self.populate_block_load_menu)
-
-        openButton = QAction( 'Open', self )
-        openButton.setShortcut('Ctrl+O')
-        openButton.setStatusTip('Open file')
-        openButton.triggered.connect(self.selectFile)
-        fileMenu.addAction(openButton)
-
-        prefButton = QAction( 'Preferences', self)
-        prefButton.setShortcut('Ctrl+P')
-        prefButton.setStatusTip('Set application configuration parameters')
-        prefButton.triggered.connect( self.setPreferences )
-        fileMenu.addAction(prefButton)
-
-        exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
-        exitButton.setShortcut('Ctrl+Q')
-        exitButton.setStatusTip('Exit application')
-        exitButton.triggered.connect(self.close)
-        fileMenu.addAction(exitButton)
-
         widget =  QWidget(self)
         self.setCentralWidget(widget)
         vlay = QVBoxLayout(widget)
@@ -88,8 +61,8 @@ class SpatialAppConsole(QMainWindow,EventClient):
         self.labelingConsole = LabelingWidget(self, **kwargs)
         self.satelliteCanvas = satellitePlotManager.gui()
         self.satelliteCanvas.setBlock( self.labelingConsole.getBlock() )
-        self.addMenues( mainMenu, self.labelingConsole.menu_actions )
-        self.addMenues( mainMenu, self.umgr.menu_actions )
+        self.addMenues( self.mainMenu, self.labelingConsole.menu_actions )
+        self.addMenues( self.mainMenu, self.umgr.menu_actions )
 #        self.mixingFrame = MixingFrame( self.umgr )
         self.labelsConsole = labelsManager.gui( learning=True )
 
@@ -118,6 +91,19 @@ class SpatialAppConsole(QMainWindow,EventClient):
                 refCanvas.addEventListener(self.labelingConsole)
                 vizTabs.addTab( refCanvas, label )
         vizLayout.addWidget( vizTabs )
+
+    def addMenuItems(self):
+        tilesMenu: QMenu = self.mainMenu.addMenu('Tiles')
+        self.load_tile = tilesMenu.addMenu("load tile")
+        self.load_block = tilesMenu.addMenu("load block")
+        self.update_tile_load_menu.connect(self.populate_tile_load_menu)
+        self.update_block_load_menu.connect(self.populate_block_load_menu)
+
+        openButton = QAction( 'Open', self )
+        openButton.setShortcut('Ctrl+O')
+        openButton.setStatusTip('Open file')
+        openButton.triggered.connect(self.selectFile)
+        self.datasetMenu.addAction(openButton)
 
     def activate_spectral_plot( self, index: int ):
         for iS, plot in enumerate(self.spectral_plots):

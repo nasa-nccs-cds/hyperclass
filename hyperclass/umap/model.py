@@ -1329,7 +1329,7 @@ class UMAP(BaseEstimator):
         self.metric_kwds = metric_kwds
         self.output_metric_kwds = output_metric_kwds
         self.n_epochs = n_epochs
-        self.init = init
+        self.init = init if init is not None else "random"
         self.n_components = n_components
         self.repulsion_strength = repulsion_strength
         self.learning_rate = learning_rate

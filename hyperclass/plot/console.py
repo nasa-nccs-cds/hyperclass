@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
 from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.svm.manager import SVC
+from hyperclass.learn.svm import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from hyperclass.gui.labels import labelsManager, Marker
@@ -25,7 +25,7 @@ import pandas as pd
 import xarray as xa
 import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
-import time, math, atexit, os
+import time, math, atexit, os, traceback
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 
 def get_color_bounds( color_values: List[float] ) -> List[float]:
@@ -137,7 +137,6 @@ class LabelingConsole(QObject,EventClient):
         self.frame_marker: Optional[Line2D] = None
         self.control_axes = {}
         self._tiles: Dict[List,Tile] = {}
-        self.navigation_listeners = []
         self.setup_plot(**kwargs)
 
         google_actions = [[maptype, None, None, partial(self.run_task, self.download_google_map, "Accessing Landsat Image...", maptype, task_context='newfig')] for maptype in ['satellite', 'hybrid', 'terrain', 'roadmap']]
@@ -183,7 +182,7 @@ class LabelingConsole(QObject,EventClient):
             elif event.get('type') == 'spread':
                 labels: xa.Dataset = event.get('labels')
                 self.plot_label_map( labels['C'] )
-            elif event.get('type') == 'clear':
+            elif event.get('type') in [ 'clear', 'reset', 'reinit' ]:
                 self.clearLabels()
                 self.update_plots()
                 self.clearMarkersPlot()
@@ -381,8 +380,8 @@ class LabelingConsole(QObject,EventClient):
              (x0, x1) = ax.get_xlim()
              (y0, y1) = ax.get_ylim()
              print(f"ZOOM Event: Updated bounds: ({x0},{x1}), ({y0},{y1})")
-         for listener in self.navigation_listeners:
-             listener.set_axis_limits( ax.get_xlim(), ax.get_ylim() )
+         event = dict(event="gui", type="zoom", xlim=ax.get_xlim(), ylim=ax.get_ylim())
+         self.submitEvent( event, EventMode.Foreground )
 
     def update_plots(self):
         if self.image is not None:
@@ -409,22 +408,29 @@ class LabelingConsole(QObject,EventClient):
         #             listener.set_axis_limits( self.plot_axes.get_xlim(), self.plot_axes.get_ylim() )
 
     def onMouseClick(self, event):
-        if event.xdata != None and event.ydata != None:
-            if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
-                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                pid = self.block.coords2pindex( event.ydata, event.xdata )
-                if pid >= 0:
-                    cid = labelsManager.selectedClass
-                    marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
-                    labelsManager.addMarker( marker )
-                    self.add_marker( marker, labelsManager.selectedClass == 0 )
-                    self.dataLims = event.inaxes.dataLim
+        try:
+            if event.xdata != None and event.ydata != None:
+                if not self.toolbarMode and (event.inaxes == self.plot_axes) and (self.key_mode == None):
+                    rightButton: bool = int(event.button) == self.RIGHT_BUTTON
+                    pid = self.block.coords2pindex( event.ydata, event.xdata )
+                    if pid >= 0:
+                        ptindices = self.block.pindex2indices(pid)
+                        classification = self.label_map.values[ ptindices['iy'], ptindices['ix'] ] if (self.label_map is not None) else -1
+                        cid = labelsManager.selectedClass
+                        marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
+                        labelsManager.addMarker( marker )
+                        self.add_marker( marker, labelsManager.selectedClass == 0, classification=classification )
+                        self.dataLims = event.inaxes.dataLim
+        except Exception as err:
+            Task.showErrorMessage( f"LabelingConsole pick error: {err}" )
+            traceback.print_exc(50)
 
     def add_marker(self, marker: Marker, transient: bool, **kwargs ):
         from hyperclass.gui.events import EventClient, EventMode
         pids = [pid for pid in marker.pids if pid >= 0]
+        classification = kwargs.get( "classification", -1 )
         if len(pids) > 0:
-            event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True )
+            event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True, classification=classification )
             self.submitEvent( event, EventMode.Gui )
             self.plot_markers_image( **kwargs )
             self.update_canvas()
