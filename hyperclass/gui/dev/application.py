@@ -18,7 +18,7 @@ from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.events import EventClient, EventMode
 from typing import List, Union, Tuple, Dict
 
-class SpatialAppConsole(HCMainWindow):
+class DevelopmentConsole(HCMainWindow):
     update_block_load_menu = pyqtSignal()
     update_tile_load_menu = pyqtSignal()
 

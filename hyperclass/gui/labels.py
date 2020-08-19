@@ -276,8 +276,6 @@ class LabelsManager(QObject,EventClient):
             event = dict( event='classify', type= etype + ".prep" )
             self.submitEvent( event, EventMode.Gui )
 
-
-
     def onClicked(self):
         radioButton = self.sender()
         if radioButton.isChecked():

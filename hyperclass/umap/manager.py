@@ -372,3 +372,6 @@ class UMAPManager(QObject,EventClient):
         new_raster = block_model.reindex(samples=transposed_raster.samples).unstack()
         new_raster.attrs['long_name'] = [ f"d-{i}" for i in range( new_raster.shape[0] ) ]
         return   dict( raster=new_raster, points=block_model )
+
+
+umapManager = UMAPManager()

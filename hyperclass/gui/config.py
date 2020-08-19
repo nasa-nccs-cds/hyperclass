@@ -49,7 +49,7 @@ class PreferencesDialog(DialogBase):
         super(PreferencesDialog, self).__init__( dtype, callback, scope )
 
     def addApplicationContent( self, mainLayout ):
-        from hyperclass.umap.manager import UMAPManager
+        from hyperclass.umap.manager import umapManager
         gridLayout = QGridLayout()
 
         if self.spatial:
@@ -60,7 +60,7 @@ class PreferencesDialog(DialogBase):
             googleGroupBox = self.createGoogleGroupBox()
             gridLayout.addWidget(googleGroupBox, 0, 1, 1, 1)
 
-        gridLayout.addWidget( UMAPManager.config_gui(self), 1, 0, 1, 1 )
+        gridLayout.addWidget( umapManager.config_gui(self), 1, 0, 1, 1 )
         gridLayout.addWidget(self.createSVMGroupBox(), 1, 1, 1, 1)
         mainLayout.addLayout(gridLayout)
 

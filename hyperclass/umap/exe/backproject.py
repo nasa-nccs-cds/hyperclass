@@ -2,7 +2,7 @@ import xarray as xa
 import matplotlib.pyplot as plt
 from typing import List, Union, Tuple, Optional
 from hyperclass.data.spatial.manager import DataManager, Dict
-from hyperclass.umap.manager import UMAPManager
+from hyperclass.umap.manager import umapManager
 
 # Fit UMAP to hyperspectral data and view embedding
 
@@ -17,9 +17,8 @@ if __name__ == '__main__':
     dm = DataManager( image_name )
     tile = dm.getTile( )
     block = tile.getBlock( *block_index )
-    umgr =  UMAPManager( tile )
 
-    embedded_data: Dict[str,xa.DataArray] = umgr.transform( block )
+    embedded_data: Dict[str,xa.DataArray] = umapManager.transform( block )
 
     block_raster = block.plot( ax=ax[0], band_range = band_range )
     raster_data: xa.DataArray = embedded_data['raster'][model_to_rgb].transpose('y','x','model')

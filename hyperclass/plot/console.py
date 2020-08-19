@@ -28,6 +28,9 @@ from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, atexit, os, traceback
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 
+from hyperclass.umap.manager import umapManager
+
+
 def get_color_bounds( color_values: List[float] ) -> List[float]:
     color_bounds = []
     for iC, cval in enumerate( color_values ):
@@ -262,7 +265,7 @@ class LabelingConsole(QObject,EventClient):
 
     # def computeMixingSpace(self, *args, **kwargs):
     #     labels: xa.DataArray = self.getExtendedLabelPoints()
-    #     self.umgr.computeMixingSpace( self.block, labels, **kwargs )
+    #     umapManager.computeMixingSpace( self.block, labels, **kwargs )
     #     self.plot_markers_volume()
 
     def build_model(self, *args, **kwargs):
@@ -270,7 +273,7 @@ class LabelingConsole(QObject,EventClient):
             Task.taskNotAvailable( "Workflow violation", "Must load a block first", **kwargs )
         else:
             labels: xa.DataArray = self.getExtendedLabelPoints()
-            self.umgr.embed( self.block, labels, **kwargs )
+            umapManager.embed( self.block, labels, **kwargs )
             self.plot_markers_volume()
 
     def learn_classification( self, **kwargs  ):
@@ -474,7 +477,7 @@ class LabelingConsole(QObject,EventClient):
             self.update_canvas()
 
     def color_pointcloud(self, sample_labels: xa.DataArray, **kwargs ):
-        self.umgr.color_pointcloud( sample_labels, **kwargs )
+        umapManager.color_pointcloud( sample_labels, **kwargs )
 
     def get_layer(self, layer_id: str ):
         if layer_id == "bands": return self.image
@@ -493,7 +496,7 @@ class LabelingConsole(QObject,EventClient):
 
     def update_point_sizes( self, increase: bool, *args, **kwargs  ):
         print( " ...update_point_sizes...  ")
-        self.umgr.update_point_sizes( increase )
+        umapManager.update_point_sizes( increase )
         event = dict( event="gui", type="update" )
         self.submitEvent(event, EventMode.Gui)
 
@@ -522,10 +525,10 @@ class LabelingConsole(QObject,EventClient):
     def plot_markers_volume(self, **kwargs):
         ycoords, xcoords, colors = self.get_markers( **kwargs )
         if len(xcoords):
-            self.umgr.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
+            umapManager.plot_markers( self.block, ycoords, xcoords, colors, **kwargs )
         else:
             reset = kwargs.get('reset', False)
-            if reset: self.umgr.reset_markers()
+            if reset: umapManager.reset_markers()
 
     def update_canvas(self):
         self.figure.canvas.draw_idle()

@@ -3,7 +3,7 @@ from PyQt5.QtCore import QObject
 from hyperclass.data.events import dataEventHandler
 from hyperclass.gui.application import HCMainWindow
 from hyperclass.gui.events import EventClient, EventMode
-from hyperclass.umap.manager import UMAPManager
+from hyperclass.umap.manager import umapManager
 from hyperclass.gui.directory import DirectoryWidget
 from collections import OrderedDict
 from matplotlib.figure import Figure
@@ -57,7 +57,6 @@ class UnstructuredAppConsole(QObject, EventClient):
         QObject.__init__(self)
         dataEventHandler.config( subsample=kwargs.pop('subsample', None)  )
         self.gui = UnstructuredAppMainWindow( None )
-        self.umgr = UMAPManager( **kwargs )
 
         self.left = 10
         self.top = 10
@@ -74,7 +73,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         self.activate_event_listening()
 
         self.gui.setGeometry(self.left, self.top, self.width, self.height)
-        self.addMenues( self.gui.mainMenu, self.umgr.menu_actions )
+        self.addMenues( self.gui.mainMenu, umapManager.menu_actions )
         self.showMessage('Ready')
 
         widget =  QWidget( self.gui )
@@ -121,7 +120,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         consoleLayout.addWidget( self.spectraTabs, 6 )
 
         self.vizTabs = QTabWidget()
-        self.vizTabs.addTab(  self.umgr.gui(), "Embedding" )
+        self.vizTabs.addTab(  umapManager.gui(), "Embedding" )
         vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()
@@ -208,7 +207,7 @@ class UnstructuredAppConsole(QObject, EventClient):
             print( f"Atempt to remove unrecognized message: {message}, msgs = {self.message_stack}")
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
-        self.umgr.update({})
+        umapManager.update({})
         self.refresh_images( **kwargs )
 
     def refresh_images( self, **kwargs ):

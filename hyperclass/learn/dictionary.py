@@ -9,6 +9,23 @@ from hyperclass.gui.tasks import taskRunner, Task
 import abc, time
 import numpy as np
 
+class Exemplar:
+
+    def __init__(self, cid, **kwargs):
+        self.cid = cid
+        self.examples = []
+        self._ave = None
+
+    def addExample(self, example: np.ndarray ):
+        self.examples.append( example )
+        self._ave = None
+
+    def ave(self):
+        if self._ave is None:
+            hs = np.hstack( self.examples )
+            self._ave = hs.mean(0)
+        return self._ave
+
 class DictionaryLearning:
 
     def __init__(self, **kwargs):
@@ -20,14 +37,17 @@ class DictionaryLearning:
             Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification" )
             return None
         for iS in y.size:
-            self.add_exemplar( y[iS], X[iS] )
-        self._class_exemplars = self._class_exemplars / y.size
+            self.add_example( y[iS], X[iS] )
 
     def predict( self, X: np.ndarray ) -> np.ndarray:
-        pass
+        for iC, exemplar in self.getExemplars():
+            np.apply_along_axis( exemplar.match, 0, X )
 
-    def add_exemplar( self, cid: int, exemplar: np.ndarray ):
-        self._class_exemplars[cid] = self._class_exemplars[cid] + exemplar if cid in self._class_exemplars.keys() else exemplar
+    def exemplar( self, cid: int ):
+        return self._class_exemplars.setdefault( cid, Exemplar(cid) )
+
+    def add_example( self, cid: int, example: np.ndarray ):
+        self.exemplar( cid ).addExample( example )
 
 
 
