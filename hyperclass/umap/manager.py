@@ -12,7 +12,6 @@ from hyperclass.data.events import dataEventHandler, DataType
 from hyperclass.graph.flow import activationFlowManager
 from hyperclass.gui.points import VTKFrame
 from hyperclass.umap.model import UMAP
-from hyperclass.learn.svm import SVC
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
 from hyperclass.plot.point_cloud import PointCloud
@@ -38,7 +37,6 @@ class UMAPManager(QObject,EventClient):
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self._state = self.UNDEF
-        self._svc = None
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self._current_mapper: UMAP = None
@@ -50,6 +48,9 @@ class UMAPManager(QObject,EventClient):
             self._gui = VTKFrame( self.point_cloud )
             self.activate_event_listening()
         return self._gui
+
+    def set_point_colors( self, **kwargs ):
+        self.point_cloud.set_point_colors(**kwargs)
 
     @classmethod
     def newinit( cls, init_method: str ):
@@ -122,9 +123,11 @@ class UMAPManager(QObject,EventClient):
                     mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
                     mapper.clear_embedding()
                     if self._state == self.INIT: self.embed()
+                    self.point_cloud.set_colormap(self.class_colors)
                     self.point_cloud.setPoints( mapper.embedding )
                 elif event.get('type') == 'plot':
                     embedded_data = event.get('value')
+                    self.point_cloud.set_colormap(self.class_colors)
                     self.point_cloud.setPoints( embedded_data )
                 self.update_signal.emit( event )
         elif event.get('event') == 'pick':
@@ -143,40 +146,6 @@ class UMAPManager(QObject,EventClient):
                     except Exception as err:
                         print( f"Point selection error: {err}")
                         traceback.print_exc( 50 )
-        elif self.event_match( event, 'classify', "learn" ):
-            block: Block = event.get('data',None)
-            labels1: xa.DataArray = event.get('labels',None)
-            if (block is not None) and (labels1 is not None):
-                self.learn_classification( block, labels1  )
-        elif self.event_match(event, 'classify', "apply" ):
-            block: Block = event.get('data')
-            if (block is not None):
-                sample_labels = self.apply_classification( block )
-                event = dict( event='plot', type='classification', labels=sample_labels )
-                self.submitEvent( event, EventMode.Gui )
-
-    @classmethod
-    def event_match(cls, event: Dict, name: str, type: str, state: str = "start" ) -> bool:
-        if (event['event'] == name) and  (event['type'] == type ): return True
-        # if ( event['event'] == "task" ) and ( event['type'] == state ):
-        #     labels = event['label'].split('.')
-        #     if (name == labels[0]) and (name == type[1]): return True
-        return False
-
-    def apply_classification( self, block: Block, **kwargs ):
-        embed = kwargs.get('embed', False)
-        sample_labels = None
-        try:
-            embedding: Optional[xa.DataArray] = self.apply( block, **kwargs ) if embed else block.getPointData( **kwargs )
-            if embedding is not None:
-                prediction: np.ndarray = self.get_svc().predict( embedding.values, **kwargs )
-                self.point_cloud.set_point_colors( labels=prediction, **kwargs )
-                sample_labels = xa.DataArray( prediction, dims=['samples'], coords=dict( samples=embedding.coords['samples'] ) )
-                self.update_signal.emit({})
-        except Exception as err:
-            Task.showErrorMessage( f"learn_classification error: {err}")
-            traceback.print_exc( 50 )
-        return sample_labels
 
     @property
     def class_colors(self) -> Dict[str,List[float]]:
@@ -235,28 +204,6 @@ class UMAPManager(QObject,EventClient):
         self.learned_mapping.embed(point_data.data, nnd, labels.values, **kwargs)
         coords = dict(samples=point_data.samples, model=np.arange(self.learned_mapping.embedding.shape[1]))
         return xa.DataArray(self.learned_mapping.embedding, dims=['samples', 'model'], coords=coords), labels
-
-    def learn_classification( self, block: Block, labels: xa.DataArray, **kwargs  ):
-        t0 = time.time()
-        embed = kwargs.get( 'embed', False )
-        ndim = kwargs.get( 'ndim', dataManager.config.value("svm/ndim") )
-        nepochs = kwargs.pop('nepochs', int( dataManager.config.value("umap/nepochs") ) )
-        args = dict( nepochs = nepochs, **kwargs )
-        try:
-            embedding, labels = self.supervised( block, labels, ndim, **args ) if embed else block.getPointData( **kwargs ), labels
-            if embedding is not None:
-                t1 = time.time()
-                svc = self.get_svc( **kwargs )
-                labels_mask = (labels > 0)
-                filtered_labels: np.ndarray = labels.where(labels_mask, drop=True).values
-                filtered_point_data: np.ndarray = embedding.where(labels_mask, drop=True).values
-                print(f"Computed embedding[{ndim}] ( shape: {embedding.shape}  ) in {t1 - t0} sec, Learning mapping with {filtered_labels.shape[0]} labels.")
-                score = svc.fit( filtered_point_data, filtered_labels, **kwargs )
-                if score is not None:
-                    print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
-        except Exception as err:
-            Task.showErrorMessage( f"learn_classification error: {err}")
-            traceback.print_exc( 50 )
 
     def apply(self, block: Block, **kwargs ) -> Optional[xa.DataArray]:
         if (self.learned_mapping is None) or (self.learned_mapping.embedding is None):
@@ -330,12 +277,6 @@ class UMAPManager(QObject,EventClient):
         key_list = list(self.conf.keys())
         key_list.sort()
         return key_list
-
-    def get_svc( self, **kwargs ):
-        type = kwargs.get( 'svc_type', 'SVCL' )
-        if self._svc == None:
-            self._svc = SVC.instance( type )
-        return self._svc
 
     # def plot_markers_transform(self, block: Block, ycoords: List[float], xcoords: List[float], colors: List[List[float]], **kwargs ):
     #     point_data = block.getSelectedPointData( ycoords, xcoords )

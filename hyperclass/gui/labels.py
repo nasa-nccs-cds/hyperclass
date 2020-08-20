@@ -195,6 +195,7 @@ class LabelsManager(QObject,EventClient):
         return labels_dict
 
     def gui(self, **kwargs ):
+        from hyperclass.learn.manager import learningManager
         self.show_unlabeled = kwargs.get( 'show_unlabeled', True )
         with_learning = kwargs.get( 'learning', False )
         self.console = QWidget()
@@ -234,7 +235,9 @@ class LabelsManager(QObject,EventClient):
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
         actions = [ 'Mark', 'Spread', 'Distance', 'Embed' ]
-        if with_learning: actions = actions + [ 'Learn', 'Apply' ]
+        if with_learning:
+            actions = actions + [ 'Learn', 'Apply' ]
+            learningManager.activate()
         actions = actions + [ 'Undo', 'Clear' ]
 
         for action in actions:

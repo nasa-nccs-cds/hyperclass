@@ -40,6 +40,14 @@ class EventClient:
         if self.event_debug and self.is_interesting(event): print(f"CLASS {self.__class__.__name__}: submit {event}")
         eventCentral.submitEvent( event, mode )
 
+    @classmethod
+    def event_match(cls, event: Dict, name: str, type: str, state: str = "start" ) -> bool:
+        if (event['event'] == name) and  (event['type'] == type ): return True
+        # if ( event['event'] == "task" ) and ( event['type'] == state ):
+        #     labels = event['label'].split('.')
+        #     if (name == labels[0]) and (name == type[1]): return True
+        return False
+
 class EventCentral(QObject):
     process_event = pyqtSignal(dict)
 

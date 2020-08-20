@@ -1,7 +1,8 @@
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from typing import List, Union, Dict, Callable, Tuple, Optional
-from sklearn.svm import LinearSVC
+from scipy.spatial import distance
+import scipy
 import xarray as xa
 import time, traceback
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
@@ -9,17 +10,17 @@ from hyperclass.gui.events import EventClient, EventMode
 from typing import List, Tuple, Optional, Dict
 from hyperclass.gui.tasks import taskRunner, Task
 import numpy as np
-from hyperclass.learn.manager import LearningModel
+from hyperclass.learn.manager import LearningModel, Cluster
 
-class SCVLearningModel(LearningModel):
+class MahalLearningModel(LearningModel):
 
     def __init__(self, **kwargs ):
-        LearningModel.__init__(self, "svc",  **kwargs )
-        self._score: Optional[np.ndarray] = None
-        norm = kwargs.get( 'norm', True )
-        tol = kwargs.pop( 'tol', 1e-5 )
-        if norm: self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
-        else:    self.svc = LinearSVC(tol=tol, dual=False, fit_intercept=False, **kwargs)
+        LearningModel.__init__(self, "mahal",  **kwargs )
+        self.norm = kwargs.get( 'norm', True )
+        self._clusters: Dict[int,Cluster] = {}
+
+    def cluster( self, cid: int ) -> Cluster:
+        return self._clusters.setdefault( cid, Cluster(cid) )
 
     def learn_classification( self, data: xa.DataArray, labels: xa.DataArray, **kwargs  ):
         t1 = time.time()
@@ -27,9 +28,7 @@ class SCVLearningModel(LearningModel):
         filtered_labels: np.ndarray = labels.where(labels_mask, drop=True).values
         filtered_point_data: np.ndarray = data.where(labels_mask, drop=True).values
         print(f"Learning mapping with {filtered_labels.shape[0]} labels.")
-        score = self.fit( filtered_point_data, filtered_labels, **kwargs )
-        if score is not None:
-            print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
+        self.distances = self.fit( filtered_point_data, filtered_labels, **kwargs )
 
     def apply_classification( self, data: xa.DataArray, **kwargs ):
         prediction: np.ndarray = self.predict( data.values, **kwargs )
@@ -40,14 +39,18 @@ class SCVLearningModel(LearningModel):
         if np.count_nonzero( y > 0 ) == 0:
             Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification", **kwargs )
             return None
-        print(f"Running SVC fit, X shape: {X.shape}), y shape: {y.shape})")
-        self.svc.fit( X, y )
-        self._score = self.decision_function(X)
-        print(f"Completed SVC fit, in {time.time()-t0} secs")
-        return self._score
+        print(f"Running Mahal fit, X shape: {X.shape}), y shape: {y.shape})")
+        for iS in range(y.size):
+            self.cluster(y[iS]).addMember( X[iS] )
 
-#        self._support_vector_indices = np.where( (2 * y - 1) * self._score <= 1 )[0]    # For binary classifier
-#        self._support_vectors = X[ self.support_vector_indices ]
+        distances = np.zeros( [ X.shape[0], len(self._clusters) ], dtype=np.float32 )
+        for cid, cluster in self._clusters.items():
+            for isample in range(X.shape[0]):
+                distances[isample][cid] = distance.mahalanobis( X[isample], cluster.mean, VI=scipy.linalg.pinv(cluster.cov))
+
+        return distances
+
+
 
     def predict( self, X: np.ndarray, **kwargs ) -> np.ndarray:
         print(f"Running SVC predict, X shape: {X.shape})")
@@ -57,6 +60,6 @@ class SCVLearningModel(LearningModel):
     def decision_function(self) -> Callable:
         return self.svc.decision_function
 
-svcLearningModel = SCVLearningModel()
+mahalLearningModel = MahalLearningModel()
 
 

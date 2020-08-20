@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PathCollection
 from hyperclass.data.spatial.tile import Tile, Block
 from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.learn.svm import SVC
 from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from hyperclass.gui.labels import labelsManager, Marker
@@ -122,7 +121,6 @@ class LabelingConsole(QObject,EventClient):
         self.plot_axes: Optional[Axes] = None
         self.marker_plot: Optional[PathCollection] = None
         self.label_map: Optional[xa.DataArray] = None
-        self.svc: Optional[SVC] = None
         self.dataLims = {}
         self.key_mode = None
         self.currentClass = 0

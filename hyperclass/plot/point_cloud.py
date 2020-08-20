@@ -66,7 +66,7 @@ class PointCloud():
     def getPolydata(self):
         return self.polydata
 
-    def set_colormap(self, label_colors: OrderedDict ):
+    def set_colormap(self, label_colors: Dict ):
         labelsManager.labels_data()
         colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
         colors[0] = [ 255, 255, 255, 255 ]
