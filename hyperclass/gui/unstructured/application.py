@@ -35,6 +35,8 @@ class UnstructuredAppMainWindow(HCMainWindow):
         menuButton.triggered.connect( self.selectTableRows )
         self.editMenu.addAction( menuButton )
 
+        self.loadDatasetMenu = self.datasetMenu.addMenu('Load')
+
     def findTableRow(self):
         print("find")
         # text: qt.QString = QInputDialog::getText(this, tr("QInputDialog::getText()"),
@@ -157,7 +159,7 @@ class UnstructuredAppConsole(QObject, EventClient):
                 menuButton = QAction( dsid, self.gui )
                 menuButton.setStatusTip(f"Load Dataset {dsid}")
                 menuButton.triggered.connect( partial(self.runLoadDataset, dsid ))
-                self.gui.load_dataset.addAction(menuButton)
+                self.gui.loadDatasetMenu.addAction(menuButton)
 
     def addMenuAction(self, parent_menu: QMenu, menuItem: List ):
         menuButton = QAction(menuItem[0], self.gui )

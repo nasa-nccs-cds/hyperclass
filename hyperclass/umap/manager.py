@@ -42,7 +42,6 @@ class UMAPManager(QObject,EventClient):
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self._current_mapper: UMAP = None
-        self.setClassColors()
         self.update_signal.connect( self.update )
         self.menu_actions = OrderedDict( Plots =  [ [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
                                                     [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
@@ -179,10 +178,13 @@ class UMAPManager(QObject,EventClient):
             traceback.print_exc( 50 )
         return sample_labels
 
-    def setClassColors(self ):
-        self.class_labels: List[str] = labelsManager.labels
-        self.class_colors: OrderedDict[str,List[float]] = labelsManager.toDict( 1.0 )
-        self.point_cloud.set_colormap( self.class_colors )
+    @property
+    def class_colors(self) -> Dict[str,List[float]]:
+        return labelsManager.toDict( 1.0 )
+
+    @property
+    def class_labels(self) -> List[str]:
+        return labelsManager.labels
 
     def embedding( self, ndim: int = 3, **kwargs ) -> Optional[xa.DataArray]:
         mapper: UMAP = self.getMapper( self._point_data.attrs['dsid'], ndim )

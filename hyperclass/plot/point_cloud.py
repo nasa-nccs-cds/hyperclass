@@ -44,8 +44,8 @@ class PointCloud():
     def __init__( self ):
         self.renWin = None
         self.renderer: vtk.vtkRenderer = None
-        self.colormap = None
         self.mapper: vtk.vtkMapper = None
+        self.colormap = None
         self.actor: vtk.vtkActor = None
         self.picker = vtk.vtkPointPicker()
         self.picker.SetUseCells(False)
@@ -67,6 +67,7 @@ class PointCloud():
         return self.polydata
 
     def set_colormap(self, label_colors: OrderedDict ):
+        labelsManager.labels_data()
         colors = [  np.clip( np.array( color ) * 255.99, 0, 255).astype(np.uint8) for color in label_colors.values() ]
         colors[0] = [ 255, 255, 255, 255 ]
         self.colormap = np.vstack( colors )
