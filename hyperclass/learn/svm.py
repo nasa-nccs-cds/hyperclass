@@ -21,36 +21,17 @@ class SCVLearningModel(LearningModel):
         if norm: self.svc = make_pipeline( StandardScaler(), LinearSVC( tol=tol, dual=False, fit_intercept=False, **kwargs ) )
         else:    self.svc = LinearSVC(tol=tol, dual=False, fit_intercept=False, **kwargs)
 
-    def learn_classification( self, data: xa.DataArray, labels: xa.DataArray, **kwargs  ):
-        t1 = time.time()
-        labels_mask = (labels > 0)
-        filtered_labels: np.ndarray = labels.where(labels_mask, drop=True).values
-        filtered_point_data: np.ndarray = data.where(labels_mask, drop=True).values
-        print(f"Learning mapping with {filtered_labels.shape[0]} labels.")
-        score = self.fit( filtered_point_data, filtered_labels, **kwargs )
-        if score is not None:
-            print(f"Fit SVC model (score shape: {score.shape}) in {time.time() - t1} sec")
-
-    def apply_classification( self, data: xa.DataArray, **kwargs ):
-        prediction: np.ndarray = self.predict( data.values, **kwargs )
-        return xa.DataArray( prediction, dims=['samples'], coords=dict( samples=data.coords['samples'] ) )
-
-    def fit( self, X: np.ndarray, y: np.ndarray, **kwargs ) -> Optional[np.ndarray]:
+    def fit( self, X: np.ndarray, y: np.ndarray, **kwargs ):
         t0 = time.time()
-        if np.count_nonzero( y > 0 ) == 0:
-            Task.taskNotAvailable( "Workflow violation", "Must spread some labels before learning the classification", **kwargs )
-            return None
         print(f"Running SVC fit, X shape: {X.shape}), y shape: {y.shape})")
         self.svc.fit( X, y )
         self._score = self.decision_function(X)
         print(f"Completed SVC fit, in {time.time()-t0} secs")
-        return self._score
 
 #        self._support_vector_indices = np.where( (2 * y - 1) * self._score <= 1 )[0]    # For binary classifier
 #        self._support_vectors = X[ self.support_vector_indices ]
 
     def predict( self, X: np.ndarray, **kwargs ) -> np.ndarray:
-        print(f"Running SVC predict, X shape: {X.shape})")
         return self.svc.predict( X ).astype( int )
 
     @property

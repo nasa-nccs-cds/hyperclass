@@ -75,63 +75,65 @@ class UMAPManager(QObject,EventClient):
         return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, nEpochsSelector, alphaSelector, target_weightSelector ] )
 
     def plotMarkers(self, **kwargs ):
-        reset = kwargs.get( 'reset', False )
-        if reset: self.point_cloud.set_point_colors()
+        clear = kwargs.get( 'clear', False )
+        if clear: self.point_cloud.set_point_colors()
         self.point_cloud.plotMarkers( **kwargs )
         self.update_signal.emit({})
 
     def clear(self):
         activationFlowManager.clear()
-        self.plotMarkers(reset=True)
+        self.plotMarkers(clear=True)
         self.point_cloud.clear()
         self.update_signal.emit({})
 
     def processEvent( self, event: Dict ):
         super().processEvent(event)
+        etype = event.get('type')
+        eid = event.get('event')
         if dataEventHandler.isDataLoadEvent(event):
             self._point_data = dataEventHandler.getPointData( event, DataType.Embedding )
             self._state = self.INIT
             self.embedding()
-        elif event.get('event') == 'gui':
-            if event.get('type') == 'keyPress':      self._gui.setKeyState( event )
-            elif event.get('type') == 'keyRelease':  self._gui.releaseKeyState()
+        if eid == 'gui':
+            if etype == 'keyPress':      self._gui.setKeyState( event )
+            elif etype == 'keyRelease':  self._gui.releaseKeyState()
             else:
-                if event.get('type') == 'clear':
+                if etype in [ 'clear', 'reload' ]:
                     activationFlowManager.clear()
-                    self.plotMarkers( reset=True )
-                elif event.get('type') == 'undo':
-                    self.plotMarkers( reset = True )
-                elif event.get('type') == 'spread':
+                    self.plotMarkers( clear=(event.get('markers')!="keep") )
+                elif etype == 'undo':
+                    self.plotMarkers( clear = True )
+                elif etype == 'spread':
                     labels: xa.Dataset = event.get('labels')
                     self.point_cloud.set_point_colors( labels=labels['C'] )
-                elif event.get('type') == 'distance':
+                elif etype == 'distance':
                     labels: xa.Dataset = event.get('labels')
                     D = labels['D']
                     self.point_cloud.color_by_metric( D )
-                elif event.get('type') == 'reset':
+                elif etype == 'reset':
                     self.clear()
-                elif event.get('type') == 'embed':
+                elif etype == 'embed':
                     self.embed( **event )
-                elif event.get('type') == 'newinit':
+                elif etype == 'newinit':
                     self._state = self.INIT
                     if self._point_data is not None:
                         ndim = event.get('ndim', 3)
                         mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
                         mapper.clear_initialization()
-                elif event.get('type') == 'reinit':
+                elif etype == 'reinit':
                     ndim = event.get('ndim',3)
                     mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
                     mapper.clear_embedding()
                     if self._state == self.INIT: self.embed()
                     self.point_cloud.set_colormap(self.class_colors)
                     self.point_cloud.setPoints( mapper.embedding )
-                elif event.get('type') == 'plot':
+                elif etype == 'plot':
                     embedded_data = event.get('value')
                     self.point_cloud.set_colormap(self.class_colors)
                     self.point_cloud.setPoints( embedded_data )
                 self.update_signal.emit( event )
-        elif event.get('event') == 'pick':
-            etype = event.get('type')
+        elif eid == 'pick':
+            etype = etype
             if etype in [ 'directory', "vtkpoint", "plot" ]:
                 if self._current_mapper is not None:
                     try:

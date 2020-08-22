@@ -73,6 +73,10 @@ class LabelsManager(QObject,EventClient):
     def flow(self) -> Optional[ActivationFlow]:
         return self._flow
 
+    @property
+    def classification(self) -> np.ndarray:
+        return self._flow.C
+
     def initLabelsData( self, point_data: xa.DataArray = None ):
         nodata_value = -1
         if point_data is not None:
@@ -182,6 +186,10 @@ class LabelsManager(QObject,EventClient):
     def labels(self):
         return self._labels
 
+    @property
+    def nLabels(self):
+        return len(self._labels)
+
     def setLabels(self, labels: List[Tuple[str, List[float]]], **kwargs):
         unlabeled_color = kwargs.get( 'unlabeled', [1.0, 1.0, 0.0, 1.0] )
         label_list = [ ('Unlabeled', unlabeled_color ) ] + labels
@@ -253,11 +261,9 @@ class LabelsManager(QObject,EventClient):
     def execute(self, action: str ):
         print( f"Executing action {action}" )
         etype = action.lower()
-        event = None
         if etype == "undo":     self.popMarker()
         elif etype == "clear":
-            self.clearMarkers()
-            event = dict( event="gui", type="clear" )
+            event = dict( event='gui', type='clear', label='reinit dataset', markers="keep"  )
             self.submitEvent( event, EventMode.Gui )
         elif etype == "spread":
             new_classes: Optional[xa.DataArray] = self.spread( etype )

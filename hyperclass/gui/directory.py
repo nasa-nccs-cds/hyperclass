@@ -253,7 +253,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.col_data['index'] = range(self.nRows) if self.name == "catalog" else []
             self.col_headers.append('index')
             self.build_table.emit()
-        elif event.get('event') == 'pick':
+        if event.get('event') == 'pick':
             etype = event.get('type')
             if etype in [ 'vtkpoint', 'directory', 'plot' ]:
                 cid = labelsManager.selectedClass

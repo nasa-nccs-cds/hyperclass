@@ -1,2 +1,3 @@
 from .svm import svcLearningModel
-from .mahal import mahalLearningModel
+from .cluster import clusterLearningModel
+from .graph import graphLearningModel

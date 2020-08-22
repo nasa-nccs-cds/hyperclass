@@ -6,6 +6,7 @@ import numpy as np
 from typing import List, Union, Tuple, Optional, Dict, Callable
 from PyQt5.QtCore import QSettings, QCoreApplication
 import os, math, pickle
+
 QCoreApplication.setOrganizationName("ilab")
 QCoreApplication.setOrganizationDomain("nccs.nasa.gov")
 QCoreApplication.setApplicationName("hyperclass")
@@ -44,26 +45,30 @@ class SearchBar(QWidget):
 
 class PreferencesDialog(DialogBase):
 
-    def __init__( self, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, spatial: bool = False ):
-        self.spatial = spatial
+    def __init__( self, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, **kwargs ):
+        self.spatial = kwargs.get( 'spatial', False )
+        self.dev = kwargs.get('dev', False)
         super(PreferencesDialog, self).__init__( dtype, callback, scope )
 
     def addApplicationContent( self, mainLayout ):
         from hyperclass.umap.manager import umapManager
+        from hyperclass.learn.manager import learningManager
         gridLayout = QGridLayout()
 
         if self.spatial:
             tileGroupBox = self.createTileGroupBox()
             gridLayout.addWidget( tileGroupBox, 0, 0, 1, 1  )
 
-        if self.spatial and (self.scope == QSettings.SystemScope):
-            googleGroupBox = self.createGoogleGroupBox()
-            gridLayout.addWidget(googleGroupBox, 0, 1, 1, 1)
+            if  self.scope == QSettings.SystemScope:
+                googleGroupBox = self.createGoogleGroupBox()
+                gridLayout.addWidget(googleGroupBox, 0, 1, 1, 1)
+            elif self.dev:
+                learningGroupBox = learningManager.config_gui(self)
+                gridLayout.addWidget(learningGroupBox, 0, 1, 1, 1)
 
         gridLayout.addWidget( umapManager.config_gui(self), 1, 0, 1, 1 )
         gridLayout.addWidget(self.createSVMGroupBox(), 1, 1, 1, 1)
         mainLayout.addLayout(gridLayout)
-
 
     def addDataPrepContent( self, mainLayout ):
         from hyperclass.reduction.manager import reductionManager

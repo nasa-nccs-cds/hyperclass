@@ -26,6 +26,9 @@ class Tile:
     def iparm(self, key: str ):
         return int( dataManager.config.value(key) )
 
+    def reset(self):
+        self._data = None
+
     @property
     def name(self) -> str:
         return dataManager.spatial.tileFileName()

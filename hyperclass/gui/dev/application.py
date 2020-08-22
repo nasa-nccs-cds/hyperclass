@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
+
+from hyperclass.learn.manager import learningManager
 from hyperclass.umap.manager import umapManager
 from hyperclass.gui.mpl import LabelingWidget, SatellitePlotCanvas, ReferenceImageCanvas, satellitePlotManager
 from hyperclass.plot.spectra import SpectralPlot
@@ -131,6 +133,10 @@ class DevelopmentConsole(HCMainWindow):
             if event.get('type') == 'update':
                 self.refresh_points( **event )
                 self.refresh_images( **event )
+            if event.get('type') == 'reload':
+                filename = dataManager.config.value("data/init/file", None)
+                if filename is not None:
+                    taskRunner.start( Task(f"load dataset", self.openFile, filename, reset=True ) )
 
     @pyqtSlot()
     def populate_block_load_menu(self):
@@ -184,7 +190,7 @@ class DevelopmentConsole(HCMainWindow):
         self.settings = dataManager.config
 
     def setPreferences(self):
-        preferences =  PreferencesDialog( PreferencesDialog.RUNTIME, spatial=True )
+        preferences =  PreferencesDialog( PreferencesDialog.RUNTIME, spatial=True, dev=True )
         preferences.show()
 
     def selectFile(self, *args, **kwargs):

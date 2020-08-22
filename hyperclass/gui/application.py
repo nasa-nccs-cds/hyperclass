@@ -44,14 +44,14 @@ class HCMainWindow(QMainWindow, EventClient):
         self.editMenu = self.mainMenu.addMenu('Edit')
         self.addMenuItems()
 
-        menuButton = QAction( "reinit", self )
-        menuButton.setStatusTip(f"Return daset to initial state")
+        menuButton = QAction( "Reinit", self )
+        menuButton.setStatusTip(f"Return dataset to initial state, keeping training labels")
         menuButton.triggered.connect(self.reinitDataset)
-        self.datasetMenu.addAction( menuButton )
+        self.editMenu.addAction( menuButton )
 
-        menuButton = QAction( "clear", self )
-        menuButton.setStatusTip(f"Clear loaded data & reset app to initial state")
-        menuButton.triggered.connect(self.clearDataset)
+        menuButton = QAction( "Reload", self )
+        menuButton.setStatusTip(f"RELOAD dataset")
+        menuButton.triggered.connect(self.reloadDataset)
         self.datasetMenu.addAction( menuButton )
 
         prefButton = QAction( 'Preferences', self )
@@ -80,13 +80,18 @@ class HCMainWindow(QMainWindow, EventClient):
     def getPreferencesDialog(self):
         pass
 
-    def clearDataset(self):
-        labelsManager.clearMarkers()
-        event = dict(event='gui', type='reset', label='clear dataset' )
-        self.submitEvent(event, EventMode.Gui)
-        taskRunner.kill_all_tasks()
+    # def resetDataset(self):
+    #     labelsManager.clearMarkers()
+    #     event = dict(event='gui', type='reset', label='clear dataset' )
+    #     self.submitEvent(event, EventMode.Gui)
+    #     taskRunner.kill_all_tasks()
 
     def reinitDataset(self):
         taskRunner.kill_all_tasks()
-        event = dict(event='gui', type='reinit', label='reinit dataset' )
+        event = dict(event='gui', type='clear', label='reinit dataset', markers="discard" )
+        self.submitEvent(event, EventMode.Gui)
+
+    def reloadDataset(self):
+        taskRunner.kill_all_tasks()
+        event = dict(event='gui', type='reload' )
         self.submitEvent(event, EventMode.Gui)

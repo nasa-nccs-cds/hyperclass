@@ -152,7 +152,7 @@ class LabelingConsole(QObject,EventClient):
         self._update(0)
 
     @property
-    def tile(self):
+    def tile(self) -> Tile:
         tile_indices = dataManager.config.value( 'tile/indices', [0,0] )
         return self._tiles.setdefault( tuple(tile_indices), Tile() )
 
@@ -166,35 +166,38 @@ class LabelingConsole(QObject,EventClient):
 
     def processEvent( self, event: Dict ):
 #        super().processEvent(event)
-        if event['event'] == 'pick':
+        eid = event['event']
+        etype = event.get('type')
+        if eid == 'pick':
             transient = event.pop('transient',True)
-            if event['type'] == 'vtkpoint':
+            if etype == 'vtkpoint':
                 cid = labelsManager.selectedClass
                 for point_index in event['pids']:
                     self.mark_point( point_index, cid==0 )
-            elif event['type'] == 'image':
+            elif etype == 'image':
                 self.add_marker( self.get_image_selection_marker( event ), transient )
-        elif event['event'] == 'key':
-            if   event['type'] == "press":   self.key_mode = event['key']
-            elif event['type'] == "release": self.key_mode = None
-        elif event['event'] == 'gui':
-            if event['type'] == "undo":
+        elif eid == 'key':
+            if   etype == "press":   self.key_mode = event['key']
+            elif etype == "release": self.key_mode = None
+        elif eid == 'gui':
+            if etype == "undo":
                 self.plot_markers_image(**event)
-            elif event.get('type') == 'spread':
+            elif etype == 'spread':
                 labels: xa.Dataset = event.get('labels')
                 self.plot_label_map( labels['C'] )
-            elif event.get('type') in [ 'clear', 'reset', 'reinit' ]:
+            elif etype in [ 'clear', 'reload' ]:
                 self.clearLabels()
                 self.update_plots()
-                self.clearMarkersPlot()
+                if event.get('markers') != "keep":
+                    self.clearMarkersPlot()
                 self.update_canvas()
-        elif event['event'] == 'plot':
-            if event['type'] == "classification":
+        elif eid == 'plot':
+            if etype == "classification":
                 labels = event['labels']
                 self.plot_label_map( labels )
-        elif event['event'] == 'classify':
-            if event['type'] == "learn.prep":   self.learn_classification( **event )
-            elif event['type'] == "apply.prep": self.apply_classification( **event )
+        elif eid == 'classify':
+            if etype == "learn.prep":   self.learn_classification( **event )
+            elif etype == "apply.prep": self.apply_classification( **event )
 
     def get_image_selection_marker( self, event ) -> Marker:
         if 'lat' in event:
@@ -221,6 +224,8 @@ class LabelingConsole(QObject,EventClient):
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         print( f"LabelingConsole setBlock: {block_coords}")
+        reset = kwargs.get( 'reset', False )
+        if reset: self.tile.reset()
         self.block: Block = self.tile.getBlock( *block_coords )
         if self.block is not None:
             self.nFrames = self.data.shape[0]
@@ -299,7 +304,8 @@ class LabelingConsole(QObject,EventClient):
     def clearLabels( self):
          self.initLabels()
          labelsManager.clearMarkers()
-         self.labels_image.set_alpha(0.0)
+         if self.labels_image is not None:
+            self.labels_image.set_alpha(0.0)
 
     def updateLabelsFromMarkers(self):
         labelsManager.clearTransient()
