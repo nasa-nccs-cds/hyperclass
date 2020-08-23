@@ -55,8 +55,8 @@ class DialogBase(QDialog):
         self.mainLayout.addWidget(self.inputsGroupBox)
         self.addFileContent( self.inputsLayout )
         self.addDataPrepContent( self.inputsLayout )
-    #    if dtype == self.RUNTIME: self.addApplicationContent( self.inputsLayout )
-        self.inputsGroupBox.setLayout(self.inputsLayout)
+        if dtype == self.RUNTIME: self.addApplicationContent( self.inputsLayout )
+        self.inputsGroupBox.setLayout( self.inputsLayout )
 
     def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None,
                             update_dialog: bool = False, callback: Callable[[str],None] = None ) -> QLayout:
