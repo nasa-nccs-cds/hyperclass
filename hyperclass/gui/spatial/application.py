@@ -184,8 +184,8 @@ class SpatialAppConsole(HCMainWindow):
         self.settings = dataManager.config
 
     def setPreferences(self):
-        preferences =  PreferencesDialog( PreferencesDialog.RUNTIME, spatial=True )
-        preferences.show()
+        preferences =  PreferencesDialog( self, PreferencesDialog.RUNTIME, spatial=True )
+        preferences.exec_()
 
     def selectFile(self, *args, **kwargs):
         data_dir = dataManager.config.value('data/dir')

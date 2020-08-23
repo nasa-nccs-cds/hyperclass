@@ -57,14 +57,14 @@ def prepare_inputs( input_vars, ssample = None ):
 
 class ConfigurationDialog(PreferencesDialog):
 
-    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
-        super(ConfigurationDialog, self).__init__( DialogBase.CONFIG, callback, scope, spatial=False )
+    def __init__( self, parent, callback = None, scope: QSettings.Scope = QSettings.SystemScope  ):
+        super(ConfigurationDialog, self).__init__( parent, DialogBase.CONFIG, callback, scope, spatial=False )
 
 class PrepareInputsDialog(PreferencesDialog):
 
-    def __init__( self, input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
+    def __init__( self, parent, input_vars: Optional[Dict] = None, subsample: int = None, scope: QSettings.Scope = QSettings.UserScope  ):
         self.inputs = {} if input_vars is None else [ input_vars['embedding'] ] +  input_vars['directory'] + [ input_vars['plot'][axis] for axis in ['x','y'] ]
-        super(PrepareInputsDialog, self).__init__( DialogBase.DATA_PREP, partial( prepare_inputs, input_vars, subsample ), scope, spatial=False )
+        super(PrepareInputsDialog, self).__init__( parent, DialogBase.DATA_PREP, partial( prepare_inputs, input_vars, subsample ), scope, spatial=False )
 
     def addFileContent( self, inputsLayout: QBoxLayout ):
         for input_file_id in self.inputs:
@@ -80,7 +80,7 @@ class PrepareInputsDialog(PreferencesDialog):
 
 class RuntimeDialog(PreferencesDialog):
 
-    def __init__( self, callback = None, scope: QSettings.Scope = QSettings.UserScope  ):
-        super(RuntimeDialog, self).__init__( DialogBase.RUNTIME, callback, scope, spatial=False )
+    def __init__( self, parent, callback = None, scope: QSettings.Scope = QSettings.UserScope  ):
+        super(RuntimeDialog, self).__init__( parent, DialogBase.RUNTIME, callback, scope, spatial=False )
 
 

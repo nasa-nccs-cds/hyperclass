@@ -45,60 +45,56 @@ class SearchBar(QWidget):
 
 class PreferencesDialog(DialogBase):
 
-    def __init__( self, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, **kwargs ):
+    def __init__( self, parent, dtype: int, callback = None,  scope: QSettings.Scope = QSettings.UserScope, **kwargs ):
         self.spatial = kwargs.get( 'spatial', False )
         self.dev = kwargs.get('dev', False)
-        super(PreferencesDialog, self).__init__( dtype, callback, scope )
+        super(PreferencesDialog, self).__init__( parent, dtype, callback, scope )
+        self._row = 0
 
     def addApplicationContent( self, mainLayout ):
         from hyperclass.umap.manager import umapManager
         from hyperclass.learn.manager import learningManager
-        gridLayout = QGridLayout()
 
         if self.spatial:
-            tileGroupBox = self.createTileGroupBox()
-            gridLayout.addWidget( tileGroupBox, 0, 0, 1, 1  )
+            self.tileGroupBox = self.createTileGroupBox()
+            mainLayout.addWidget( self.tileGroupBox )
 
             if  self.scope == QSettings.SystemScope:
-                googleGroupBox = self.createGoogleGroupBox()
-                gridLayout.addWidget(googleGroupBox, 0, 1, 1, 1)
+                mainLayout.addWidget( self.createGoogleGroupBox() )
             elif self.dev:
-                learningGroupBox = learningManager.config_gui(self)
-                gridLayout.addWidget(learningGroupBox, 0, 1, 1, 1)
+                mainLayout.addWidget( learningManager.config_gui(self) )
 
-        gridLayout.addWidget( umapManager.config_gui(self), 1, 0, 1, 1 )
-        gridLayout.addWidget(self.createSVMGroupBox(), 1, 1, 1, 1)
-        mainLayout.addLayout(gridLayout)
+        mainLayout.addWidget( umapManager.config_gui(self) )
+        mainLayout.addWidget( self.createSVMGroupBox() )
+
 
     def addDataPrepContent( self, mainLayout ):
         from hyperclass.reduction.manager import reductionManager
-        gridLayout = QGridLayout()
-        gridLayout.addWidget(reductionManager.config_gui(self), 1, 0, 1, 2)
-        mainLayout.addLayout(gridLayout)
+        mainLayout.addWidget( reductionManager.config_gui(self) )
 
     def createDataGroupBox(self) -> QGroupBox:
-        dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" )
-        cacheSelection = self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir")
-        fileSelection = self.createFileSystemSelectionWidget( "Initial Data File", self.FILE,      "data/init/file",  "data/dir" )
-        return self.createGroupBox( "data", [ dirSelection, cacheSelection, fileSelection ] )
+        self.dirSelection =  self.createFileSystemSelectionWidget( "Data Directory",    self.DIRECTORY, "data/dir", "data/dir" )
+        self.cacheSelection = self.createFileSystemSelectionWidget("Cache Directory", self.DIRECTORY, "data/cache", "data/dir")
+        self.fileSelection = self.createFileSystemSelectionWidget( "Initial Data File", self.FILE,      "data/init/file",  "data/dir" )
+        return self.createGroupBox( "data", [ self.dirSelection, self.cacheSelection, self.fileSelection ] )
 
     def createTileGroupBox(self):
-        blockSizeSelector = self.createComboSelector("Block Side Length: ", range(100, 600, 50), "block/size")
-        blocksPerTileSelector = self.createComboSelector("Tile Side Length: ", range(600, 2000, 200), "tile/size")
-        return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
+        self.blockSizeSelector = self.createComboSelector("Block Side Length: ", range(100, 600, 50), "block/size")
+        self.blocksPerTileSelector = self.createComboSelector("Tile Side Length: ", range(600, 2000, 200), "tile/size")
+        return self.createGroupBox("tiles", [self.blockSizeSelector, self.blocksPerTileSelector])
 
     def createInitGroupBox(self):
-        blockSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "tile/indices")
-        blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "block/indices")
-        return self.createGroupBox("tiles", [blockSizeSelector, blocksPerTileSelector])
+        self.tileSizeSelector = self.createComboSelector("Tile Indices: ", range(100, 600, 50), "tile/indices")
+        self.blocksPerTileSelector = self.createComboSelector("Block Indices: ", [x * x for x in range(1, 7)], "block/indices")
+        return self.createGroupBox("tiles", [self.tileSizeSelector, self.blocksPerTileSelector])
 
     def createSVMGroupBox(self):
-        nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")
-        return self.createGroupBox("svm", [nDimSelector])
+        self.nDimSelector = self.createComboSelector("#Dimensions: ", range(4, 20), "svm/ndim")
+        return self.createGroupBox("svm", [self.nDimSelector])
 
     def createGoogleGroupBox(self):
-        apiKeySelector = self.createSettingInputField( "API KEY", "google/api_key", "", True )
-        return self.createGroupBox("google", [apiKeySelector])
+        self.apiKeySelector = self.createSettingInputField( "API KEY", "google/api_key", "", True )
+        return self.createGroupBox("google", [self.apiKeySelector])
 
 class SettingsManager:
 

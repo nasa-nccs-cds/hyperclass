@@ -2,6 +2,7 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.gui.dialog import DialogBase
 from typing import List, Union, Tuple, Dict
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QRadioButton, QLabel, QPushButton, QFrame, QMessageBox, QGroupBox
 from keras.layers import *
 from keras.models import *
 from keras.callbacks import *
@@ -14,10 +15,10 @@ class ReductionManager(QObject,EventClient):
         QObject.__init__(self)
 
     def config_gui(self, base: DialogBase):
-        methodSelector = base.createComboSelector("Method: ", ["None", "Autoencoder"], "input.reduction/method", "Autoencoder" )
-        nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35)
-        ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
-        return base.createGroupBox("reduction", [methodSelector, nDimSelector, ssSelector])
+        self.methodSelector = base.createComboSelector("Method: ", ["None", "Autoencoder"], "input.reduction/method", "Autoencoder" )
+        self.nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35)
+        self.ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
+        return base.createGroupBox("reduction", [self.methodSelector, self.nDimSelector, self.ssSelector])
 
     def reduce(self, inputs: np.ndarray, reduction_method: str, ndim: int, nepochs: int = 1  ) -> np.ndarray:
         if reduction_method.lower() == "autoencoder": return self.autoencoder( inputs, ndim, nepochs )

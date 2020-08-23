@@ -52,7 +52,7 @@ class UnstructuredAppMainWindow(HCMainWindow):
 
     def getPreferencesDialog(self):
         from hyperclass.config.inputs import RuntimeDialog
-        return RuntimeDialog()
+        return RuntimeDialog(self)
 
 class UnstructuredAppConsole(QObject, EventClient):
     def __init__( self,  **kwargs ):
