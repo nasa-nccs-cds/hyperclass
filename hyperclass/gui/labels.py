@@ -298,3 +298,5 @@ class LabelsManager(QObject,EventClient):
         self.console.update()
 
 labelsManager = LabelsManager()
+
+

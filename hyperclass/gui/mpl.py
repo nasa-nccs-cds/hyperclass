@@ -12,8 +12,7 @@ from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import collections.abc
 from hyperclass.data.google import GoogleMaps
-from hyperclass.gui.tasks import taskRunner, Task
-from hyperclass.gui.labels import format_colors
+from hyperclass.gui.labels import labelsManager, Marker, format_colors
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -215,6 +214,7 @@ class ReferenceImageCanvas( FigureCanvas, EventClient ):
                 point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
                 ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
+                if rightButton: labelsManager.setClassIndex(ic)
                 event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
                 if not rightButton: event['classification'] = ic
                 self.submitEvent(event, EventMode.Gui)
