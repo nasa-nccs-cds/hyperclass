@@ -7,5 +7,5 @@ default_settings = {}
 app = QApplication(sys.argv)
 dataManager.initProject( "tessclass", default_settings )
 preferences = ConfigurationDialog()
-preferences.show()
+preferences.exec_()
 sys.exit(app.exec_())

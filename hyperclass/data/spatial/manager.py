@@ -155,7 +155,7 @@ class SpatialDataManager():
 
     def set_tile_transform( self, data: xa.DataArray ):
         tr0 = data.transform
-        tile_indices = self.config.value( "tile/indices", [0,0] )
+        tile_indices = [ int(iv) for iv in self.config.value( "tile/indices", [0,0] ) ]
         iy0, ix0 =  tile_indices[0] * self.tile_shape[0], tile_indices[1] * self.tile_shape[1]
         y0, x0 = tr0[5] + iy0 * tr0[4], tr0[2] + ix0 * tr0[0]
         data.attrs['transform'] = [ tr0[0], tr0[1], x0, tr0[3], tr0[4], y0  ]

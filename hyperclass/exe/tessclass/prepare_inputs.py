@@ -10,5 +10,5 @@ default_settings = {}
 app = QApplication(sys.argv)
 dataManager.initProject( 'tessclass', default_settings )
 preferences = PrepareInputsDialog( input_vars  )
-preferences.show()
+preferences.exec_()
 sys.exit( app.exec_() )
