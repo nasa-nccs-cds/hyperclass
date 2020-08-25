@@ -10,5 +10,4 @@ default_settings = {}
 app = QApplication(sys.argv)
 dataManager.initProject( 'swiftclass', default_settings )
 preferences = PrepareInputsDialog( input_vars )
-preferences.show()
-sys.exit( app.exec_() )
+sys.exit( preferences.exec_() )

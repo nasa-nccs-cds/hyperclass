@@ -115,7 +115,7 @@ class SpectralPlot(QObject,EventClient):
                 self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
                 self.configure( event )
         if event.get('event') == 'pick':
-            if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
+            if (event.get('type') in [ 'vtkpoint', 'directory', 'reference' ]) and self._active:
                 if  self.ploty is not None:
                     pids = [ row[1] for row in event.get('rows',[]) ]
                     pids = pids + event.get('pids',[])

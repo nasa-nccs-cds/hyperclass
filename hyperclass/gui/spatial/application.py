@@ -87,7 +87,6 @@ class SpatialAppConsole(HCMainWindow):
         for label, image_spec in self.tabs.items():
             if image_spec.get( 'type', "none" ) == "reference":
                 refCanvas = ReferenceImageCanvas(widget, image_spec)
-                refCanvas.addEventListener(self.labelingConsole)
                 vizTabs.addTab( refCanvas, label )
         vizLayout.addWidget( vizTabs )
 

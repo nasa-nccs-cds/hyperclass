@@ -174,8 +174,8 @@ class LabelingConsole(QObject,EventClient):
                 cid = labelsManager.selectedClass
                 for point_index in event['pids']:
                     self.mark_point( point_index, cid==0 )
-            elif etype == 'image':
-                self.add_marker( self.get_image_selection_marker( event ), transient )
+            else:
+                self.add_marker( self.get_image_selection_marker( event ), transient, type = event['type'] )
         elif eid == 'key':
             if   etype == "press":   self.key_mode = event['key']
             elif etype == "release": self.key_mode = None
@@ -199,18 +199,25 @@ class LabelingConsole(QObject,EventClient):
             if etype == "learn.prep":   self.learn_classification( **event )
             elif etype == "apply.prep": self.apply_classification( **event )
 
-    def get_image_selection_marker( self, event ) -> Marker:
-        if 'lat' in event:
-            lat, lon = event['lat'], event['lon']
-            proj = Proj( self.data.spatial_ref.crs_wkt )
-            x, y = proj( lon, lat )
-        else:
-            x, y = event['x'], event['y']
+    def get_image_selection_marker( self, event ) -> Optional[Marker]:
+        try:
+            if 'lat' in event:
+                lat, lon = event['lat'], event['lon']
+                proj = Proj( self.data.spatial_ref.crs_wkt )
+                x, y = proj( lon, lat )
+            else:
+                x, y = event['x'], event['y']
+        except Exception as err: return None
+
         if 'label' in event:
             self.class_selector.set_active( event['label'] )
         pid = self.block.coords2pindex( y, x )
-        ic, color = labelsManager.selectedColor( True )
+        if pid < 0: return None
+        cid = event.get('classification',-1)
+        ic = cid if (cid > 0) else labelsManager.selectedClass
+        color = labelsManager.colors[ic]
         return Marker( color, [pid], ic )
+
 
     def point_coords( self, point_index: int ) -> Dict:
         samples: xa.DataArray = self.block.getPointData().coords['samples']
@@ -434,13 +441,17 @@ class LabelingConsole(QObject,EventClient):
 
     def add_marker(self, marker: Marker, transient: bool, **kwargs ):
         from hyperclass.gui.events import EventClient, EventMode
-        pids = [pid for pid in marker.pids if pid >= 0]
-        classification = kwargs.get( "classification", -1 )
-        if len(pids) > 0:
-            event = dict( event="pick", type="directory", pids=pids, transient=transient, mark=True, classification=classification )
-            self.submitEvent( event, EventMode.Gui )
-            self.plot_markers_image( **kwargs )
-            self.update_canvas()
+        if marker is None:
+            print( "NULL Marker: point select is probably out of bounds.")
+        else:
+            pids = [pid for pid in marker.pids if pid >= 0]
+            classification = kwargs.get( "classification", -1 )
+            etype = kwargs.get( "type", "directory" )
+            if len(pids) > 0:
+                event = dict( event="pick", type=etype, pids=pids, transient=transient, mark=True, classification=classification )
+                self.submitEvent( event, EventMode.Gui )
+                self.plot_markers_image( **kwargs )
+                self.update_canvas()
 
     # def undo_marker_selection(self, **kwargs ):
     #     if len( self.marker_list ):

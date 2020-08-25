@@ -134,14 +134,16 @@ class UMAPManager(QObject,EventClient):
                 self.update_signal.emit( event )
         elif eid == 'pick':
             etype = etype
-            if etype in [ 'directory', "vtkpoint", "plot" ]:
+            if etype in [ 'directory', "vtkpoint", "plot", 'reference' ]:
                 if self._current_mapper is not None:
                     try:
                         pids = [ pid for pid in event.get('pids',[]) if pid >= 0 ]
                         rspecs = event.get('rows', [])
                         for rspec in rspecs: pids.append( rspec[1] )
-                        mark = event.get('mark')
-                        cid, color =  labelsManager.selectedColor(mark)
+                        mark = event.get('mark',False)
+                        classification = event.get('classification',-1)
+                        cid = classification if ( classification > 0) else labelsManager.selectedClass
+                        color = labelsManager.colors[cid]
                         labelsManager.addMarker( Marker( color, pids, cid ) )
                         self.point_cloud.plotMarkers( reset = True )
                         self.update_signal.emit({})

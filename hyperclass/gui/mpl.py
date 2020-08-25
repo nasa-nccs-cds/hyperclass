@@ -176,7 +176,7 @@ class SatellitePlotCanvas(FigureCanvas):
     def mpl_update(self):
         self.figure.canvas.draw_idle()
 
-class ReferenceImageCanvas(FigureCanvas):
+class ReferenceImageCanvas( FigureCanvas, EventClient ):
 
     RIGHT_BUTTON = 3
     MIDDLE_BUTTON = 2
@@ -185,7 +185,6 @@ class ReferenceImageCanvas(FigureCanvas):
     def __init__(self, parent, image_spec: Dict[str,Any], **kwargs ):
         self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
-        self.mouse_listeners = []
         self.spec = image_spec
         self.setParent(parent)
         FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
@@ -198,14 +197,16 @@ class ReferenceImageCanvas(FigureCanvas):
         self.image: xa.DataArray = rio.open_rasterio( self.spec['path'] )
         self.xdim = self.image.dims[-1]
         self.ydim = self.image.dims[-2]
-        self.classes = [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + format_colors( self.spec.get( 'classes', [] ) )
+        self.classes = [ ('Unlabeled', [1.0, 1.0, 1.0, 0.5]) ] + self.format_labels( self.spec.get( 'classes', [] ) )
         if self.classes == None:    cmap = "jet"
         else:                       cmap = ListedColormap( [ item[1] for item in self.classes ] )
         self.plot: AxesImage = self.axes.imshow( self.image.squeeze().values, alpha=1.0, aspect='auto', cmap=cmap  )
         self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
 
-    def addEventListener( self, listener ):
-        self.mouse_listeners.append( listener )
+    @classmethod
+    def format_labels( cls, classes: List[Tuple[str, Union[str, List[Union[float, int]]]]]) -> List[Tuple[str, List[float]]]:
+        from hyperclass.gui.labels import format_color
+        return [(label, format_color(color)) for (label, color) in classes]
 
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
@@ -214,10 +215,9 @@ class ReferenceImageCanvas(FigureCanvas):
                 point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
                 ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
                 rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                for listener in self.mouse_listeners:
-                    event = dict( event="pick", type="image", y=event.ydata, x=event.xdata, button=int(event.button), label=ic, transient=rightButton )
-                    listener.gui_process_event(event)
-
+                event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
+                if not rightButton: event['classification'] = ic
+                self.submitEvent(event, EventMode.Gui)
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()

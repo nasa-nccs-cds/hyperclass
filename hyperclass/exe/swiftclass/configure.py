@@ -7,5 +7,4 @@ default_settings = {}
 app = QApplication(sys.argv)
 dataManager.initProject( "swiftclass", default_settings )
 preferences = ConfigurationDialog()
-preferences.show()
-sys.exit(app.exec_())
+sys.exit(preferences.exec_())

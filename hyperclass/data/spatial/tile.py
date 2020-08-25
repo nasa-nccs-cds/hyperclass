@@ -237,8 +237,11 @@ class Block:
         return self.index_array.values[ iy, ix ]
 
     def coords2pindex( self, cy, cx ) -> int:
-        index = self.coords2indices( cy, cx )
-        return self.index_array.values[ index['iy'], index['ix'] ]
+        try:
+            index = self.coords2indices( cy, cx )
+            return self.index_array.values[ index['iy'], index['ix'] ]
+        except IndexError as err:
+            return -1
 
     def multi_coords2pindex(self, ycoords: List[float], xcoords: List[float] ) -> np.ndarray:
         ( yi, xi ) = self.multi_coords2indices( ycoords, xcoords )
