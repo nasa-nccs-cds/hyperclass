@@ -122,7 +122,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         consoleLayout.addWidget( self.spectraTabs, 6 )
 
         self.vizTabs = QTabWidget()
-        self.vizTabs.addTab(  umapManager.gui(), "Embedding" )
+        self.vizTabs.addTab(  umapManager.gui(self), "Embedding" )
         vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()

@@ -10,7 +10,6 @@ from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 from hyperclass.gui.events import EventClient, EventMode
 from hyperclass.data.events import dataEventHandler, DataType
 from hyperclass.graph.flow import activationFlowManager
-from hyperclass.gui.points import VTKFrame
 from hyperclass.umap.model import UMAP
 from collections import OrderedDict
 from typing import List, Tuple, Optional, Dict
@@ -33,7 +32,7 @@ class UMAPManager(QObject,EventClient):
         QObject.__init__(self)
         self.point_cloud: PointCloud = PointCloud( )
         self._point_data = None
-        self._gui: VTKFrame = None
+        self._gui = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self._state = self.UNDEF
@@ -43,9 +42,15 @@ class UMAPManager(QObject,EventClient):
         self.update_signal.connect( self.update )
         self.menu_actions = OrderedDict( Plots =  [ [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
                                                     [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
-    def gui( self ):
+    def gui( self, parent ):
+        from hyperclass.gui.mpl import PointCloudImageCanvas
+        from hyperclass.gui.points import VTKFrame
         if self._gui is None:
-            self._gui = VTKFrame( self.point_cloud )
+            ndims  = dataManager.config.value("umap/dims", type=int)
+            if ndims == 3:
+                self._gui = VTKFrame( self.point_cloud )
+            else:
+                self._gui = PointCloudImageCanvas( parent )
             self.activate_event_listening()
         return self._gui
 
@@ -61,18 +66,11 @@ class UMAPManager(QObject,EventClient):
     def config_gui(cls, base: DialogBase ):
         nNeighborsSelector = base.createComboSelector( "#Neighbors: ", list(range( 2, 16) ), "umap/nneighbors", 8 )
         initSelector = base.createComboSelector( "Initialization: ", [ "random",  "autoencoder" ], "umap/init", "random", callback=cls.newinit )  # "spectral",
-
+        embedDimensionsSelector = base.createComboSelector( "Embed Dimensions: ", [2,3], "umap/dims", 2 )
         nEpochsSelector = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs", 200 )
         alphaSelector = base.createComboSelector("alpha: ", np.arange(0.1, 2.0, 0.1 ).tolist(), "umap/alpha", 1.0)
         target_weightSelector = base.createComboSelector("target_weight: ", np.arange( 0.1, 1.0, 0.1 ).tolist(), "umap/target_weight", 0.5)
-
-#        embedBox = base.createGroupBox("embed", [nEpochsSelector0, alphaSelector0])
-
-        # nEpochsSelector1 = base.createComboSelector( "#Epochs: ", list(range(50, 500, 50)), "umap/nepochs1", 100 )
-        # alphaSelector1 = base.createComboSelector("alpha: ", np.arange(0.1, 1.0, 0.1 ).tolist(), "umap/alpha1", 0.2 )
-        # reEmbedBox = base.createGroupBox("reEmbed", [nEpochsSelector1, alphaSelector1] )
-
-        return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, nEpochsSelector, alphaSelector, target_weightSelector ] )
+        return base.createGroupBox( "umap", [nNeighborsSelector, initSelector, embedDimensionsSelector, nEpochsSelector, alphaSelector, target_weightSelector ] )
 
     def plotMarkers(self, **kwargs ):
         clear = kwargs.get( 'clear', False )
@@ -129,8 +127,13 @@ class UMAPManager(QObject,EventClient):
                     self.point_cloud.setPoints( mapper.embedding )
                 elif etype == 'plot':
                     embedded_data = event.get('value')
-                    self.point_cloud.set_colormap(self.class_colors)
-                    self.point_cloud.setPoints( embedded_data )
+                    ndim = dataManager.config.value("umap/dims", type=int)
+                    if ndim == 3:
+                        self.point_cloud.set_colormap(self.class_colors)
+                        self.point_cloud.setPoints( embedded_data )
+                    else:
+                        self._gui.set_colormap(self.class_colors)
+                        self._gui.update_plot( embedded_data )
                 self.update_signal.emit( event )
         elif eid == 'pick':
             etype = etype
@@ -159,11 +162,12 @@ class UMAPManager(QObject,EventClient):
     def class_labels(self) -> List[str]:
         return labelsManager.labels
 
-    def embedding( self, ndim: int = 3, **kwargs ) -> Optional[xa.DataArray]:
+    def embedding( self,  **kwargs ) -> Optional[xa.DataArray]:
+        ndim = kwargs.get('ndim', dataManager.config.value("umap/dims", type=int) )
         mapper: UMAP = self.getMapper( self._point_data.attrs['dsid'], ndim )
         if mapper.embedding is not None:
             return self.wrap_embedding(self._point_data.coords[ self._point_data.dims[0] ], mapper.embedding )
-        return self.embed( ndim = ndim, **kwargs )
+        return self.embed( **kwargs )
 
     def wrap_embedding(self, ax_samples: xa.DataArray, embedding: np.ndarray, **kwargs )-> xa.DataArray:
         ax_model = np.arange( embedding.shape[1] )
@@ -233,7 +237,7 @@ class UMAPManager(QObject,EventClient):
             event = dict( event="message", type="warning", title='Workflow Message', caption="Awaiting task completion", msg="The NN graph computation has not yet finished" )
             self.submitEvent( event, EventMode.Gui )
             return None
-        ndim = kwargs.get( "ndim", 3 )
+        ndim = dataManager.config.value("umap/dims", type=int)
         init_method = dataManager.config.value("umap/init", "random")
         if self._state == self.INIT:
             kwargs['nepochs'] = 1
@@ -267,12 +271,7 @@ class UMAPManager(QObject,EventClient):
                 traceback.print_exc(50)
                 return None
 
- #               mapper.spectral_embed( self._point_data.data, flow.nnd, labels_data, **kwargs)
-#        if ndim == 3:
-#            self.point_cloud.setPoints(mapper.embedding, labels_data)
-
         t2 = time.time()
-#        self.update_signal.emit({})
         print(f"Completed umap fitting in {(t2 - t1)/60.0} min, embedding shape = { mapper.embedding.shape}" )
         return self.wrap_embedding( self._point_data.coords['samples'], mapper.embedding )
 

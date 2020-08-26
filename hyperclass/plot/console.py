@@ -26,7 +26,6 @@ import numpy as np
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
 import time, math, atexit, os, traceback
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
-
 from hyperclass.umap.manager import umapManager
 
 

@@ -1,9 +1,10 @@
-import sys
+import sys, numpy as np
 import xarray as xa
 import rioxarray as rio
 from hyperclass.plot.console import LabelingConsole
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from matplotlib.image import AxesImage
+from hyperclass.data.events import dataEventHandler, DataType
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QAction, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QSpacerItem, QSizePolicy, QPushButton
 from hyperclass.data.spatial.tile import Tile, Block
 from PyQt5.QtCore import *
@@ -16,6 +17,7 @@ from hyperclass.gui.labels import labelsManager, Marker, format_colors
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.collections import PathCollection
 
 class LabelingWidget(QWidget):
     def __init__(self, parent, **kwargs):
@@ -222,6 +224,83 @@ class ReferenceImageCanvas( FigureCanvas, EventClient ):
     def mpl_update(self):
         self.figure.canvas.draw_idle()
 
+    def computeClassificationError(self,  labels: xa.DataArray ):
+        nerr = np.count_nonzero( self.image.values - labels.values )
+        nlabels = np.count_nonzero( self.image.values > 0 )
+        print( f"Classication errors: {nerr} errors out of {nlabels}, {(nerr*100.0)/nlabels:.2f}% error. ")
+
+    def processEvent( self, event: Dict ):
+        super().processEvent(event)
+        if event.get('event') == 'gui':
+            if event.get('type') == 'spread':
+                labels: xa.Dataset = event.get('labels')
+                self.computeClassificationError( labels )
+
+class PointCloudImageCanvas( FigureCanvas, EventClient ):
+
+    RIGHT_BUTTON = 3
+    MIDDLE_BUTTON = 2
+    LEFT_BUTTON = 1
+
+    def __init__(self, parent,  **kwargs ):
+        self.figure = Figure( constrained_layout=True )
+        FigureCanvas.__init__(self, self.figure )
+        self.setParent(parent)
+        self._plot: PathCollection = None
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
+        FigureCanvas.updateGeometry(self)
+        self.axes: Axes = self.figure.add_subplot(111)
+        self.axes.get_xaxis().set_visible(False)
+        self.axes.get_yaxis().set_visible(False)
+        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self.activate_event_listening( )
+
+    def set_colormap(self, colors: Dict ):
+        self.colors = colors
+        self.cmap = ListedColormap([ item[1] for item in colors.items() ] )
+
+    @classmethod
+    def format_labels( cls, classes: List[Tuple[str, Union[str, List[Union[float, int]]]]]) -> List[Tuple[str, List[float]]]:
+        from hyperclass.gui.labels import format_color
+        return [(label, format_color(color)) for (label, color) in classes]
+
+    def onMouseClick(self, event):
+        if event.xdata != None and event.ydata != None:
+            if event.inaxes ==  self.axes:
+                coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
+                point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
+                ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
+                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
+                if rightButton: labelsManager.setClassIndex(ic)
+                event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
+                if not rightButton: event['classification'] = ic
+                self.submitEvent(event, EventMode.Gui)
+
+    def mpl_update(self):
+        self.figure.canvas.draw_idle()
+
+    def update( self, **kwargs ):
+        self.figure.canvas.draw_idle()
+
+    def setKeyState(self, event):
+        pass
+
+    def releaseKeyState(self):
+        pass
+
+    def init_plot(self, point_data: np.ndarray):
+        [x, y] = np.hsplit( point_data, 2 )
+        self._plot: PathCollection = self.axes.scatter( x, y, s=1  )
+        self._mousepress = self._plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
+        #        self.plot.set_array( point_colors )
+
+    def update_plot( self, point_data: np.ndarray ):
+        if self._plot is None:
+            self.init_plot( point_data )
+        else:
+            self._plot.set_offsets( point_data )
+        self.figure.canvas.draw_idle()
 
 satellitePlotManager = SatellitePlotManager()
 

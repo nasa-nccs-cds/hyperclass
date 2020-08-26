@@ -83,7 +83,7 @@ class DevelopmentConsole(HCMainWindow):
         consoleLayout.addWidget( self.spectraTabs, 6 )
 
         vizTabs = QTabWidget()
-        vizTabs.addTab(  umapManager.gui(), "Embedding" )
+        vizTabs.addTab(  umapManager.gui(self), "Embedding" )
 #        vizTabs.addTab( self.mixingFrame, "Mixing")
         vizTabs.addTab( self.satelliteCanvas, "Satellite")
         for label, image_spec in self.tabs.items():
