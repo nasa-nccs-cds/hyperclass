@@ -277,7 +277,7 @@ class LabelsManager(QObject,EventClient):
                 self.submitEvent(event, EventMode.Gui)
         elif etype == "embed":
             event = dict( event="gui", type="embed", alpha = 0.25 )
-            self.submitEvent( event, EventMode.Gui )
+            self.submitEvent( event, EventMode.Background )
         elif etype == "mark":
             event = dict( event='gui', type=etype )
             self.submitEvent( event, EventMode.Gui )

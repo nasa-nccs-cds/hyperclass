@@ -1026,11 +1026,11 @@ def optimize_layout_euclidean(
 
     optimize_fn = numba.njit( _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel )
     if n_epochs == 1:
-        eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Foreground)
+        eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Gui)
     else:
       for n in range(n_epochs):
         if (n % plot_mod == 0) and (dim < 4):
-            eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Foreground  )
+            eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Gui  )
         optimize_fn(
             head_embedding,
             tail_embedding,

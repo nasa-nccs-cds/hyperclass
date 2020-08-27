@@ -268,14 +268,15 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
             if event.inaxes ==  self.axes:
-                coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
-                point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
-                ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
-                rightButton: bool = int(event.button) == self.RIGHT_BUTTON
-                if rightButton: labelsManager.setClassIndex(ic)
-                event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
-                if not rightButton: event['classification'] = ic
-                self.submitEvent(event, EventMode.Gui)
+                print( f"Pick event: {event.xdata} {event.ydata}" )
+                # coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
+                # point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
+                # ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
+                # rightButton: bool = int(event.button) == self.RIGHT_BUTTON
+                # if rightButton: labelsManager.setClassIndex(ic)
+                # event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
+                # if not rightButton: event['classification'] = ic
+                # self.submitEvent(event, EventMode.Gui)
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()
@@ -300,6 +301,8 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             self.init_plot( point_data )
         else:
             self._plot.set_offsets( point_data )
+            self.axes.set_xlim((np.min(point_data[:,0]), np.max(point_data[:,0])) )
+            self.axes.set_ylim((np.min(point_data[:,1]), np.max(point_data[:,1])))
         self.figure.canvas.draw_idle()
 
 satellitePlotManager = SatellitePlotManager()
