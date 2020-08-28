@@ -6,5 +6,5 @@ import sys
 default_settings = {}
 app = QApplication(sys.argv)
 dataManager.initProject( "hyperclass", default_settings )
-preferences = ConfigurationDialog()
+preferences = ConfigurationDialog( spatial=True )
 sys.exit(preferences.exec_())

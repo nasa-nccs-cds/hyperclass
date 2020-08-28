@@ -51,22 +51,26 @@ class PreferencesDialog(DialogBase):
         super(PreferencesDialog, self).__init__( parent, dtype, callback, scope )
         self._row = 0
 
-    def addApplicationContent( self, mainLayout ):
+    def addApplicationContent( self, mainLayout, dtype: int ):
         from hyperclass.umap.manager import umapManager
         from hyperclass.learn.manager import learningManager
 
-        if self.spatial:
-            self.tileGroupBox = self.createTileGroupBox()
-            mainLayout.addWidget( self.tileGroupBox )
+        if dtype == self.RUNTIME:
+            if self.spatial:
+                self.tileGroupBox = self.createTileGroupBox()
+                mainLayout.addWidget( self.tileGroupBox )
 
-            if  self.scope == QSettings.SystemScope:
-                mainLayout.addWidget( self.createGoogleGroupBox() )
-            elif self.dev:
-                mainLayout.addWidget( learningManager.config_gui(self) )
+                if  self.scope == QSettings.SystemScope:
+                    mainLayout.addWidget( self.createGoogleGroupBox() )
+                elif self.dev:
+                    mainLayout.addWidget( learningManager.config_gui(self) )
 
-        mainLayout.addWidget( umapManager.config_gui(self) )
-        mainLayout.addWidget( self.createSVMGroupBox() )
-
+            mainLayout.addWidget( umapManager.config_gui(self) )
+            mainLayout.addWidget( self.createSVMGroupBox() )
+        else:
+            if self.spatial:
+                if self.scope == QSettings.SystemScope:
+                    mainLayout.addWidget(self.createGoogleGroupBox())
 
     def addDataPrepContent( self, mainLayout ):
         from hyperclass.reduction.manager import reductionManager
@@ -93,7 +97,7 @@ class PreferencesDialog(DialogBase):
         return self.createGroupBox("svm", [self.nDimSelector])
 
     def createGoogleGroupBox(self):
-        self.apiKeySelector = self.createSettingInputField( "API KEY", "google/api_key", "", True )
+        self.apiKeySelector = self.createSettingInputField( "API KEY", "google/api_key", "" )
         return self.createGroupBox("google", [self.apiKeySelector])
 
 class SettingsManager:

@@ -122,7 +122,7 @@ class UnstructuredAppConsole(QObject, EventClient):
         consoleLayout.addWidget( self.spectraTabs, 6 )
 
         self.vizTabs = QTabWidget()
-        self.vizTabs.addTab(  umapManager.gui(self), "Embedding" )
+        self.vizTabs.addTab(  umapManager.gui(self.gui), "Embedding" )
         vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()
@@ -150,7 +150,9 @@ class UnstructuredAppConsole(QObject, EventClient):
 
     @property
     def datasetDir(self):
-        return os.path.join( dataManager.config.value('data/cache'), dataManager.project_name )
+        dsdir = os.path.join( dataManager.config.value('data/cache'), dataManager.project_name )
+        os.makedirs( dsdir, exist_ok=True )
+        return dsdir
 
     def populate_dataset_load_menu(self):
         for file in os.listdir( self.datasetDir ):

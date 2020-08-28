@@ -32,7 +32,7 @@ class DialogBase(QDialog):
     def addFileContent(self, inputsLayout: QBoxLayout ):
         pass
 
-    def addApplicationContent(self, inputsLayout: QBoxLayout ):
+    def addApplicationContent(self, inputsLayout: QBoxLayout, dtype: int ):
         pass
 
     def addDataPrepContent(self, inputsLayout: QBoxLayout ):
@@ -55,7 +55,7 @@ class DialogBase(QDialog):
         self.mainLayout.addWidget(self.inputsGroupBox)
         self.addFileContent( self.inputsLayout )
         self.addDataPrepContent( self.inputsLayout )
-        if dtype == self.RUNTIME: self.addApplicationContent( self.inputsLayout )
+        self.addApplicationContent( self.inputsLayout, dtype  )
         self.inputsGroupBox.setLayout( self.inputsLayout )
 
     def createComboSelector(self, label_text: str, values: List, settings_key: str, default_value = None,

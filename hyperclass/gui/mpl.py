@@ -255,10 +255,14 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         self.axes.get_yaxis().set_visible(False)
         self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
         self.activate_event_listening( )
+        self.draw()
+#        self.figure.canvas.mpl_connect('pick_event', self.on_pick)
 
     def set_colormap(self, colors: Dict ):
         self.colors = colors
         self.cmap = ListedColormap([ item[1] for item in colors.items() ] )
+     #   self._plot._facecolors[event.ind, :] = (1, 0, 0, 1)
+     #   self._plot._edgecolors[event.ind, :] = (1, 0, 0, 1)
 
     @classmethod
     def format_labels( cls, classes: List[Tuple[str, Union[str, List[Union[float, int]]]]]) -> List[Tuple[str, List[float]]]:
@@ -268,7 +272,8 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
     def onMouseClick(self, event):
         if event.xdata != None and event.ydata != None:
             if event.inaxes ==  self.axes:
-                print( f"Pick event: {event.xdata} {event.ydata}" )
+                inBounds, idx = self._plot.contains( event )
+                print(f"Pick event: {event.xdata} {event.ydata}, {inBounds}, {idx}")
                 # coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
                 # point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
                 # ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
@@ -277,6 +282,9 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
                 # event = dict( event="pick", type="reference", y=event.ydata, x=event.xdata, button=int(event.button), transient=rightButton )
                 # if not rightButton: event['classification'] = ic
                 # self.submitEvent(event, EventMode.Gui)
+
+#    def on_pick( self, event ):
+#        print( f"Pick event, pid = {event.ind}")
 
     def mpl_update(self):
         self.figure.canvas.draw_idle()
@@ -303,7 +311,8 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             self._plot.set_offsets( point_data )
             self.axes.set_xlim((np.min(point_data[:,0]), np.max(point_data[:,0])) )
             self.axes.set_ylim((np.min(point_data[:,1]), np.max(point_data[:,1])))
-        self.figure.canvas.draw_idle()
+        self.figure.canvas.draw()
+        self.draw()
 
 satellitePlotManager = SatellitePlotManager()
 
