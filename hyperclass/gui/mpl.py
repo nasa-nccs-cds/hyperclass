@@ -1,6 +1,7 @@
 import sys, numpy as np
 import xarray as xa
 import rioxarray as rio
+from matplotlib import cm
 from hyperclass.plot.console import LabelingConsole
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from matplotlib.image import AxesImage
@@ -246,23 +247,71 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         self.figure = Figure( constrained_layout=True )
         FigureCanvas.__init__(self, self.figure )
         self.setParent(parent)
-        self._plot: PathCollection = None
         FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
         FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
         FigureCanvas.updateGeometry(self)
         self.axes: Axes = self.figure.add_subplot(111)
         self.axes.get_xaxis().set_visible(False)
         self.axes.get_yaxis().set_visible(False)
+        self.axes.set_facecolor((0.0, 0.0, 0.0))
         self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self._plot: PathCollection = None
+        self._marker_plot: PathCollection = None
+        self.back_color = np.array( [ [ 1.0, 1.0, 1.0, 1.0 ] ] )
+        self.clear()
         self.activate_event_listening( )
         self.draw()
-#        self.figure.canvas.mpl_connect('pick_event', self.on_pick)
+        self.figure.canvas.mpl_connect('pick_event', self.on_pick)
 
     def set_colormap(self, colors: Dict ):
-        self.colors = colors
-        self.cmap = ListedColormap([ item[1] for item in colors.items() ] )
+        cvals =  list(colors.values())
+        self.colors = np.array( cvals, dtype = np.float32 )
+ #       self.cmap = ListedColormap([ item[1] for item in colors.items() ] )
      #   self._plot._facecolors[event.ind, :] = (1, 0, 0, 1)
      #   self._plot._edgecolors[event.ind, :] = (1, 0, 0, 1)
+
+    def plotMarkers(self, **kwargs  ):
+        reset = kwargs.get( 'reset', False )
+        if self._plot is not None:
+            plot_offsets = self._plot.get_offsets()
+            new_offsets = []
+            new_colors = []
+            for marker in labelsManager.getMarkers():
+                for pid in marker.pids:
+                    new_offsets.append( plot_offsets[ pid ].tolist() )
+                    new_colors.append( marker.color )
+            if self._marker_plot is None:
+                [x, y] = np.hsplit( np.array(new_offsets), 2 )
+                self._marker_plot = self.axes.scatter(x.squeeze(), y.squeeze(), c=np.array(new_colors), s=25)
+            else:
+                self._marker_plot.set_offsets( np.array(new_offsets) )
+                self._marker_plot.set_facecolor( np.array(new_colors) )
+            self.mpl_update()
+
+    def clear(self):
+        if self._marker_plot is not None:
+            self._marker_plot.set_offsets( np.array([]) )
+            self._marker_plot.set_array(np.array([]))
+        if self._plot is not None:
+            self._plot.set_facecolor([1.0,1.0,1.0])
+
+    def color_by_metric( self, metric: np.array, **kwargs ):
+        masked_metric: np.ma.MaskedArray = np.ma.masked_invalid(metric)
+        maxval = masked_metric.max()
+        metric_data = masked_metric.filled(maxval)/maxval
+        self._plot.set_array( metric_data )
+        self._plot.set_cmap( cm.get_cmap('jet') )
+
+    def set_point_colors( self, **kwargs ):
+        color_data = kwargs.get( 'data', None )
+        if color_data is None:
+            sample_labels = kwargs.get( 'labels', None )
+            if sample_labels is None: return
+            fcolors = np.where( sample_labels.values.reshape(-1,1) > 0, self.colors[sample_labels.values], self.back_color )
+            self._plot.set_facecolor( fcolors )
+        else:
+            self.color_by_metric( color_data )
+        self.mpl_update()
 
     @classmethod
     def format_labels( cls, classes: List[Tuple[str, Union[str, List[Union[float, int]]]]]) -> List[Tuple[str, List[float]]]:
@@ -274,6 +323,16 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             if event.inaxes ==  self.axes:
                 inBounds, idx = self._plot.contains( event )
                 print(f"Pick event: {event.xdata} {event.ydata}, {inBounds}, {idx}")
+                ic, color = labelsManager.selectedColor( True )
+                transient = labelsManager.selectedClass == 0
+                fc = self._plot.get_facecolor()
+                pids = idx['ind'].tolist()
+                for ix in pids: fc[ix] = color
+                self._plot.set_facecolor(fc)
+                self.mpl_update()
+                event = dict(event="pick", type="plot", pids = pids, transient=transient, mark= not transient )
+                self.submitEvent(event, EventMode.Gui)
+
                 # coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
                 # point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
                 # ic = point_data[0] if isinstance( point_data, collections.abc.Sequence ) else point_data
@@ -283,14 +342,18 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
                 # if not rightButton: event['classification'] = ic
                 # self.submitEvent(event, EventMode.Gui)
 
-#    def on_pick( self, event ):
-#        print( f"Pick event, pid = {event.ind}")
+    def on_pick( self, event ):
+        print( f"Pick event, pid = {event.ind}")
 
     def mpl_update(self):
-        self.figure.canvas.draw_idle()
+        self.draw_idle()
+        self.update()
+        self.flush_events()
+#        event = dict( event="gui", type="update" )
+#        self.submitEvent(event, EventMode.Gui )
 
-    def update( self, **kwargs ):
-        self.figure.canvas.draw_idle()
+    def gui_update(self, **kwargs ):
+        self.mpl_update()
 
     def setKeyState(self, event):
         pass
@@ -300,7 +363,9 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
 
     def init_plot(self, point_data: np.ndarray):
         [x, y] = np.hsplit( point_data, 2 )
-        self._plot: PathCollection = self.axes.scatter( x, y, s=1  )
+        cids: np.ndarray = labelsManager.labels_data().values
+        fcolors = np.where(cids.reshape(-1,1) > 0, self.colors[cids], self.back_color )
+        self._plot: PathCollection = self.axes.scatter( x.squeeze(), y.squeeze(), s=1, c=fcolors, pickradius=2.0  )
         self._mousepress = self._plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         #        self.plot.set_array( point_colors )
 
@@ -311,8 +376,9 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             self._plot.set_offsets( point_data )
             self.axes.set_xlim((np.min(point_data[:,0]), np.max(point_data[:,0])) )
             self.axes.set_ylim((np.min(point_data[:,1]), np.max(point_data[:,1])))
-        self.figure.canvas.draw()
         self.draw()
+        self.update()
+        self.flush_events()
 
 satellitePlotManager = SatellitePlotManager()
 

@@ -104,6 +104,18 @@ class VTKFrame(QtWidgets.QFrame):
         self._key_state = None
         self._key_state_modifiers = None
 
+    def plotMarkers(self, **kwargs):
+        self.vtkWidget.point_cloud.plotMarkers(**kwargs)
+
+    def clear(self):
+        self.vtkWidget.point_cloud.clear()
+
+    def color_by_metric( self, metric: np.array, **kwargs ):
+        self.vtkWidget.point_cloud.color_by_metric( metric, **kwargs  )
+
+    def set_point_colors( self, **kwargs ):
+        self.vtkWidget.point_cloud.set_point_colors( **kwargs )
+
     @property
     def keyState(self):
         return self._key_state
@@ -132,7 +144,7 @@ class VTKFrame(QtWidgets.QFrame):
         self.iren.Initialize()
         self.iren.Start()
 
-    def update(self, **kwargs ):
+    def gui_update(self, **kwargs ):
         self.vtkWidget.update( **kwargs )
         QtWidgets.QFrame.update(self)
 

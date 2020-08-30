@@ -211,7 +211,7 @@ class UnstructuredAppConsole(QObject, EventClient):
             print( f"Atempt to remove unrecognized message: {message}, msgs = {self.message_stack}")
         new_message = self.message_stack[-1] if len( self.message_stack ) else 'Ready'
         self.showMessage( new_message )
-        umapManager.update({})
+        umapManager.gui_update({})
         self.refresh_images( **kwargs )
 
     def refresh_images( self, **kwargs ):
@@ -231,6 +231,10 @@ class UnstructuredAppConsole(QObject, EventClient):
             if event.get('type') == 'completed':
                 print( "SwiftConsole: refreshing panels on task completion")
                 self.refresh( event.get('label') )
+        elif event.get('event') == 'gui':
+            if event.get('type') == 'update':
+                self.refresh_images()
+                self.gui.update()
 
 
 

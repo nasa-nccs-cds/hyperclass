@@ -39,7 +39,7 @@ class UMAPManager(QObject,EventClient):
         self.learned_mapping: Optional[UMAP] = None
         self._mapper: Dict[ str, UMAP ] = {}
         self._current_mapper: UMAP = None
-        self.update_signal.connect( self.update )
+        self.update_signal.connect( self.gui_update )
         self.menu_actions = OrderedDict( Plots =  [ [ "Increase Point Sizes", 'Ctrl+}',  None, partial( self.update_point_sizes, True ) ],
                                                     [ "Decrease Point Sizes", 'Ctrl+{',  None, partial( self.update_point_sizes, False ) ] ] )
     def gui( self, parent ):
@@ -55,7 +55,8 @@ class UMAPManager(QObject,EventClient):
         return self._gui
 
     def set_point_colors( self, **kwargs ):
-        self.point_cloud.set_point_colors(**kwargs)
+        if self._gui is not None:
+            self._gui.set_point_colors(**kwargs)
 
     @classmethod
     def newinit( cls, init_method: str ):
@@ -74,14 +75,14 @@ class UMAPManager(QObject,EventClient):
 
     def plotMarkers(self, **kwargs ):
         clear = kwargs.get( 'clear', False )
-        if clear: self.point_cloud.set_point_colors()
-        self.point_cloud.plotMarkers( **kwargs )
+        if clear: self._gui.set_point_colors()
+        self._gui.plotMarkers( **kwargs )
         self.update_signal.emit({})
 
     def clear(self):
         activationFlowManager.clear()
         self.plotMarkers(clear=True)
-        self.point_cloud.clear()
+        self._gui.clear()
         self.update_signal.emit({})
 
     def processEvent( self, event: Dict ):
@@ -103,11 +104,11 @@ class UMAPManager(QObject,EventClient):
                     self.plotMarkers( clear = True )
                 elif etype == 'spread':
                     labels: xa.Dataset = event.get('labels')
-                    self.point_cloud.set_point_colors( labels=labels['C'] )
+                    self._gui.set_point_colors( labels=labels['C'] )
                 elif etype == 'distance':
                     labels: xa.Dataset = event.get('labels')
                     D = labels['D']
-                    self.point_cloud.color_by_metric( D )
+                    self._gui.color_by_metric( D )
                 elif etype == 'reset':
                     self.clear()
                 elif etype == 'embed':
@@ -123,21 +124,21 @@ class UMAPManager(QObject,EventClient):
                     mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
                     mapper.clear_embedding()
                     if self._state == self.INIT: self.embed()
-                    self.point_cloud.set_colormap(self.class_colors)
-                    self.point_cloud.setPoints( mapper.embedding )
+                    self._gui.set_colormap(self.class_colors)
+                    self._gui.setPoints( mapper.embedding )
                 elif etype == 'plot':
                     embedded_data = event.get('value')
                     ndim = dataManager.config.value("umap/dims", type=int)
                     if ndim == 3:
-                        self.point_cloud.set_colormap(self.class_colors)
-                        self.point_cloud.setPoints( embedded_data )
+                        self._gui.set_colormap(self.class_colors)
+                        self._gui.setPoints( embedded_data )
                     else:
                         self._gui.set_colormap(self.class_colors)
                         self._gui.update_plot( embedded_data )
                 self.update_signal.emit( event )
         elif eid == 'pick':
             etype = etype
-            if etype in [ 'directory', "vtkpoint", "plot", 'reference' ]:
+            if etype in [ 'directory', "vtkpoint", "plot", 'reference', 'graph' ]:
                 if self._current_mapper is not None:
                     try:
                         pids = [ pid for pid in event.get('pids',[]) if pid >= 0 ]
@@ -148,7 +149,7 @@ class UMAPManager(QObject,EventClient):
                         cid = classification if ( classification > 0) else labelsManager.selectedClass
                         color = labelsManager.colors[cid]
                         labelsManager.addMarker( Marker( color, pids, cid ) )
-                        self.point_cloud.plotMarkers( reset = True )
+                        self._gui.plotMarkers( reset = True )
                         self.update_signal.emit({})
                     except Exception as err:
                         print( f"Point selection error: {err}")
@@ -300,8 +301,8 @@ class UMAPManager(QObject,EventClient):
         self.point_cloud.initMarkers( )
 
     @pyqtSlot(dict)
-    def update(self, kwargs: Dict ):
-        self._gui.update( **kwargs  )
+    def gui_update(self, kwargs: Dict ):
+        self._gui.gui_update( **kwargs  )
 
     def transform( self, block: Block, **kwargs ) -> Dict[str,xa.DataArray]:
         t0 = time.time()

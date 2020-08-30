@@ -255,7 +255,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.build_table.emit()
         if event.get('event') == 'pick':
             etype = event.get('type')
-            if etype in [ 'vtkpoint', 'directory', 'plot' ]:
+            if etype in [ 'vtkpoint', 'directory', 'plot', 'graph' ]:
                 cid = labelsManager.selectedClass
                 mark = event.get('mark', False )
                 if (self.name == "catalog") or (cid == 0):
