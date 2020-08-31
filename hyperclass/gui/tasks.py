@@ -25,6 +25,7 @@ class Task(QRunnable,EventClient):
         self.fn = fn
         self.tid = id(self)
         self.args = args
+        self.result = None
         self.context = kwargs.pop('task_context','console')
         self.kwargs = kwargs
 
@@ -36,18 +37,20 @@ class Task(QRunnable,EventClient):
         t0 = time.time()
         try:
             self.submitEvent(dict( event='task', type='start', label=self.label), EventMode.Gui)  # Done
-            result = self.fn(*self.args, **self.kwargs)
+            self.result = self.fn(*self.args, **self.kwargs)
         except:
             traceback.print_exc()
             exctype, value = sys.exc_info()[:2]
             event = dict( event='task', type='error', label=self.label, exctype=exctype, value=value, traceback=traceback.format_exc(), tid = self.tid )
             self.submitEvent(  event, EventMode.Gui )
         else:
-            self.submitEvent(  dict( event='task', type='result', label=self.label, result=result ), EventMode.Gui )  # Return the result of the processing
+            if self.result is not None:
+                self.submitEvent(  dict( event='task', type='result', label=self.label, result=self.result ), EventMode.Gui )  # Return the result of the processing
         finally:
             dt = time.time()-t0
-            print( f"Completed task {self.label} in {dt} sec ({dt/60} min)")
-            self.submitEvent(  dict( event='task', type='completed', label=self.label ), EventMode.Gui )  # Done
+            if self.result is not None:
+                print( f"Completed task {self.label} in {dt} sec ({dt/60} min)")
+                self.submitEvent(  dict( event='task', type='completed', label=self.label ), EventMode.Gui )  # Done
 
     @classmethod
     def showErrorMessage(cls, msg: str ):

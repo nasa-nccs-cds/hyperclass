@@ -73,6 +73,7 @@ class EventCentral(QObject):
                 if mode == EventMode.Foreground:
                     client.processEvent(event)
                 elif mode == EventMode.Background:
+                    print(f"\n****  CLASS {self.__class__.__name__}: submit background event {event}")
                     task_label = ".".join( [ event.get(id,"") for id in [ 'event', 'type', 'label'] ] )
                     task = Task( task_label, client.processEvent, event )
                     taskRunner.start( task )

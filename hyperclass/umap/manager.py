@@ -33,6 +33,7 @@ class UMAPManager(QObject,EventClient):
         self.point_cloud: PointCloud = PointCloud( )
         self._point_data = None
         self._gui = None
+        self._current_event = None
         self.embedding_type = kwargs.pop('embedding_type', 'umap')
         self.conf = kwargs
         self._state = self.UNDEF
@@ -47,7 +48,8 @@ class UMAPManager(QObject,EventClient):
         from hyperclass.gui.points import VTKFrame
         if self._gui is None:
             ndims  = dataManager.config.value("umap/dims", type=int)
-            if ndims == 3:
+            use_gpu = dataManager.config.value("umap/gpu", 1, type=int)
+            if (ndims == 3) and use_gpu:
                 self._gui = VTKFrame( self.point_cloud )
             else:
                 self._gui = PointCloudImageCanvas( parent )
@@ -79,9 +81,9 @@ class UMAPManager(QObject,EventClient):
         self._gui.plotMarkers( **kwargs )
         self.update_signal.emit({})
 
-    def clear(self):
+    def clear(self,**kwargs):
         activationFlowManager.clear()
-        self.plotMarkers(clear=True)
+        self.plotMarkers( clear= (kwargs.get('markers','discard')!="keep") )
         self._gui.clear()
         self.update_signal.emit({})
 
@@ -98,8 +100,7 @@ class UMAPManager(QObject,EventClient):
             elif etype == 'keyRelease':  self._gui.releaseKeyState()
             else:
                 if etype in [ 'clear', 'reload' ]:
-                    activationFlowManager.clear()
-                    self.plotMarkers( clear=(event.get('markers')!="keep") )
+                    self.clear( markers=event.get('markers','discard') )
                 elif etype == 'undo':
                     self.plotMarkers( clear = True )
                 elif etype == 'spread':
@@ -125,16 +126,11 @@ class UMAPManager(QObject,EventClient):
                     mapper.clear_embedding()
                     if self._state == self.INIT: self.embed()
                     self._gui.set_colormap(self.class_colors)
-                    self._gui.setPoints( mapper.embedding )
+                    self._gui.update_plot( mapper.embedding )
                 elif etype == 'plot':
                     embedded_data = event.get('value')
-                    ndim = dataManager.config.value("umap/dims", type=int)
-                    if ndim == 3:
-                        self._gui.set_colormap(self.class_colors)
-                        self._gui.setPoints( embedded_data )
-                    else:
-                        self._gui.set_colormap(self.class_colors)
-                        self._gui.update_plot( embedded_data )
+                    self._gui.set_colormap(self.class_colors)
+                    self._gui.update_plot( embedded_data )
                 self.update_signal.emit( event )
         elif eid == 'pick':
             etype = etype

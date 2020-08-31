@@ -68,7 +68,8 @@ class ActivationFlowManager:
         for instance in self.instances.values():
             instance.clear()
 
-    def getActivationFlow( self, point_data: xa.DataArray, **kwargs ) -> "ActivationFlow":
+    def getActivationFlow( self, point_data: xa.DataArray, **kwargs ) -> Optional["ActivationFlow"]:
+        if point_data is None: return None
         dsid = point_data.attrs['dsid']
         print( f"Get Activation flow for dsid {dsid}")
         self.condition.acquire()

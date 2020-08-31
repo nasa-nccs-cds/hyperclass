@@ -1015,7 +1015,7 @@ def optimize_layout_euclidean(
     embedding: array of shape (n_samples, n_components)
         The optimized embedding.
     """
-
+    from hyperclass.data.manager import dataManager
     dim = head_embedding.shape[1]
     move_other = head_embedding.shape[0] == tail_embedding.shape[0]
     alpha = initial_alpha
@@ -1023,13 +1023,14 @@ def optimize_layout_euclidean(
     epoch_of_next_negative_sample = epochs_per_negative_sample.copy()
     epoch_of_next_sample = epochs_per_sample.copy()
     plot_mod = 2
-
+    use_gpu = dataManager.config.value("umap/gpu", 1, type=int)
     optimize_fn = numba.njit( _optimize_layout_euclidean_single_epoch, fastmath=True, parallel=parallel )
     if n_epochs == 1:
         eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=True),EventMode.Gui)
     else:
+      print( f" >>> Embed n_epochs={n_epochs}, alpha={alpha} ")
       for n in range(n_epochs):
-        if (n % plot_mod == 0) and (dim == 3):
+        if (n % plot_mod == 0) and (dim == 3) and (use_gpu>0):
             eventCentral.submitEvent( dict( event="gui", type="plot", value=head_embedding, reset_camera=(n==0) ), EventMode.Gui  )
         optimize_fn(
             head_embedding,
@@ -1050,13 +1051,13 @@ def optimize_layout_euclidean(
             epoch_of_next_sample,
             n,
         )
+        print( f" ITER Embed n={n}, alpha={alpha:.4f}, sample={head_embedding[0]}, dist={head_embedding[0]-head_embedding[1000]} ")
         alpha = initial_alpha * (1.0 - (float(n) / float(n_epochs)))
 
         if verbose and n % int(n_epochs / 10) == 0:
             print("\tcompleted ", n, " / ", n_epochs, "epochs")
 
-      if (dim == 2):
-        eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=False), EventMode.Gui)
+      eventCentral.submitEvent(dict(event="gui", type="plot", value=head_embedding, reset_camera=False), EventMode.Gui)
 
     return head_embedding
 

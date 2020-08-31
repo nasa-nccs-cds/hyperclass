@@ -104,6 +104,9 @@ class VTKFrame(QtWidgets.QFrame):
         self._key_state = None
         self._key_state_modifiers = None
 
+    def update_plot(self, points ):
+        self.vtkWidget.point_cloud.setPoints( points )
+
     def plotMarkers(self, **kwargs):
         self.vtkWidget.point_cloud.plotMarkers(**kwargs)
 

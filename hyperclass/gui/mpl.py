@@ -245,16 +245,8 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
 
     def __init__(self, parent,  **kwargs ):
         self.figure = Figure( constrained_layout=True )
-        FigureCanvas.__init__(self, self.figure )
-        self.setParent(parent)
-        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
-        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
-        FigureCanvas.updateGeometry(self)
-        self.axes: Axes = self.figure.add_subplot(111)
-        self.axes.get_xaxis().set_visible(False)
-        self.axes.get_yaxis().set_visible(False)
-        self.axes.set_facecolor((0.0, 0.0, 0.0))
-        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        self.init_canvas(parent)
+        self.axes: Axes = self.get_axes()
         self._plot: PathCollection = None
         self._marker_plot: PathCollection = None
         self.back_color = np.array( [ [ 1.0, 1.0, 1.0, 1.0 ] ] )
@@ -262,6 +254,25 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         self.activate_event_listening( )
         self.draw()
         self.figure.canvas.mpl_connect('pick_event', self.on_pick)
+
+    def init_canvas( self, parent ):
+        FigureCanvas.__init__(self, self.figure )
+        self.setParent(parent)
+        FigureCanvas.setSizePolicy(self, QSizePolicy.Ignored, QSizePolicy.Ignored)
+        FigureCanvas.setContentsMargins( self, 0, 0, 0, 0 )
+        FigureCanvas.updateGeometry(self)
+
+    def get_axes(self) -> Axes:
+        from hyperclass.data.manager import dataManager
+        self.ndims = dataManager.config.value("umap/dims", type=int)
+        spargs = {} if  self.ndims==2 else dict( projection='3d' )
+        axes: Axes = self.figure.add_subplot(111,**spargs)
+        if self.ndims == 2:
+            axes.get_xaxis().set_visible(False)
+            axes.get_yaxis().set_visible(False)
+        axes.set_facecolor((0.0, 0.0, 0.0))
+        self.figure.set_constrained_layout_pads( w_pad=0., h_pad=0. )
+        return axes
 
     def set_colormap(self, colors: Dict ):
         cvals =  list(colors.values())
@@ -273,25 +284,35 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
     def plotMarkers(self, **kwargs  ):
         reset = kwargs.get( 'reset', False )
         if self._plot is not None:
-            plot_offsets = self._plot.get_offsets()
+            plot_offsets = self._plot._offsets3d if (self.ndims == 3) else np.hsplit( self._plot.get_offsets(), self.ndims )
             new_offsets = []
             new_colors = []
             for marker in labelsManager.getMarkers():
                 for pid in marker.pids:
-                    new_offsets.append( plot_offsets[ pid ].tolist() )
+                    new_offsets.append( [ x[ pid ] for x in plot_offsets ] )
                     new_colors.append( marker.color )
-            if self._marker_plot is None:
-                [x, y] = np.hsplit( np.array(new_offsets), 2 )
-                self._marker_plot = self.axes.scatter(x.squeeze(), y.squeeze(), c=np.array(new_colors), s=25)
-            else:
-                self._marker_plot.set_offsets( np.array(new_offsets) )
-                self._marker_plot.set_facecolor( np.array(new_colors) )
-            self.mpl_update()
+            if len( new_offsets ) > 0:
+                point_data = np.array(new_offsets)
+                color_data = np.array(new_colors)
+                pcoords = [x.squeeze() for x in np.hsplit(point_data, point_data.shape[1])]
+                if self._marker_plot is None:
+                    self._marker_plot = self.axes.scatter(*pcoords, c=color_data, s=25)
+                else:
+                    if (self.ndims == 3):
+                        self._marker_plot._offsets3d = pcoords
+                        self._marker_plot._facecolor3d = color_data
+                        self._marker_plot._edgecolor3d = color_data
+                    else:
+                        self._marker_plot.set_offsets( point_data )
+                        self._marker_plot.set_facecolor( color_data )
+                        self._marker_plot.set_edgecolor(color_data)
+                self.mpl_update()
 
     def clear(self):
         if self._marker_plot is not None:
-            self._marker_plot.set_offsets( np.array([]) )
-            self._marker_plot.set_array(np.array([]))
+            if self.ndims == 2:  self._marker_plot.set_offsets( np.array([]) )
+            else:                self._plot._offsets3d = [ np.array([]), np.array([]), np.array([]) ]
+            self._marker_plot.set_array( np.array([]) )
         if self._plot is not None:
             self._plot.set_facecolor([1.0,1.0,1.0])
 
@@ -308,7 +329,12 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             sample_labels = kwargs.get( 'labels', None )
             if sample_labels is None: return
             fcolors = np.where( sample_labels.values.reshape(-1,1) > 0, self.colors[sample_labels.values], self.back_color )
-            self._plot.set_facecolor( fcolors )
+            if  self.ndims == 3:
+                self._plot._facecolor3d = fcolors
+                self._plot._edgecolor3d = fcolors
+            else:
+                self._plot.set_facecolor( fcolors )
+                self._plot.set_edgecolor( fcolors )
         else:
             self.color_by_metric( color_data )
         self.mpl_update()
@@ -328,7 +354,12 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
                 fc = self._plot.get_facecolor()
                 pids = idx['ind'].tolist()
                 for ix in pids: fc[ix] = color
-                self._plot.set_facecolor(fc)
+                if self.ndims == 3:
+                    self._plot._facecolor3d = fc
+                    self._plot._edgecolor3d = fc
+                else:
+                    self._plot.set_facecolor(fc)
+                    self._plot.set_edgecolor(fc)
                 self.mpl_update()
                 event = dict(event="pick", type="plot", pids = pids, transient=transient, mark= not transient )
                 self.submitEvent(event, EventMode.Gui)
@@ -362,10 +393,10 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         pass
 
     def init_plot(self, point_data: np.ndarray):
-        [x, y] = np.hsplit( point_data, 2 )
         cids: np.ndarray = labelsManager.labels_data().values
         fcolors = np.where(cids.reshape(-1,1) > 0, self.colors[cids], self.back_color )
-        self._plot: PathCollection = self.axes.scatter( x.squeeze(), y.squeeze(), s=1, c=fcolors, pickradius=2.0  )
+        pcoords = [ x.squeeze() for x in np.hsplit(point_data, self.ndims) ]
+        self._plot: PathCollection = self.axes.scatter( *pcoords, s=1, c=fcolors, pickradius=2.0  )
         self._mousepress = self._plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         #        self.plot.set_array( point_colors )
 
@@ -373,9 +404,18 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         if self._plot is None:
             self.init_plot( point_data )
         else:
-            self._plot.set_offsets( point_data )
-            self.axes.set_xlim((np.min(point_data[:,0]), np.max(point_data[:,0])) )
-            self.axes.set_ylim((np.min(point_data[:,1]), np.max(point_data[:,1])))
+            xlim = (np.min(point_data[:,0]), np.max(point_data[:,0]))
+            ylim = (np.min(point_data[:, 1]), np.max(point_data[:, 1]))
+            self.axes.set_xlim( *xlim )
+            self.axes.set_ylim( *ylim )
+            if self.ndims == 3:
+                zlim = (np.min(point_data[:, 2]), np.max(point_data[:, 2]))
+                self.axes.set_zlim(*zlim)
+                self._plot._offsets3d = [ x.squeeze() for x in np.hsplit(point_data, 3) ]
+                print( f" update point cloud plot: xlim={xlim}, ylim={ylim}, zlim={zlim}, sample = {point_data[0]}, dist = {point_data[0] - point_data[1000]}")
+            else:
+                self._plot.set_offsets(point_data)
+                print( f" update point cloud plot: xlim={xlim}, ylim={ylim}, sample = {point_data[0]}, dist = {point_data[0] - point_data[1000]}")
         self.draw()
         self.update()
         self.flush_events()
