@@ -284,17 +284,16 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
     def plotMarkers(self, **kwargs  ):
         reset = kwargs.get( 'reset', False )
         if self._plot is not None:
-            plot_offsets = self._plot._offsets3d if (self.ndims == 3) else np.hsplit( self._plot.get_offsets(), self.ndims )
+            plot_offsets = self._plot._offsets3d if (self.ndims == 3) else self._plot._offsets
             new_offsets = []
             new_colors = []
             for marker in labelsManager.getMarkers():
                 for pid in marker.pids:
-                    new_offsets.append( [ x[ pid ] for x in plot_offsets ] )
+                    new_offsets.append( plot_offsets[pid].tolist() )
                     new_colors.append( marker.color )
             if len( new_offsets ) > 0:
-                point_data = np.array(new_offsets)
+                pcoords = np.array(new_offsets).reshape(-1,2)
                 color_data = np.array(new_colors)
-                pcoords = [x.squeeze() for x in np.hsplit(point_data, point_data.shape[1])]
                 if self._marker_plot is None:
                     self._marker_plot = self.axes.scatter(*pcoords, c=color_data, s=25)
                 else:
@@ -303,7 +302,7 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
                         self._marker_plot._facecolor3d = color_data
                         self._marker_plot._edgecolor3d = color_data
                     else:
-                        self._marker_plot.set_offsets( point_data )
+                        self._marker_plot._offsets = pcoords
                         self._marker_plot.set_facecolor( color_data )
                         self._marker_plot.set_edgecolor(color_data)
                 self.mpl_update()
@@ -396,7 +395,7 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         cids: np.ndarray = labelsManager.labels_data().values
         fcolors = np.where(cids.reshape(-1,1) > 0, self.colors[cids], self.back_color )
         pcoords = [ x.squeeze() for x in np.hsplit(point_data, self.ndims) ]
-        self._plot: PathCollection = self.axes.scatter( *pcoords, s=1, c=fcolors, pickradius=2.0  )
+        self._plot: PathCollection = self.axes.scatter( *pcoords, s=1, c=fcolors, pickradius=4.0  )
         self._mousepress = self._plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick)
         #        self.plot.set_array( point_colors )
 

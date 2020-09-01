@@ -8,7 +8,7 @@ classes = [ ('class-1', [1.0, 0.0, 0.0, 1.0]),
             ('class-2', [0.0, 1.0, 0.0, 1.0]),
             ('class-3', [1.0, 0.0, 1.0, 1.0]),
             ('class-4', [0.0, 0.0, 1.0, 1.0])]
-default_settings = { "umap/nneighbors": 8, "umap/nepochs": 300, "svm/ndim": 8, "umap/gpu": 0 }
+default_settings = { "umap/nneighbors": 8, "umap/nepochs": 300, "svm/ndim": 8, "umap/gpu": 1, "umap/dims": 3 }
 
 app = HCApplication()
 labelsManager.setLabels( classes )

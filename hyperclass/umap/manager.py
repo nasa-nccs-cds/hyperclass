@@ -49,7 +49,7 @@ class UMAPManager(QObject,EventClient):
         if self._gui is None:
             ndims  = dataManager.config.value("umap/dims", type=int)
             use_gpu = dataManager.config.value("umap/gpu", 1, type=int)
-            if (ndims == 3) and use_gpu:
+            if ndims == 3:
                 self._gui = VTKFrame( self.point_cloud )
             else:
                 self._gui = PointCloudImageCanvas( parent )
@@ -82,9 +82,12 @@ class UMAPManager(QObject,EventClient):
         self.update_signal.emit({})
 
     def clear(self,**kwargs):
+        keep_markers = kwargs.get('markers', 'discard') == "keep"
         activationFlowManager.clear()
-        self.plotMarkers( clear= (kwargs.get('markers','discard')!="keep") )
-        self._gui.clear()
+        self._gui.clear_selection()
+        if not keep_markers:
+            self._gui.clear_markers()
+            labelsManager.clearMarkers()
         self.update_signal.emit({})
 
     def processEvent( self, event: Dict ):

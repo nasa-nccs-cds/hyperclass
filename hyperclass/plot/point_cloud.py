@@ -191,6 +191,12 @@ class PointCloud():
         if self.actor is not None:
             self.actor.Modified()
 
+    def clear_selection(self):
+        self.set_point_colors(data=None)
+
+    def clear_markers(self):
+        self.initMarkers()
+
     def clear(self):
         self.initPolyData()
         self.initMarkers()
