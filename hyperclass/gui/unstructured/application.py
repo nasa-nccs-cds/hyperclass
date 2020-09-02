@@ -12,7 +12,7 @@ from hyperclass.data.manager import dataManager
 from collections import Mapping
 from functools import partial
 from hyperclass.gui.labels import labelsManager
-from hyperclass.plot.spectra import SpectralPlot
+from hyperclass.plot.spectra import SpectralPlot, spectralManager
 from typing import List, Union, Dict
 import xarray as xa
 import os
@@ -47,8 +47,6 @@ class UnstructuredAppMainWindow(HCMainWindow):
 
     def selectTableRows(self):
         print( "select" )
-
-
 
     def getPreferencesDialog(self):
         from hyperclass.config.inputs import RuntimeDialog
@@ -111,21 +109,22 @@ class UnstructuredAppConsole(QObject, EventClient):
         directoryLayout.addWidget(self.labelsConsole, 2)
         consoleLayout.addLayout(directoryLayout, 10 )
 
-        self.spectraTabs = QTabWidget()
-        for iS in range( self.nSpectra ):
-            spectral_plot = SpectralPlot( iS == 0 )
-            self.spectral_plots.append(spectral_plot)
-            tabId = "Spectra" if iS == 0 else str(iS)
-            self.spectraTabs.addTab( spectral_plot.gui(widget), tabId )
-        self.spectraTabs.currentChanged.connect( self.activate_spectral_plot )
-        self.spectraTabs.setTabEnabled( 0, True )
-        consoleLayout.addWidget( self.spectraTabs, 6 )
+        self.spectraTabs = spectralManager.gui( self.nSpectra, widget )
+        spectralManager.addActions( self.getMenu( "Plots") )
+        consoleLayout.addWidget(self.spectraTabs, 6)
 
         self.vizTabs = QTabWidget()
         self.vizTabs.addTab(  umapManager.gui(self.gui), "Embedding" )
         vizLayout.addWidget( self.vizTabs )
 
         self.populate_load_menues()
+
+    def getMenu(self, menuName, parent = None ):
+        parentMenu = parent if parent is not None else self.gui.mainMenu
+        menus: List[QMenu] = parentMenu.findChildren(QMenu)
+        for menu in menus:
+            if (menu.title() == menuName): return menu
+        return parentMenu.addMenu(menuName)
 
     def selectClassDirectory(self, ic: int ):
         self.directoryTabs.setCurrentIndex( ic )
@@ -134,13 +133,9 @@ class UnstructuredAppConsole(QObject, EventClient):
         for iS, ctable in enumerate(self.classDirecories.values()):
             ctable.activate( iS == index )
 
-    def activate_spectral_plot( self, index: int ):
-        for iS, plot in enumerate(self.spectral_plots):
-            plot.activate( iS == index )
-
     def addMenues(self, parent_menu: Union[QMenu,QMenuBar], menuSpec: Mapping ) :
         for menuName, menuItems in menuSpec.items():
-            menu = parent_menu.addMenu(menuName)
+            menu = self.getMenu( menuName, parent_menu )
             for menuItem in menuItems:
                 if isinstance(menuItem, Mapping):   self.addMenues( menu, menuItem )
                 else:                               self.addMenuAction( menu, menuItem )

@@ -1,7 +1,7 @@
 from matplotlib.figure import Figure
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from PyQt5.QtWidgets import  QSizePolicy
+from PyQt5.QtWidgets import *
 from matplotlib.lines import Line2D
 from matplotlib.backend_bases import PickEvent, MouseEvent
 from hyperclass.util.config import tostr
@@ -41,15 +41,34 @@ class SpectralPlot(QObject,EventClient):
         self.lines: OrderedDict[ int, Line2D ] = OrderedDict()
         self.current_line: Optional[Line2D] = None
         self.current_pid = -1
+        self.current_cid = -1
         self.norm = None
+
         self.plotx: xa.DataArray = None
         self.nploty: xa.DataArray = None
         self.ploty: xa.DataArray = None
+
+        self.rplotx: xa.DataArray = None
+        self.nrploty: xa.DataArray = None
+        self.rploty: xa.DataArray = None
+
+        self._use_reduced_data = False
         self.marker: Line2D = None
         self._gui = None
         self._titles = None
         self.parms = kwargs
         self.update_signal.connect( self.update )
+
+    def useReducedData(self, useReducedData: bool ):
+        if self._use_reduced_data != useReducedData:
+            self._use_reduced_data = useReducedData
+            self.plot_spectrum()
+            self.update()
+
+    def toggleUseReducedData( self ):
+        self._use_reduced_data = not self._use_reduced_data
+        self.plot_spectrum()
+        self.update()
 
     def activate( self, active: bool  ):
         self._active = active
@@ -99,20 +118,26 @@ class SpectralPlot(QObject,EventClient):
 
     def normalize(self):
         self.norm = self.ploty.attrs.get("norm", None)
-        if not self.norm: return self.ploty
-        elif self.norm == "median": return self.ploty / self.ploty.median( axis = 1 )
-        elif self.norm == "mean": return self.ploty / self.ploty.mean( axis=1 )
-        else: return self.ploty
+        if self.norm == "median":
+            self.nploty =  self.ploty / self.ploty.median( axis = 1 )
+            self.nrploty = self.rploty / self.rploty.median(axis=1)
+        elif self.norm == "mean":
+            self.nploty =  self.ploty / self.ploty.mean( axis=1 )
+            self.nrploty = self.rploty / self.rploty.mean(axis=1)
+        else:
+            self.nploty =  self.ploty
+            self.nrploty = self.rploty
 
     def processEvent(self, event: Dict ):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
+            reduced_data = dataEventHandler.getPointData( event, DataType.Embedding )
             if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
             else:                           self.plotx, self.ploty = plot_data.band,     plot_data
+            self.rplotx, self.rploty = reduced_data['model'], reduced_data
             if self.ploty.size > 0:
-                self.nploty = self.normalize()
-                self.ymax, self.ymin = self.nploty.values.max(), self.nploty.values.min()
+                self.normalize()
                 self.configure( event )
         if event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory', 'reference', 'plot' ]) and self._active:
@@ -124,14 +149,13 @@ class SpectralPlot(QObject,EventClient):
                             self.current_pid = pid
                             current_line = self.lines.get( self.current_pid, None )
                             if (current_line is not None) and (current_line.cid > 0):
-                                cid = current_line.cid
+                                self.current_cid = current_line.cid
                             else:
                                 classification = event.get('classification',-1)
-                                cid = classification if (classification > 0) else labelsManager.selectedClass
+                                self.current_cid = classification if (classification > 0) else labelsManager.selectedClass
                             self.clear_transients()
-                            print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {cid}")
-                            color = labelsManager.colors[cid]
-                            self.plot_spectrum( cid, color )
+                            print( f"SpectralPlot: pick event, pid = {self.current_pid}, cid = {self.current_cid}")
+                            self.plot_spectrum()
                             if self._titles is not None:
                                 self.axes.set_title( self._titles.get(self.current_pid,"*SPECTRA*" ), {'fontsize': 10 }, 'center' )
                             self.update_marker()
@@ -148,20 +172,25 @@ class SpectralPlot(QObject,EventClient):
         if new_xval is not None:
             self.marker = self.axes.axvline( new_xval, color="yellow", linewidth=1, alpha=0.75 )
 
-    def plot_spectrum(self, cid: int, color: List[float] ):
+    def plot_spectrum(self):
         if (self.current_pid >= 0) and (self.nploty is not None):
-            spectrum = self.nploty[self.current_pid].values
-            x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
+            color = labelsManager.colors[self.current_cid]
+            if self._use_reduced_data:
+                spectrum = self.nrploty[self.current_pid].values
+                x = self.rplotx[ self.current_pid ].values if self.rplotx.ndim == 2 else self.rplotx.values
+            else:
+                spectrum = self.nploty[self.current_pid].values
+                x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
             linewidth = 2 if self.overlay else 1
             if len(color) == 4: color[3] = 1.0
             self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
-            if not self.norm: self.ymax, self.ymin = spectrum.max(), spectrum.min()
+            self.ymax, self.ymin = spectrum.max(), spectrum.min()
             self.xmax, self.xmin = x.max(), x.min()
             self.axes.set_ybound(self.ymin, self.ymax)
             self.axes.set_xbound(self.xmin, self.xmax)
             print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
             self.current_line.color = color
-            self.current_line.cid = cid
+            self.current_line.cid = self.current_cid
             self.lines[ self.current_pid ] = self.current_line
 
     def clear(self):
@@ -191,3 +220,43 @@ class SpectralPlot(QObject,EventClient):
         if self._gui is not None:
             self.figure.canvas.draw_idle()
             self._gui.update()
+
+
+
+class SpectralManager:
+
+    def __init__(self):
+        self.spectral_plots = []
+        self._gui = None
+
+    def gui(self, nSpectra: int, parent: QWidget ):
+        if self._gui is None:
+            self._gui = QTabWidget()
+            for iS in range(nSpectra):
+                spectral_plot = SpectralPlot(iS == 0)
+                self.spectral_plots.append(spectral_plot)
+                tabId = "Spectra" if iS == 0 else str(iS)
+                self._gui.addTab( spectral_plot.gui(parent), tabId )
+            self._gui.currentChanged.connect(self.activate_spectral_plot)
+            self._gui.setTabEnabled(0, True)
+        return self._gui
+
+    def activate_spectral_plot( self, index: int ):
+        for iS, plot in enumerate(self.spectral_plots):
+            plot.activate( iS == index )
+
+    def setSpectralUseReduced(self, useReducedData: bool ):
+        for spectral_plot in self.spectral_plots:
+            spectral_plot.useReducedData( useReducedData )
+
+    def toggleSpectralUseReduced(self ):
+        for spectral_plot in self.spectral_plots:
+            spectral_plot.toggleUseReducedData()
+
+    def addActions(self, menu: QMenu ):
+        menuButton = QAction( "Toggle Spectral Reduced/Raw", self._gui )
+        menuButton.setStatusTip( "Toggle Spectral Use Reduced/Raw Data"  )
+        menuButton.triggered.connect(self.toggleSpectralUseReduced)
+        menu.addAction( menuButton )
+
+spectralManager = SpectralManager()
