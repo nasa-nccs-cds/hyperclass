@@ -49,7 +49,6 @@ class SpectralPlot(QObject,EventClient):
         self.ploty: xa.DataArray = None
 
         self.rplotx: xa.DataArray = None
-        self.nrploty: xa.DataArray = None
         self.rploty: xa.DataArray = None
 
         self._use_reduced_data = False
@@ -120,13 +119,10 @@ class SpectralPlot(QObject,EventClient):
         self.norm = self.ploty.attrs.get("norm", None)
         if self.norm == "median":
             self.nploty =  self.ploty / self.ploty.median( axis = 1 )
-            self.nrploty = self.rploty / self.rploty.median(axis=1)
         elif self.norm == "mean":
             self.nploty =  self.ploty / self.ploty.mean( axis=1 )
-            self.nrploty = self.rploty / self.rploty.mean(axis=1)
         else:
             self.nploty =  self.ploty
-            self.nrploty = self.rploty
 
     def processEvent(self, event: Dict ):
         super().processEvent(event)
@@ -176,18 +172,20 @@ class SpectralPlot(QObject,EventClient):
         if (self.current_pid >= 0) and (self.nploty is not None):
             color = labelsManager.colors[self.current_cid]
             if self._use_reduced_data:
-                spectrum = self.nrploty[self.current_pid].values
+                spectrum = self.rploty[self.current_pid].values
                 x = self.rplotx[ self.current_pid ].values if self.rplotx.ndim == 2 else self.rplotx.values
             else:
                 spectrum = self.nploty[self.current_pid].values
                 x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
-            linewidth = 2 if self.overlay else 1
-            if len(color) == 4: color[3] = 1.0
-            self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
             self.ymax, self.ymin = spectrum.max(), spectrum.min()
             self.xmax, self.xmin = x.max(), x.min()
-            self.axes.set_ybound(self.ymin, self.ymax)
-            self.axes.set_xbound(self.xmin, self.xmax)
+            self.axes.set_ylim(self.ymin, self.ymax)
+            self.axes.set_xlim(self.xmin, self.xmax)
+            linewidth = 2 if self.overlay else 1
+            if len(color) == 4: color[3] = 1.0
+            if self.current_line is not None:
+                self.current_line.set_visible(False)
+            self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
             print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
             self.current_line.color = color
             self.current_line.cid = self.current_cid

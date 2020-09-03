@@ -63,6 +63,9 @@ class DataEventHandler:
                     raw_data = self.getDataArray( "reduction" )
                     if raw_data is None: raw_data = self.getDataArray( "embedding" )
                     point_data: Optional[xa.DataArray] = dataEventHandler.subsample( raw_data )
+                    pdm =  point_data.mean( axis=0 )
+                    point_data = point_data - pdm
+                    point_data = point_data / point_data.std()
                     point_data.attrs['dsid'] = self._loaded_data.attrs['dsid']
                     point_data.attrs['type'] = dset_type
                 elif type == DataType.Plot:
