@@ -79,9 +79,19 @@ class DirectoryWidget(QWidget,EventClient):
         self.build_table.connect( self.build_table_slot )
         self.activate_event_listening()
 
+    @property
+    def selected_rows(self):
+        return self._selected_rows
+
+    @selected_rows.setter
+    def selected_rows(self, value):
+        if self.name == "catalog":
+            print(".")
+        self._selected_rows = value
+
     def getSelection(self) -> List[List[int]]:
-        if len(self._selected_rows) > 0:
-            return [ list(x) for x in zip(*self._selected_rows) ]
+        if len(self.selected_rows) > 0:
+            return [ list(x) for x in zip(*self.selected_rows) ]
         return [[], [], []]
 
     def findRow(self, searchStr: str  ):
@@ -139,24 +149,28 @@ class DirectoryWidget(QWidget,EventClient):
             self.selectRow( row, mark )
             self.update()
 
-    def itemSelectionChanged(self):
-        srows = [ ]
+    def recordSelection(self):
+        self.selected_rows = [ ]
         cid = labelsManager.selectedClass
-        mark = (cid > 0)
         for index in self.table.selectionModel().selectedIndexes():
             row = index.row()
             pid_item = self.table.item( row, self._index_column )
-            try: srows.append( ( row, int(pid_item.text()), cid) )
+            try: self.selected_rows.append( ( row, int(pid_item.text()), cid) )
             except: pass
+        return cid
+
+    def itemSelectionChanged(self):
+        cid = self.recordSelection()
+        mark = (cid > 0)
         if (self.name not in ["catalog", labelsManager.selectedLabel]) and (cid > 0):
-            self.clearRowsByPID([r[1] for r in srows])
-            event = dict( event="pick", type="directory", rows=srows, mark = True )
+            self.clearRowsByPID([r[1] for r in self.selected_rows])
+            event = dict( event="pick", type="directory", rows=self.selected_rows, mark = True )
             self.submitEvent( event, EventMode.Gui )
         else:
-            print( f"Selected srows: {srows}")
-            self.selectRowsByIndex(srows, mark)
+            print( f"Selected srows: {self.selected_rows}")
+            self.selectRowsByIndex(self.selected_rows, mark)
             if (self.name == "catalog"):
-                event = dict(event="pick", type="directory", rows=srows, mark=mark )
+                event = dict(event="pick", type="directory", rows=self.selected_rows, mark=mark )
                 self.submitEvent(event, EventMode.Gui)
 
     def setSelectedColumnHeaderColor(self, color ):
@@ -214,7 +228,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def clear_transients(self):
         marked_rows = []
-        for (row,pid,ic) in self._selected_rows:
+        for (row,pid,ic) in self.selected_rows:
             if ic == 0:
                 item: QTableWidgetItem = self.table.item(row, 0)
                 marker = labelsManager.getMarker( pid )
@@ -223,7 +237,7 @@ class DirectoryWidget(QWidget,EventClient):
                 item.setBackground( brush )
             else:
                 marked_rows.append( (row,pid,ic) )
-        self._selected_rows = marked_rows
+        self.selected_rows = marked_rows
 
     def clear_table( self, reset_catalog = False ):
         self.table.clearSelection()
@@ -241,7 +255,7 @@ class DirectoryWidget(QWidget,EventClient):
                     self.table.setItem( row, column, QTableWidgetItem( "" ) )
             for key in self.col_data.keys():
                 self.col_data[key] = []
-        self._selected_rows = []
+        self.selected_rows = []
         self._marked_rows = []
         self.update()
 
@@ -258,7 +272,7 @@ class DirectoryWidget(QWidget,EventClient):
         return rv
 
     def shiftEnabled(self):
-        se1 = self._key_state_modifiers == Qt.ShiftModifier | Qt.ControlModifier
+        se1 = self._key_state_modifiers != None
         return se1
 
     def processEvent( self, event: Dict ):
@@ -283,36 +297,38 @@ class DirectoryWidget(QWidget,EventClient):
                 cid = labelsManager.selectedClass
                 self.pick_enabled = (cid>0)
                 mark = event.get('mark', False )
-                if (self.name == "catalog") or (cid == 0):
-                    multi = self.shiftEnabled()
-                    if multi and mark and (cid>0):
-                        pids = event.get('pids',[])
-                        self.sequence_bounds.append(pids[0])
-                        if len( self.sequence_bounds ) == 2:
-                            self.sequence_bounds.sort()
-                            self.markRowSequence( *self.sequence_bounds )
-                            self.sequence_bounds = []
-                    else:
-                        pids = event.get('pids',[])
-                        self.selectRowsByPID( pids, mark )
-                        rspecs = event.get('rows', [])
-                        self.selectRowsByIndex(rspecs, event.get('mark', mark))
-                elif (self.name == labelsManager.selectedLabel) and self.pick_enabled:
+                if (self.name == "catalog"):
+                    rspecs = event.get('rows', [])
+                    self.selectRowsByIndex( rspecs, True )
+                #     multi = self.shiftEnabled()
+                #     if multi and mark and (cid>0):
+                #         pids = event.get('pids',[])
+                #         self.sequence_bounds.append(pids[0])
+                #         if len( self.sequence_bounds ) == 2:
+                #             self.sequence_bounds.sort()
+                #             self.markRowSequence( *self.sequence_bounds )
+                #             self.sequence_bounds = []
+                #     elif not multi:
+                #         pids = event.get('pids',[])
+                #         self.selectRowsByPID( pids, mark )
+                #         rspecs = event.get('rows', [])
+                #         self.selectRowsByIndex(rspecs, event.get('mark', mark))
+                if (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     for pid in event.get('pids',[]): self.addRow( pid )
                     rspecs = event.get('rows',[])
                     for rs in rspecs: self.addRow(rs[1])
                     self.update()
-                else:
-                    pids = event.get('pids',[])
-                    mark = self.pick_enabled and (cid > 0)
-                    self.selectRowsByPID(pids, mark)
-                    rspecs = event.get('rows',[])
-                    self.selectRowsByIndex( rspecs, mark )
+#                 elif (self.name != "catalog"):
+#                     pids = event.get('pids',[])
+# #                    mark = self.pick_enabled and (cid > 0)
+#                     self.selectRowsByPID(pids, mark)
+#                     rspecs = event.get('rows',[])
+#                     self.selectRowsByIndex( rspecs, mark )
 
         elif event.get('event') == 'gui':
             if event.get('type') == 'clear':       self.clear_table( False )
-            #            elif event.get('type') == 'keyPress':      self.setKeyState( event )
-            #            elif event.get('type') == 'keyRelease':  self.releaseKeyState()
+            elif event.get('type') == 'keyPress':      self.setKeyState( event )
+            elif event.get('type') == 'keyRelease':  self.releaseKeyState()
             elif event.get('type') == 'reset':       self.clear_table( True )
             elif event.get('type') == 'mark':        self.markSelectedRows()
             elif event.get('type') == 'undo':        self.clearMarker( event.get('marker') )
@@ -344,24 +360,22 @@ class DirectoryWidget(QWidget,EventClient):
 
     def markSelectedRows(self):
         self.enablePick()
-        cid = labelsManager.selectedClass
-        rows = None
-        if len(self._selected_rows) > 0:
+        cid = self.recordSelection()
+        if len(self.selected_rows) > 0:
             if cid > 0:
-                rows = [ *self._selected_rows ]
-                self._selected_rows = []
                 if self.name not in [ "catalog", labelsManager.selectedLabel ]  and (cid > 0):
-                    self.clearRowsByPID( [r[1] for r in self._selected_rows] )
-        else:
-            marker = labelsManager.currentMarker
-            if marker is not None:
-                selection = self.selectRowsByPID(marker.pids, True)
-                rows = [ (row, pid, cid) for (pid,row) in selection.items() ]
+                    self.clearRowsByPID( [ r[1] for r in self.selected_rows ] )
 
-        if rows and (self.name == "catalog"):
-            event = dict(event="pick", type="directory", rows=rows, mark=True )
-            self.submitEvent(event, EventMode.Gui)
-            for rspec in rows: self._marked_rows.append( rspec[0] )
+            if  (self.name == "catalog"):
+                event = dict(event="pick", type="directory", rows=self.selected_rows, mark=True )
+                self.submitEvent(event, EventMode.Gui)
+                self._marked_rows = self._marked_rows + self.selected_rows
+
+            # else:
+            #     marker = labelsManager.currentMarker
+            #     if marker is not None:
+            #         selection = self.selectRowsByPID(marker.pids, True)
+            #         rows = [ (row, pid, cid) for (pid,row) in selection.items() ]
 
             # except Exception as err:
             #     if marker is None:
@@ -428,6 +442,16 @@ class DirectoryWidget(QWidget,EventClient):
             except: break
         return None
 
+    def getRowItems(self, rows: List[int], cid: int ) -> List[Tuple]:
+        rItems = []
+        for iRow in rows:
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
+            try:
+                pid = int(item.text())
+                rItems.append( ( iRow, pid, cid ) )
+            except: pass
+        return rItems
+
     def getRowRange(self, pid0: int, pid1: int) -> Optional[List[int]]:
         rows = self.table.rowCount()
         pindices = [ pid0, pid1 ]
@@ -491,7 +515,7 @@ class DirectoryWidget(QWidget,EventClient):
                     cid = labelsManager.selectedClass if mark else 0
                     mark_item.setBackground( self.getBrush(cid) )
                     if mark and (cid>0): self._marked_rows.append( iRow )
-                    else: self._selected_rows.append( (iRow, pid, cid) )
+                    else: self.selected_rows.append( (iRow, pid, cid) )
             except: break
         if mark_item: self.table.scrollToItem(mark_item)
         self.update()
@@ -511,22 +535,18 @@ class DirectoryWidget(QWidget,EventClient):
             cid = labelsManager.selectedClass if mark else 0
             brush = self.getBrush( cid )
             for rspec in rspecs:
-                try:
-                    iRow = rspec[0]
-                    mark_item: QTableWidgetItem = self.table.item(iRow, 0)
-                    mark_item.setBackground( brush )
-                    pid_item: QTableWidgetItem = self.table.item( iRow, self._index_column )
-                    if not mark:
-                        try: self._selected_rows.append( (iRow, int(pid_item.text()), cid ) )
-                        except: pass
-                except: pass
+                iRow = rspec[0]
+                mark_item: QTableWidgetItem = self.table.item(iRow, 0)
+                mark_item.setBackground( brush )
+#                pid_item: QTableWidgetItem = self.table.item( iRow, self._index_column )
+#                if not mark: self.selected_rows.append( rspec )
             self._selected_row = rspecs[ len(rspecs) // 2 ][0]
             scroll_item = self.table.item( self._selected_row, 0)
             self.table.scrollToItem( scroll_item )
             self.update()
 
     def unmarkRowsByPID(self, pids: List[int]):
-        self.table.clearSelection()
+ #       self.table.clearSelection()
         unmarked_rows = []
         for iRow in self._marked_rows:
             item = self.table.item(iRow, self._index_column )
@@ -541,7 +561,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def clearRowsByPID(self, pids: List[int] ):
         rows = self.table.rowCount()
-        self.table.clearSelection()
+ #       self.table.clearSelection()
         self._selected_row, pid = -1, -1
         for iRow in range(rows):
             item: QTableWidgetItem = self.table.item( iRow, self._index_column )
@@ -558,6 +578,8 @@ class DirectoryWidget(QWidget,EventClient):
                 print( f"clearRowByPID error, r={iRow}, p={pid}, index col = {self._index_column}: {err}")
                 traceback.print_exc(50)
         self.update()
+
+
 
 
 
