@@ -72,6 +72,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._key_state = None
         self._key_state_modifiers = None
         self._marked_rows = []
+        self._transients = []
         self._selected_rows = []
         self._enabled = False
         self._current_search_str = ""
@@ -149,7 +150,7 @@ class DirectoryWidget(QWidget,EventClient):
             self.selectRow( row, mark )
             self.update()
 
-    def recordSelection(self):
+    def recordSelection( self, reset = True ):
         self.selected_rows = [ ]
         cid = labelsManager.selectedClass
         for index in self.table.selectionModel().selectedIndexes():
@@ -227,17 +228,11 @@ class DirectoryWidget(QWidget,EventClient):
         self.update()
 
     def clear_transients(self):
-        marked_rows = []
-        for (row,pid,ic) in self.selected_rows:
-            if ic == 0:
-                item: QTableWidgetItem = self.table.item(row, 0)
-                marker = labelsManager.getMarker( pid )
-                cid = ic if marker is None else marker.cid
-                brush = self.getBrush() if (cid==0) else self.getBrush(cid)
-                item.setBackground( brush )
-            else:
-                marked_rows.append( (row,pid,ic) )
-        self.selected_rows = marked_rows
+        brush = self.getBrush()
+        for row in self._transients:
+            item: QTableWidgetItem = self.table.item(row, 0)
+            item.setBackground( brush )
+        self._transients = []
 
     def clear_table( self, reset_catalog = False ):
         self.table.clearSelection()
@@ -360,6 +355,7 @@ class DirectoryWidget(QWidget,EventClient):
 
     def markSelectedRows(self):
         self.enablePick()
+        self.clear_transients()
         cid = self.recordSelection()
         if len(self.selected_rows) > 0:
             if cid > 0:
@@ -516,6 +512,7 @@ class DirectoryWidget(QWidget,EventClient):
                     mark_item.setBackground( self.getBrush(cid) )
                     if mark and (cid>0): self._marked_rows.append( iRow )
                     else: self.selected_rows.append( (iRow, pid, cid) )
+                    if cid == 0: self._transients.append(iRow)
             except: break
         if mark_item: self.table.scrollToItem(mark_item)
         self.update()
@@ -531,13 +528,14 @@ class DirectoryWidget(QWidget,EventClient):
 
     def selectRowsByIndex(self, rspecs: List[Tuple], mark: bool ):
         if len( rspecs ) > 0:
-            if not mark: self.clear_transients()
+            self.clear_transients()
             cid = labelsManager.selectedClass if mark else 0
             brush = self.getBrush( cid )
             for rspec in rspecs:
                 iRow = rspec[0]
                 mark_item: QTableWidgetItem = self.table.item(iRow, 0)
                 mark_item.setBackground( brush )
+                if cid == 0: self._transients.append( iRow )
 #                pid_item: QTableWidgetItem = self.table.item( iRow, self._index_column )
 #                if not mark: self.selected_rows.append( rspec )
             self._selected_row = rspecs[ len(rspecs) // 2 ][0]
