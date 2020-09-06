@@ -3,6 +3,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt, QObject
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 from PyQt5.QtWidgets import QApplication
+from hyperclass.gui.labels import labelsManager, Marker
 from typing import List, Union, Dict, Callable, Tuple, Optional
 from PyQt5.QtGui import QCursor
 from hyperclass.plot.point_cloud import PointCloud
@@ -34,6 +35,7 @@ class HCRenderWindowInteractor(vtk.vtkGenericRenderWindowInteractor):
             if picked_point >= 0:
                 print( f"Picked point {picked_point}, tolerance = {picker.GetTolerance()}, useCells = {picker.GetUseCells()}, nprops = {picker.GetPickList().GetNumberOfItems()}")
                 event = dict(event="pick", type="vtkpoint", pids=[picked_point], transient=True, mark=True )
+                labelsManager.addAction("select", "vtkpoint", [picked_point])
                 self.submit_event( event, EventMode.Gui )
             else:
                 print(f"Point pick failed")

@@ -50,6 +50,17 @@ class Marker:
             return True
         except: return False
 
+class Action:
+    def __init__(self, type: str, source: str, pids: List[int], cid, **kwargs ):
+        self.args = kwargs
+        self.type = type
+        self.cid=cid
+        self.source = source
+        self.pids = pids
+
+    @property
+    def spec(self):
+        return dict( atype=self.type, source=self.source , pids=self.pids, cid=self.cid, **self.args )
 
 class LabelsManager(QObject,EventClient):
     from hyperclass.graph.flow import ActivationFlow
@@ -65,6 +76,7 @@ class LabelsManager(QObject,EventClient):
         self.console: QWidget = None
         self._markers: List[Marker] = []
         self._flow: ActivationFlow = None
+        self._actions = []
         self._labels_data: xa.DataArray = None
         self._optype = None
         self.template = None
@@ -72,6 +84,18 @@ class LabelsManager(QObject,EventClient):
 
     def flow(self) -> Optional[ActivationFlow]:
         return self._flow
+
+    def addAction(self, type: str, source: str, pids: List[int], cid=None, **kwargs ):
+        if cid == None: cid = self.selectedClass
+        self._actions.append( Action(type,source,pids,cid,**kwargs) )
+
+    def popAction(self) -> Action:
+        return self._actions.pop()
+
+    def undo(self):
+        action = self.popAction()
+        event = dict( event="gui", type="undo", **action.spec )
+        self.submitEvent(event, EventMode.Gui)
 
     @property
     def classification(self) -> np.ndarray:
@@ -261,7 +285,8 @@ class LabelsManager(QObject,EventClient):
     def execute(self, action: str ):
         print( f"Executing action {action}" )
         etype = action.lower()
-        if etype == "undo":     self.popMarker()
+        if etype == "undo":
+            self.undo()
         elif etype == "clear":
             event = dict( event='gui', type='clear', label='reinit dataset', markers="keep"  )
             self.submitEvent( event, EventMode.Gui )
@@ -298,5 +323,3 @@ class LabelsManager(QObject,EventClient):
         self.console.update()
 
 labelsManager = LabelsManager()
-
-
