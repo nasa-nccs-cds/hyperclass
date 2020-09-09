@@ -163,16 +163,17 @@ class DirectoryWidget(QWidget,EventClient):
     def itemSelectionChanged(self):
         cid = self.recordSelection()
         mark = (cid > 0)
-        if (self.name not in ["catalog", labelsManager.selectedLabel]) and (cid > 0):
-            self.clearRowsByPID([r[1] for r in self.selected_rows])
-            event = dict( event="pick", type="directory", rows=self.selected_rows, mark = True )
-            self.submitEvent( event, EventMode.Gui )
-        else:
-            print( f"Selected srows: {self.selected_rows}")
-            self.selectRowsByIndex(self.selected_rows, mark)
-            if (self.name == "catalog"):
-                event = dict(event="pick", type="directory", rows=self.selected_rows, mark=mark )
-                self.submitEvent(event, EventMode.Gui)
+        if len( self.selected_rows ) < 250:
+            if (self.name not in ["catalog", labelsManager.selectedLabel]) and (cid > 0):
+                self.clearRowsByPID([r[1] for r in self.selected_rows])
+                event = dict( event="pick", type="directory", rows=self.selected_rows, mark = True )
+                self.submitEvent( event, EventMode.Gui )
+            else:
+                print( f"Selected srows: {self.selected_rows}")
+                self.selectRowsByIndex(self.selected_rows, mark)
+                if (self.name == "catalog"):
+                    event = dict(event="pick", type="directory", rows=self.selected_rows, mark=mark )
+                    self.submitEvent(event, EventMode.Gui)
 
     def setSelectedColumnHeaderColor(self, color ):
         header = QTableWidgetItem(self.col_headers[self.selectedColumn])
@@ -355,7 +356,6 @@ class DirectoryWidget(QWidget,EventClient):
 
     def markSelectedRows(self):
         self.enablePick()
-        self.clear_transients()
         cid = self.recordSelection()
         if len(self.selected_rows) > 0:
             if cid > 0:
@@ -368,7 +368,9 @@ class DirectoryWidget(QWidget,EventClient):
                 for iRow in self.selected_rows:
                     if iRow not in self._marked_rows:
                         self._marked_rows.append( iRow )
+                self._selected_rows = []
                 labelsManager.addAction("select", "directory", [ r[1] for r in self.selected_rows ], cid, name=self.name)
+            self.clear_transients()
 
             # else:
             #     marker = labelsManager.currentMarker
@@ -489,7 +491,7 @@ class DirectoryWidget(QWidget,EventClient):
                     mark_item.setBackground( self.getBrush(cid) )
                     if (cid>0) and iRow not in self._marked_rows:
                         self._marked_rows.append( iRow )
-                    else: self.selected_rows.append( (iRow, pid, cid) )
+                    self.selected_rows.append( (iRow, pid, cid) )
                     if cid == 0: self._transients.append(iRow)
                 if cid > 0: labelsManager.addAction("select", "directory", pids, cid, name=self.name )
             except: break
@@ -515,6 +517,7 @@ class DirectoryWidget(QWidget,EventClient):
                 iRow = rspec[0]
                 mark_item: QTableWidgetItem = self.table.item(iRow, 0)
                 mark_item.setBackground( brush )
+                self._selected_rows.append( (iRow, rspec[1], cid) )
                 if cid == 0:
                     self._transients.append( iRow )
                 else:
