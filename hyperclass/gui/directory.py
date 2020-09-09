@@ -365,7 +365,9 @@ class DirectoryWidget(QWidget,EventClient):
             if  (self.name == "catalog"):
                 event = dict(event="pick", type="directory", rows=self.selected_rows, mark=True )
                 self.submitEvent(event, EventMode.Gui)
-                self._marked_rows = self._marked_rows + self.selected_rows
+                for iRow in self.selected_rows:
+                    if iRow not in self._marked_rows:
+                        self._marked_rows.append( iRow )
                 labelsManager.addAction("select", "directory", [ r[1] for r in self.selected_rows ], cid, name=self.name)
 
             # else:
@@ -400,6 +402,10 @@ class DirectoryWidget(QWidget,EventClient):
             pids = event.get('pids')
             if (self.name == "catalog"):    self.unmarkRowsByPID(pids)
             else:                           self.clearRowsByPID(pids)
+
+    def update_gui(self):
+        event = dict( event="gui", type="update" )
+        self.submitEvent(event, EventMode.Gui)
 
     def enablePick(self):
         self.pick_enabled = True
@@ -481,7 +487,8 @@ class DirectoryWidget(QWidget,EventClient):
                     selection[pid] = iRow
                     mark_item = self.table.item( iRow, 0  )
                     mark_item.setBackground( self.getBrush(cid) )
-                    if (cid>0): self._marked_rows.append( iRow )
+                    if (cid>0) and iRow not in self._marked_rows:
+                        self._marked_rows.append( iRow )
                     else: self.selected_rows.append( (iRow, pid, cid) )
                     if cid == 0: self._transients.append(iRow)
                 if cid > 0: labelsManager.addAction("select", "directory", pids, cid, name=self.name )
@@ -494,7 +501,7 @@ class DirectoryWidget(QWidget,EventClient):
         return self._brushes.setdefault( cid, self._createBrush(cid) )
 
     def _createBrush( self, cid: int ) -> QBrush:
-        color = labelsManager.colors[ cid ] if cid >= 0 else (1,1,1)
+        color = labelsManager.colors[ cid ] if cid >= 0 else (1,1,1,1)
         qcolor = [int(color[ic] * 255.99) for ic in range(3)]
         return QBrush(QColor(*qcolor))
 
@@ -512,7 +519,8 @@ class DirectoryWidget(QWidget,EventClient):
                     self._transients.append( iRow )
                 else:
                     pids.append( rspec[1] )
-                    self._marked_rows.append(rspec[0])
+                    if rspec[0] not in self._marked_rows:
+                        self._marked_rows.append(rspec[0])
             self._selected_row = rspecs[ len(rspecs) // 2 ][0]
             scroll_item = self.table.item( self._selected_row, 0)
             self.table.scrollToItem( scroll_item )
@@ -525,13 +533,19 @@ class DirectoryWidget(QWidget,EventClient):
         for iRow in self._marked_rows:
             item = self.table.item(iRow, self._index_column )
             if item == None: break
-            if int(item.text()) in pids:
+            item_pid = int(item.text())
+            print(f"UNMARK: row {iRow}, item.pid = {item_pid}, pids = {pids}, marked_rows = {self._marked_rows}")
+            if item_pid in pids:
+                self._transients.append( iRow )
                 if self._selected_row == iRow: self._selected_row = -1
-                mark_item = self.table.item( iRow, 0 )
-                mark_item.setBackground( self.getBrush() )
                 unmarked_rows.append( iRow )
-        for iRow in unmarked_rows: self._marked_rows.remove(iRow)
-        self.update()
+                print( f"**UNMARK** {iRow}: {item_pid}" )
+        if len(unmarked_rows) > 0:
+            for iRow in unmarked_rows: self._marked_rows.remove(iRow)
+            self.clear_transients()
+            self.table.update()
+            self.update()
+            self.update_gui()
 
     def clearRowsByPID(self, pids: List[int] ):
         rows = self.table.rowCount()

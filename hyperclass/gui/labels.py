@@ -58,6 +58,9 @@ class Action:
         self.source = source
         self.pids = pids
 
+    def __eq__(self, action: "Action" ):
+        return ( self.type  == action.type ) and ( self.cid  == action.cid ) and ( self.source  == action.source ) and ( self.pids  == action.pids )
+
     @property
     def spec(self):
         return dict( atype=self.type, source=self.source , pids=self.pids, cid=self.cid, **self.args )
@@ -87,7 +90,9 @@ class LabelsManager(QObject,EventClient):
 
     def addAction(self, type: str, source: str, pids: List[int], cid=None, **kwargs ):
         if cid == None: cid = self.selectedClass
-        self._actions.append( Action(type,source,pids,cid,**kwargs) )
+        new_action = Action(type, source, pids, cid, **kwargs)
+        if (len(self._actions) == 0) or (new_action != self._actions[-1]):
+            self._actions.append( new_action )
 
     def popAction(self) -> Action:
         return self._actions.pop()

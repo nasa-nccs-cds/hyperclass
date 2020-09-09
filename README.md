@@ -8,8 +8,7 @@ Methods for hyperspectral image classification developed by the NASA Goddard Inn
 ```
 >> conda create --name hyperclass python=3.6
 >> conda activate hyperclass
-(hyperclass)>> pip install netcdf4
-(hyperclass)>> conda install -c conda-forge xarray dask spectral matplotlib pynndescent numpy rasterio scikit-image umap-learn scipy scikit-learn rioxarray numba pyqt vtk googlemaps requests responses pyproj tensorflow keras 
+(hyperclass)>> conda install -c conda-forge netcdf4 gdal xarray dask spectral matplotlib pynndescent numpy rasterio scikit-image umap-learn scipy scikit-learn rioxarray numba pyqt vtk googlemaps requests responses pyproj tensorflow keras 
 ```
 
 #### Install Hyperclass
