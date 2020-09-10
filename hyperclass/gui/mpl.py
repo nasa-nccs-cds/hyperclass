@@ -27,8 +27,8 @@ class LabelingWidget(QWidget):
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
 
-    def initPlots( self ):
-        self.canvas.console.initPlots()
+    def initPlots( self ) -> Optional[AxesImage]:
+        return self.canvas.console.initPlots()
 
     @property
     def spectral_plot(self):
@@ -146,6 +146,7 @@ class SatellitePlotCanvas(FigureCanvas):
             self.axes.set_xlim(extent[0],extent[1])
             self.axes.set_ylim(extent[2],extent[3])
             self._mousepress = self.plot.figure.canvas.mpl_connect('button_press_event', self.onMouseClick )
+            self.figure.canvas.draw_idle()
         except AttributeError:
             print( "Cant get spatial bounds for satellite image")
 

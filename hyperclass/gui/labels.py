@@ -231,7 +231,7 @@ class LabelsManager(QObject,EventClient):
         title = QLabel( "Actions" )
         title.setStyleSheet("font-weight: bold; color: black; font: 16pt" )
         buttons_frame_layout.addWidget( title )
-        actions = [ 'Mark', 'Neighbors', 'Distance', 'Embed' ]
+        actions = [ 'Mark', 'Spread', 'Distance', 'Embed' ]
         if with_learning: actions = actions + [ 'Learn', 'Apply' ]
         actions = actions + [ 'Undo', 'Clear' ]
 
@@ -250,8 +250,11 @@ class LabelsManager(QObject,EventClient):
         etype = action.lower()
         event = None
         if etype == "undo":     self.popMarker()
-        elif etype == "clear":  self.clearMarkers()
-        elif etype == "neighbors":
+        elif etype == "clear":
+            self.clearMarkers()
+            event = dict( event="gui", type="clear" )
+            self.submitEvent( event, EventMode.Gui )
+        elif etype == "spread":
             new_classes: Optional[xa.DataArray] = self.spread( etype )
             if new_classes is not None:
                 event = dict( event="gui", type="spread", labels=new_classes )

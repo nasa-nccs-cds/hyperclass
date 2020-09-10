@@ -520,7 +520,7 @@ class LabelingConsole(QObject,EventClient):
         self.figure.canvas.draw_idle()
 
     def mpl_pick_marker( self, event: PickEvent ):
-        rightButton: bool = int(event.mouseevent.button) == self.RIGHT_BUTTON
+        rightButton: bool = event.mouseevent.button == self.RIGHT_BUTTON
         if ( event.name == "pick_event" ) and ( event.artist == self.marker_plot ) and rightButton: #  and ( self.key_mode == Qt.Key_Shift ):
             self.delete_marker( event.mouseevent.ydata, event.mouseevent.xdata )
             self.update_marker_plots()
@@ -530,13 +530,19 @@ class LabelingConsole(QObject,EventClient):
         pindex = self.block.coords2pindex( y, x )
         return labelsManager.deletePid( pindex )
 
-    def initPlots(self, **kwargs):
-        self.add_plots( **kwargs )
-
-    def add_plots(self, **kwargs ):
+    def initPlots(self, **kwargs) -> Optional[AxesImage]:
         if self.image is None:
             self.image = self.create_image(**kwargs)
-            self.marker_plot = self.plot_axes.scatter( [], [], s=50, zorder=2, alpha=1, picker=True )
+            if self.image is not None: self.initMarkersPlot()
+        return self.image
+
+    def clearMarkersPlot(self):
+        offsets = np.ma.column_stack([[], []])
+        self.marker_plot.set_offsets( offsets )
+        self.plot_markers_image()
+
+    def initMarkersPlot(self):
+        self.marker_plot: PathCollection = self.plot_axes.scatter([], [], s=50, zorder=2, alpha=1, picker=True)
             self.marker_plot.set_edgecolor([0, 0, 0])
             self.marker_plot.set_linewidth(2)
             self.figure.canvas.mpl_connect('pick_event', self.mpl_pick_marker )

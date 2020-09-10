@@ -222,14 +222,15 @@ class PointCloud():
         reset = kwargs.get( 'reset', False )
         if reset:
             self.initMarkers()
-        for marker in labelsManager.getMarkers():
-            for pid in marker.pids:
-                location = self.polydata.GetPoint( pid )
-                id = self.marker_points.InsertNextPoint( *location  )
-                self.marker_verts.InsertNextCell(1)
-                self.marker_verts.InsertCellPoint(id)
-                vtk_color = [ int(marker.color[ic]*255.99) for ic in range(3) ]
-                self.marker_colors.InsertNextTuple3( *vtk_color )
+        if self.polydata is not None:
+            for marker in labelsManager.getMarkers():
+                for pid in marker.pids:
+                    location = self.polydata.GetPoint( pid )
+                    id = self.marker_points.InsertNextPoint( *location  )
+                    self.marker_verts.InsertNextCell(1)
+                    self.marker_verts.InsertCellPoint(id)
+                    vtk_color = [ int(marker.color[ic]*255.99) for ic in range(3) ]
+                    self.marker_colors.InsertNextTuple3( *vtk_color )
         self.markers.GetPointData().Modified()
         self.marker_points.Modified()
         self.marker_verts.Modified()
