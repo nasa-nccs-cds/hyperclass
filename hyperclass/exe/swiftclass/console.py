@@ -1,8 +1,10 @@
 from hyperclass.gui.unstructured.application import UnstructuredAppConsole
 from hyperclass.gui.application import HCApplication
 from hyperclass.data.manager import dataManager
+import matplotlib as mpl
 import sys
 from hyperclass.gui.labels import labelsManager
+mpl.use('Qt5Agg')
 
 classes = [ ('class-1', [1.0, 0.0, 0.0, 1.0]),
             ('class-2', [0.0, 1.0, 0.0, 1.0]),

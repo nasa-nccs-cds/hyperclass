@@ -116,7 +116,8 @@ class SpectralPlot(QObject,EventClient):
         elif event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory' ]) and self._active:
                 if  self.ploty is not None:
-                    for pid in event.get('pids',[]):
+                    pids = [ r[1] for r in event.get('rows',[]) ] + event.get('pids',[])
+                    for pid in pids:
                         if pid >= 0:
                             self.current_pid = pid
                             current_line = self.lines.get( self.current_pid, None )
