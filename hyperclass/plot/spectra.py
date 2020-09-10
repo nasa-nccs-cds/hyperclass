@@ -108,7 +108,7 @@ class SpectralPlot(QObject,EventClient):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
-            if plot_data.size > 0:
+            if plot_data:
                 if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
                 else:                           self.plotx, self.ploty = plot_data.band,     plot_data
                 self.nploty = self.normalize()
