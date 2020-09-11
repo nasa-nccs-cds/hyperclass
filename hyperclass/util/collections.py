@@ -1,10 +1,26 @@
 from collections import OrderedDict, MutableSet
 from typing import List, Union, Dict, Callable, Tuple, Optional
 
+class RS:
+
+    def __init__(self, row: int, pid: int, mid: int, cid: int = -1 ):
+        self.pid = pid
+        self.row = row
+        self.mid = mid
+        self.cid = mid if cid == -1 else cid
+
+    def reset(self):
+        self.cid = self.mid
+
 class ItemContainer( OrderedDict ):
 
-    def add(self, key: int, value: Tuple ):
-        self[key] = value
+    def __init__( self, items: List[RS] = None ):
+        OrderedDict.__init__( self )
+        if items is not None:
+            for item in items: self.add( item )
+
+    def add(self, item: RS ):
+        self[item.pid] = item
 
     def size(self) -> int:
         return len(self.keys())
@@ -19,14 +35,23 @@ class ItemContainer( OrderedDict ):
 
     def __iadd__(self, other: "ItemContainer" ):
         for key, value in other.items(): self[key] = value
+        return self
 
-    def __sub__(self, other: "ItemContainer" ):
+    def __sub__(self, pids: List ):
         rv = ItemContainer( self )
-        for key, value in other.items(): del rv[key]
+        for pid in pids:
+            try: del rv[pid]
+            except: pass
         return rv
 
-    def __isub__(self, other: "ItemContainer" ):
-        for key, value in other.items(): del self[key]
+    def __isub__(self, pids: List ):
+        for pid in pids:
+            try: del self[pid]
+            except: pass
+        return self
+
+    def __iter__(self):
+        return self.values().__iter__()
 
 class OrderedSet( OrderedDict, MutableSet):
 

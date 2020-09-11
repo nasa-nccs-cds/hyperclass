@@ -58,6 +58,9 @@ class Action:
         self.source = source
         self.pids = pids
 
+    def __repr__(self):
+        return f"A[{self.type}:{self.source} cid:{self.cid} pids:{self.pids}]"
+
     def __eq__(self, action: "Action" ):
         return ( self.type  == action.type ) and ( self.cid  == action.cid ) and ( self.source  == action.source ) and ( self.pids  == action.pids )
 
@@ -91,16 +94,23 @@ class LabelsManager(QObject,EventClient):
     def addAction(self, type: str, source: str, pids: List[int], cid=None, **kwargs ):
         if cid == None: cid = self.selectedClass
         new_action = Action(type, source, pids, cid, **kwargs)
+        print(f"ADD ACTION: {new_action}")
         if (len(self._actions) == 0) or (new_action != self._actions[-1]):
             self._actions.append( new_action )
 
-    def popAction(self) -> Action:
-        return self._actions.pop()
+    def popAction(self) -> Optional[Action]:
+        try:
+            action =  self._actions.pop()
+            print( f"POP ACTION: {action}" )
+            return action
+        except:
+            return None
 
     def undo(self):
         action = self.popAction()
-        event = dict( event="gui", type="undo", **action.spec )
-        self.submitEvent(event, EventMode.Gui)
+        if action is not None:
+            event = dict( event="gui", type="undo", **action.spec )
+            self.submitEvent(event, EventMode.Gui)
 
     @property
     def classification(self) -> np.ndarray:

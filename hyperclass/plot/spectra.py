@@ -138,7 +138,7 @@ class SpectralPlot(QObject,EventClient):
         if event.get('event') == 'pick':
             if (event.get('type') in [ 'vtkpoint', 'directory', 'reference', 'plot' ]) and self._active:
                 if  self.ploty is not None:
-                    pids = [ row[1] for row in event.get('rows',[]) ]
+                    pids = [ row.pid for row in event.get('rows',[]) ]
                     pids = pids + event.get('pids',[])
                     for pid in pids:
                         if pid >= 0:

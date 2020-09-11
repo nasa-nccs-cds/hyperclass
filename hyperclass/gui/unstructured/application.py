@@ -230,6 +230,7 @@ class UnstructuredAppConsole(QObject, EventClient):
             if event.get('type') == 'update':
                 self.refresh_images()
                 self.gui.update()
+                self.gui.repaint()
 
 
 

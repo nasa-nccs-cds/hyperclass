@@ -132,6 +132,9 @@ class DevelopmentConsole(HCMainWindow):
             if event.get('type') == 'update':
                 self.refresh_points( **event )
                 self.refresh_images( **event )
+                print( "GUI UPDATE" )
+                self.update()
+                self.repaint()
             if event.get('type') == 'reload':
                 filename = dataManager.config.value("data/init/file", None)
                 if filename is not None:
