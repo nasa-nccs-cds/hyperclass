@@ -44,6 +44,9 @@ class Marker:
     def isTransient(self):
         return self.cid == 0
 
+    def isEmpty(self):
+        return len( self.pids ) == 0
+
     def deletePid( self, pid: int ) -> bool:
         try:
             self.pids.remove( pid )
@@ -187,6 +190,8 @@ class LabelsManager(QObject,EventClient):
 
     def addMarker(self, marker: Marker ):
         self.clearTransient()
+        for pid in marker.pids: self.deletePid( pid )
+        self._markers = list(filter( lambda m: not m.isEmpty(),  self._markers ))
         self._markers.append(marker)
 
     def popMarker(self) -> Marker:

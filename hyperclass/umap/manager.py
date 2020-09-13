@@ -81,6 +81,13 @@ class UMAPManager(QObject,EventClient):
         self._gui.plotMarkers( **kwargs )
         self.update_signal.emit({})
 
+    def undoMarkerPlot(self, **kwargs ):
+#        color_data = np.full( shape=[nPoints], fill_value= 0 )
+#        self._gui.set_point_colors( data = color_data )
+#        self._gui.plotMarkers( **kwargs )
+        self._gui.plotMarkers( reset=True )
+        self.update_signal.emit({})
+
     def clear(self,**kwargs):
         keep_markers = kwargs.get('markers', 'discard') == "keep"
         activationFlowManager.clear()
@@ -105,7 +112,7 @@ class UMAPManager(QObject,EventClient):
                 if etype in [ 'clear', 'reload' ]:
                     self.clear( markers=event.get('markers','discard') )
                 elif etype == 'undo':
-                    self.plotMarkers( clear = True )
+                    self.undoMarkerPlot( **event )
                 elif etype == 'spread':
                     labels: xa.Dataset = event.get('labels')
                     self._gui.set_point_colors( labels=labels['C'] )

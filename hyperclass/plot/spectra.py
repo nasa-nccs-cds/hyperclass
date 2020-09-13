@@ -188,6 +188,7 @@ class SpectralPlot(QObject,EventClient):
             self.current_line, = self.axes.plot( x, spectrum, linewidth=linewidth, color=color )
             print( f"SPECTRA BOUNDS: [ {self.xmin:.2f}, {self.xmax:.2f} ] -> [ {self.ymin:.2f}, {self.ymax:.2f} ]")
             self.current_line.color = color
+#            self.current_line.mark( self.current_cid )
             self.current_line.cid = self.current_cid
             self.lines[ self.current_pid ] = self.current_line
 

@@ -90,7 +90,7 @@ class DirectoryWidget(QWidget,EventClient):
                         pid_item: QTableWidgetItem = self.table.item(iRow, self._index_column)
                         try:
                             pid = int(pid_item.text())
-                            srows = ItemContainer( [ RS(iRow,pid,0) ] )
+                            srows = ItemContainer( [ self.getRS(iRow,pid,0) ] )
                             self.selectRowsByIndex( srows, False )
                             self._current_search_str = searchStr
                             self._search_row = iRow
@@ -107,13 +107,16 @@ class DirectoryWidget(QWidget,EventClient):
             print( f"SELECT: {searchStr}")
             rows = self.table.rowCount()
             srows = ItemContainer()
+            self._selected_rows = []
             for iRow in range( rows ):
                 item: QTableWidgetItem = self.table.item( iRow, self.selectedColumn )
                 try:
                     match: re.Match = re.match( searchStr, item.text() )
                     if (match is not None):
                         pid_item: QTableWidgetItem = self.table.item(iRow, self._index_column)
-                        try:    srows.add( RS(iRow, int(pid_item.text()), 0) )
+                        try:
+                            srows.add( self.getRS( iRow, int(pid_item.text()), 0 ) )
+                            self._selected_rows.append( iRow )
                         except: pass
                 except: break
             self.selectRowsByIndex( srows, False )
@@ -175,9 +178,14 @@ class DirectoryWidget(QWidget,EventClient):
             self._selected_row = row
             mark = rightClick and self.pick_enabled
             self.clear_transients()
-            srow = ItemContainer( [ RS(row, int( table_item.text() ), labelsManager.selectedClass) ] )
+            srow = ItemContainer( [ self.getRS( row, int( table_item.text() ), labelsManager.selectedClass ) ] )
             event = dict( event="pick", type="directory", rows=srow, mark = mark )
             self.submitEvent( event, EventMode.Gui )
+
+    def getRS(self, row: int, pid: int, cid: int ) -> RS:
+        rs = self._marked_rows.get( pid, None )
+        if (rs is None) or ( (cid>0) and (cid != rs.mid) ): rs = RS(row, pid, cid )
+        return rs.mark( cid )
 
     def onRowSelection( self, row  ):
         self.selectRow( row, True )
@@ -212,14 +220,14 @@ class DirectoryWidget(QWidget,EventClient):
     def clear_transients(self):
         unmarked = []
         for rs in self._marked_rows:
-            if rs.cid == 0:
-                rs.reset()
-                item: QTableWidgetItem = self.table.item(rs.row, 0)
-                brush = self.getBrush() if rs.cid == 0 else self.getBrush( rs.cid )
-                item.setBackground( brush )
-                if rs.cid == 0: unmarked.append( rs.pid )
+            rs.reset()
+            item: QTableWidgetItem = self.table.item(rs.row, 0)
+            brush = self.getBrush() if rs.cid == 0 else self.getBrush( rs.cid )
+            item.setBackground( brush )
+            if rs.cid == 0: unmarked.append( rs.pid )
         self._marked_rows -= unmarked
         self.update()
+#        self.update_gui(EventMode.Foreground)
 
     def unmarkRows( self, rows: List[int] ):
         for iRow in rows:
@@ -301,9 +309,9 @@ class DirectoryWidget(QWidget,EventClient):
                 #         rspecs = event.get('rows', [])
                 #         self.selectRowsByIndex(rspecs, event.get('mark', mark))
                 if (self.name == labelsManager.selectedLabel) and self.pick_enabled:
-                    for pid in event.get('pids',[]): self.addRow( pid )
+                    for pid in event.get('pids',[]): self.addRow( pid=pid )
                     rspecs = event.get('rows',[])
-                    for rs in rspecs: self.addRow(rs.row)
+                    for rs in rspecs: self.addRow( row=rs.row )
                     self.update()
 #                 elif (self.name != "catalog"):
 #                     pids = event.get('pids',[])
@@ -324,10 +332,18 @@ class DirectoryWidget(QWidget,EventClient):
                 self.addExtendedLabels( labels )
                 self.build_table.emit()
 
-    def addRow( self, pid: int, distance: float = 0.0 ):
-        item = self.getItemByPID(pid)
+    def addRow( self, **kwargs ):
+        pid = kwargs.get( 'pid', None )
+        if pid is None:
+            iRow = kwargs.get('row', -1 )
+            assert (iRow >= 0), "DirectoryWidget.addRow missing row specification"
+            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
+            pid = int( item.text() )
+        else:
+            item = self.getItemByPID(pid)
         self.current_pid = pid
         if item is None:
+            distance = pid = kwargs.get( 'd', 0.0 )
             plot_metadata = dataEventHandler.getMetadata()
             row_data = []
 
@@ -377,7 +393,7 @@ class DirectoryWidget(QWidget,EventClient):
         for itemRef, d in zip(labels, distance):
             label = labelsManager.labels[ itemRef[1] ]
             if label == self.name:
-                self.addRow( itemRef[0], d )
+                self.addRow( row=itemRef[0], d=d )
                 self.update()
         try:
             self.sort_column = self.col_headers.index('distance')
@@ -454,7 +470,8 @@ class DirectoryWidget(QWidget,EventClient):
         for iRow in rows:
             try:
                 item: QTableWidgetItem = self.table.item( iRow, self._index_column )
-                rc.add( RS( iRow, int(item.text()), cid ) )
+                pid = int(item.text())
+                rc.add( self.getRS( iRow, pid, cid ) )
             except: pass
         return rc
 
@@ -479,18 +496,21 @@ class DirectoryWidget(QWidget,EventClient):
         rows = self.table.rowCount()
         selection = OrderedDict()
         mark_item: QTableWidgetItem = None
-        cid = labelsManager.selectedClass if mark else 0
+        cid = labelsManager.selectedClass
         for iRow in range( rows ):
             item: QTableWidgetItem = self.table.item( iRow, self._index_column )
             if item == None: break
+            marked_pids = []
             try:
                 pid = int( item.text() )
                 if pid in pids:
-                    selection[pid] = iRow
-                    mark_item = self.table.item( iRow, 0  )
-                    mark_item.setBackground( self.getBrush(cid) )
-                    self._marked_rows.add( RS( iRow, pid, cid ) )
-                if cid > 0: labelsManager.addAction("select", "directory", pids, cid, name=self.name )
+                    if pid not in self._marked_rows:
+                        selection[pid] = iRow
+                        mark_item = self.table.item( iRow, 0  )
+                        mark_item.setBackground( self.getBrush(cid) )
+                        self._marked_rows.add( RS( iRow, pid, cid ) )
+                        marked_pids.append( pid )
+                if (cid > 0) and (len(marked_pids) > 0): labelsManager.addAction("select", "directory", marked_pids, cid, name=self.name )
             except: break
         if mark_item: self.table.scrollToItem(mark_item)
         self.update()

@@ -4,13 +4,34 @@ from typing import List, Union, Dict, Callable, Tuple, Optional
 class RS:
 
     def __init__(self, row: int, pid: int, mid: int, cid: int = -1 ):
-        self.pid = pid
-        self.row = row
-        self.mid = mid
-        self.cid = mid if cid == -1 else cid
+        self._pid = pid
+        self._row = row
+        self._mid = mid
+        self._cid = mid if cid == -1 else cid
+        print( f"new ROW: pid={self._pid} row={self._row} mid={self._mid} cid={self._cid} " )
+
+    @property
+    def pid(self):
+        return self._pid
+
+    @property
+    def row(self):
+        return self._row
+
+    @property
+    def mid(self):
+        return self._mid
+
+    @property
+    def cid(self):
+        return self._cid
+
+    def mark( self, cid: int ) -> "RS":
+        self._cid = cid
+        return self
 
     def reset(self):
-        self.cid = self.mid
+        self._cid = self.mid
 
 class ItemContainer( OrderedDict ):
 
