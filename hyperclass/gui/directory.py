@@ -94,7 +94,7 @@ class DirectoryWidget(QWidget,EventClient):
                             self.selectRowsByIndex( srows, False )
                             self._current_search_str = searchStr
                             self._search_row = iRow
-                            event = dict(event="pick", type="directory", rows=srows, mark=False)
+                            event = dict(event="pick", type="directory", rows=srows, mark=False, source=self.name )
                             self.submitEvent(event, EventMode.Gui)
                         except: pass
                         break
@@ -121,7 +121,7 @@ class DirectoryWidget(QWidget,EventClient):
                 except: break
             self.selectRowsByIndex( srows, False )
             if (self.name == "catalog"):
-                event = dict( event="pick", type="directory", rows=srows, mark = False )
+                event = dict( event="pick", type="directory", rows=srows, mark = False, source=self.name  )
                 self.submitEvent( event, EventMode.Gui )
 
     def activate(self, enable: bool ):
@@ -153,7 +153,7 @@ class DirectoryWidget(QWidget,EventClient):
         if len(self._selected_rows) < 250:
             if (self.name not in ["catalog", labelsManager.selectedLabel]) and (cid > 0):
                 self.clearRowsByPID(self._marked_rows.ids())
-                event = dict(event="pick", type="directory", rows=self._marked_rows, mark = True)
+                event = dict(event="pick", type="directory", rows=self._marked_rows, mark = True, source=self.name )
                 self.submitEvent( event, EventMode.Gui )
             else:
                 self.markSelectedRows()
@@ -179,7 +179,7 @@ class DirectoryWidget(QWidget,EventClient):
             mark = rightClick and self.pick_enabled
             self.clear_transients()
             srow = ItemContainer( [ self.getRS( row, int( table_item.text() ), labelsManager.selectedClass ) ] )
-            event = dict( event="pick", type="directory", rows=srow, mark = mark )
+            event = dict( event="pick", type="directory", rows=srow, mark = mark, source=self.name  )
             self.submitEvent( event, EventMode.Gui )
 
     def getRS(self, row: int, pid: int, cid: int ) -> RS:
@@ -310,9 +310,11 @@ class DirectoryWidget(QWidget,EventClient):
                 #         self.selectRowsByIndex(rspecs, event.get('mark', mark))
                 if (self.name == labelsManager.selectedLabel) and self.pick_enabled:
                     for pid in event.get('pids',[]): self.addRow( pid=pid )
-                    rspecs = event.get('rows',[])
-                    for rs in rspecs: self.addRow( row=rs.row )
-                    self.update()
+                    source = event.get('source', "")
+                    if source == self.name:
+                        rspecs = event.get('rows',[])
+                        for rs in rspecs: self.addRow( row=rs.row )
+                        self.update()
 #                 elif (self.name != "catalog"):
 #                     pids = event.get('pids',[])
 # #                    mark = self.pick_enabled and (cid > 0)
@@ -372,7 +374,7 @@ class DirectoryWidget(QWidget,EventClient):
                     self.clearRows(self._selected_rows)
             if  (self.name == "catalog"):
                 rows = self.getRowsContainer( self._selected_rows )
-                event = dict(event="pick", type="directory", rows=rows, mark=True)
+                event = dict(event="pick", type="directory", rows=rows, mark=True, source=self.name )
                 self.submitEvent(event, EventMode.Gui)
             self.clear_transients()
 
