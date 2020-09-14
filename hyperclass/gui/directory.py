@@ -64,6 +64,7 @@ class DirectoryWidget(QWidget,EventClient):
         self._selected_row = -1
         self._search_row = 0
         self.col_headers = []
+        self._selected_rows = []
         self.sequence_bounds = []
         self.sort_column = 1
         self.selectedColumn = -1
@@ -293,8 +294,13 @@ class DirectoryWidget(QWidget,EventClient):
                 self.pick_enabled = (cid>0)
                 mark = event.get('mark', False )
                 if (self.name == "catalog"):
-                    rspecs = event.get('rows', [])
-                    self.selectRowsByIndex( rspecs, True )
+                    rspecs = event.get( 'rows', None )
+                    if rspecs is None:
+                        pids = event.get( 'pids', None )
+                        if pids is not None:
+                            self.selectRowsByPID( pids )
+                    else:
+                        self.selectRowsByIndex( rspecs, True )
                 #     multi = self.shiftEnabled()
                 #     if multi and mark and (cid>0):
                 #         pids = event.get('pids',[])
@@ -309,12 +315,11 @@ class DirectoryWidget(QWidget,EventClient):
                 #         rspecs = event.get('rows', [])
                 #         self.selectRowsByIndex(rspecs, event.get('mark', mark))
                 if (self.name == labelsManager.selectedLabel) and self.pick_enabled:
-                    for pid in event.get('pids',[]): self.addRow( pid=pid )
+                    for pid in event.get('pids',[]): self.addRow( pid )
                     source = event.get('source', "")
-                    if source == self.name:
-                        rspecs = event.get('rows',[])
-                        for rs in rspecs: self.addRow( row=rs.row )
-                        self.update()
+                    rspecs = event.get('rows',[])
+                    for rs in rspecs: self.addRow( rs.pid )
+                    self.update()
 #                 elif (self.name != "catalog"):
 #                     pids = event.get('pids',[])
 # #                    mark = self.pick_enabled and (cid > 0)
@@ -330,22 +335,16 @@ class DirectoryWidget(QWidget,EventClient):
             elif event.get('type') == 'mark':        self.markSelectedRows()
             elif event.get('type') == 'undo':        self.undo( event )
             elif event.get('type') == 'spread':
-                labels: xa.Dataset = event.get('labels')
-                self.addExtendedLabels( labels )
-                self.build_table.emit()
+                if self.name == "catalog":
+                    labels: xa.Dataset = event.get('labels')
+                    self.addExtendedLabels( labels )
+                    self.build_table.emit()
 
-    def addRow( self, **kwargs ):
-        pid = kwargs.get( 'pid', None )
-        if pid is None:
-            iRow = kwargs.get('row', -1 )
-            assert (iRow >= 0), "DirectoryWidget.addRow missing row specification"
-            item: QTableWidgetItem = self.table.item( iRow, self._index_column )
-            pid = int( item.text() )
-        else:
-            item = self.getItemByPID(pid)
+    def addRow( self, pid: int, **kwargs ):
+        item = self.getItemByPID(pid)
         self.current_pid = pid
         if item is None:
-            distance = pid = kwargs.get( 'd', 0.0 )
+            distance = kwargs.get( 'd', 0.0 )
             plot_metadata = dataEventHandler.getMetadata()
             row_data = []
 
@@ -361,7 +360,7 @@ class DirectoryWidget(QWidget,EventClient):
             row_data.append( pid )
             self.setRowData(row_data)
         else:
-            self.selectRowsByPID( [pid], False)
+            self.selectRowsByPID( [pid] )
 
     def markSelectedRows(self):
         self.enablePick()
@@ -373,8 +372,8 @@ class DirectoryWidget(QWidget,EventClient):
                 if self.name not in [ "catalog", labelsManager.selectedLabel ]  and (cid > 0):
                     self.clearRows(self._selected_rows)
             if  (self.name == "catalog"):
-                rows = self.getRowsContainer( self._selected_rows )
-                event = dict(event="pick", type="directory", rows=rows, mark=True, source=self.name )
+                srows = self.getRowsContainer( self._selected_rows )
+                event = dict(event="pick", type="directory", rows=srows, mark=True, source=self.name )
                 self.submitEvent(event, EventMode.Gui)
             self.clear_transients()
 
@@ -392,18 +391,20 @@ class DirectoryWidget(QWidget,EventClient):
 
     def addExtendedLabels(self, labels: xa.Dataset ):
         labels, distance = labelsManager.getSortedLabels(labels)
+        srows: ItemContainer = ItemContainer()
         for itemRef, d in zip(labels, distance):
-            label = labelsManager.labels[ itemRef[1] ]
-            if label == self.name:
-                self.addRow( row=itemRef[0], d=d )
-                self.update()
-        try:
-            self.sort_column = self.col_headers.index('distance')
-            self.table.sortItems(self.sort_column)
-            self.update()
-        except Exception as err:
-            print( f"DirectoryWidget.addExtendedLabels Exception: {err} ")
-            print( f"Col headers: {self.col_headers}" )
+            item: QTableWidgetItem = self.table.item( itemRef[0], self._index_column )
+            try: srows.add( RS( itemRef[0], int(item.text()), itemRef[1] )  )
+            except: pass
+        event = dict( event="pick", type="directory", rows=srows, mark=True, source=self.name )
+        self.submitEvent(event, EventMode.Gui)
+
+#            self.sort_column = self.col_headers.index('distance')
+#            self.table.sortItems(self.sort_column)
+#            self.update()
+#        except Exception as err:
+#            print( f"DirectoryWidget.addExtendedLabels Exception: {err} ")
+#            print( f"Col headers: {self.col_headers}" )
 
     def undo(self, event: Dict ):
         name = event.get('name',None)
@@ -494,7 +495,7 @@ class DirectoryWidget(QWidget,EventClient):
                 break
         return None
 
-    def selectRowsByPID(self, pids: List[int], mark: bool) -> Dict[int,int]:
+    def selectRowsByPID( self, pids: List[int] ) -> Dict[int,int]:
         rows = self.table.rowCount()
         selection = OrderedDict()
         mark_item: QTableWidgetItem = None
@@ -527,6 +528,10 @@ class DirectoryWidget(QWidget,EventClient):
         return QBrush(QColor(*qcolor))
 
     def selectRowsByIndex(self, rspecs: ItemContainer, mark: bool ):
+        if isinstance(rspecs, list):
+            print( "Wrong type for rspecs")
+            traceback.print_stack()
+            return
         if rspecs.size( ) > 0:
             self.clear_transients()
             cid = labelsManager.selectedClass if mark else 0

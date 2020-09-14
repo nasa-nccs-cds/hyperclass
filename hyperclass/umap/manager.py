@@ -149,7 +149,7 @@ class UMAPManager(QObject,EventClient):
                     try:
                         pids = [ pid for pid in event.get('pids',[]) if pid >= 0 ]
                         rspecs = event.get('rows', [])
-                        for rspec in rspecs: pids.append( rspec.row )
+                        for rspec in rspecs: pids.append( rspec.pid )
                         mark = event.get('mark',False)
                         classification = event.get('classification',-1)
                         cid = classification if ( classification > 0) else labelsManager.selectedClass

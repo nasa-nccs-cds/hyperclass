@@ -286,16 +286,19 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         if self._plot is not None:
             plot_offsets = self._plot._offsets3d if (self.ndims == 3) else self._plot._offsets
             new_offsets = []
+            x, y = [], []
             new_colors = []
             for marker in labelsManager.getMarkers():
                 for pid in marker.pids:
-                    new_offsets.append( plot_offsets[pid].tolist() )
+                    poff =  plot_offsets[pid].tolist()
+                    x.append( poff[0] ); y.append( poff[1] )
+                    new_offsets.append( poff )
                     new_colors.append( marker.color )
             if len( new_offsets ) > 0:
                 pcoords = np.array(new_offsets).reshape(-1,2)
                 color_data = np.array(new_colors)
                 if self._marker_plot is None:
-                    self._marker_plot = self.axes.scatter(*pcoords, c=color_data, s=25)
+                    self._marker_plot = self.axes.scatter( x, y, c=color_data, s=25 )
                 else:
                     if (self.ndims == 3):
                         self._marker_plot._offsets3d = pcoords
@@ -321,6 +324,8 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         metric_data = masked_metric.filled(maxval)/maxval
         self._plot.set_array( metric_data )
         self._plot.set_cmap( cm.get_cmap('jet') )
+        self._plot.set_clim( 0.0, 1.0 )
+        self.mpl_update()
 
     def set_point_colors( self, **kwargs ):
         color_data = kwargs.get( 'data', None )
@@ -334,9 +339,9 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
             else:
                 self._plot.set_facecolor( fcolors )
                 self._plot.set_edgecolor( fcolors )
+            self.mpl_update()
         else:
             self.color_by_metric( color_data )
-        self.mpl_update()
 
     @classmethod
     def format_labels( cls, classes: List[Tuple[str, Union[str, List[Union[float, int]]]]]) -> List[Tuple[str, List[float]]]:
@@ -352,16 +357,18 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
                 transient = labelsManager.selectedClass == 0
                 fc = self._plot.get_facecolor()
                 pids = idx['ind'].tolist()
-                for ix in pids: fc[ix] = color
-                if self.ndims == 3:
-                    self._plot._facecolor3d = fc
-                    self._plot._edgecolor3d = fc
-                else:
-                    self._plot.set_facecolor(fc)
-                    self._plot.set_edgecolor(fc)
-                self.mpl_update()
-                event = dict(event="pick", type="plot", pids = pids, transient=transient, mark= not transient )
-                self.submitEvent(event, EventMode.Gui)
+                if len( pids ) > 0:
+                    pid = pids[0]
+                    fc[pid] = color
+                    if self.ndims == 3:
+                        self._plot._facecolor3d = fc
+                        self._plot._edgecolor3d = fc
+                    else:
+                        self._plot.set_facecolor(fc)
+                        self._plot.set_edgecolor(fc)
+                    self.mpl_update()
+                    event = dict(event="pick", type="plot", pids = [ pid ], transient=transient, mark= not transient )
+                    self.submitEvent(event, EventMode.Gui)
 
                 # coords = { self.xdim: event.xdata, self.ydim: event.ydata  }
                 # point_data = self.image.sel( **coords, method='nearest' ).values.tolist()
@@ -380,7 +387,7 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         self.update()
         self.flush_events()
 #        event = dict( event="gui", type="update" )
-#        self.submitEvent(event, EventMode.Gui )
+#        self.submitEvent(event, EventMode.Foreground )
 
     def gui_update(self, **kwargs ):
         self.mpl_update()

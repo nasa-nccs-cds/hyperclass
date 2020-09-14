@@ -39,7 +39,7 @@ class Marker:
     def __init__(self, color: List[float], pids: List[int], cid: int ):
         self.color = color
         self.cid = cid
-        self.pids = pids
+        self.pids = set(pids)
 
     def isTransient(self):
         return self.cid == 0
@@ -50,6 +50,12 @@ class Marker:
     def deletePid( self, pid: int ) -> bool:
         try:
             self.pids.remove( pid )
+            return True
+        except: return False
+
+    def deletePids( self, pids: List[int] ) -> bool:
+        try:
+            self.pids -= set( pids )
             return True
         except: return False
 
@@ -112,8 +118,16 @@ class LabelsManager(QObject,EventClient):
     def undo(self):
         action = self.popAction()
         if action is not None:
+            self.processAction( action )
             event = dict( event="gui", type="undo", **action.spec )
             self.submitEvent(event, EventMode.Gui)
+
+    def processAction(self, action: Action ):
+        remaining_markers = []
+        for marker in self._markers:
+            marker.deletePids( action.pids )
+            if not marker.isEmpty(): remaining_markers.append( marker )
+        self._markers = remaining_markers
 
     @property
     def classification(self) -> np.ndarray:
@@ -322,7 +336,7 @@ class LabelsManager(QObject,EventClient):
                 self.submitEvent(event, EventMode.Gui)
         elif etype == "embed":
             event = dict( event="gui", type="embed", alpha = 0.25 )
-            self.submitEvent( event, EventMode.Background )
+            self.submitEvent( event, EventMode.Foreground )
         elif etype == "mark":
             event = dict( event='gui', type=etype )
             self.submitEvent( event, EventMode.Gui )
