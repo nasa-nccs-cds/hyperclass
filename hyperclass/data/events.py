@@ -47,6 +47,7 @@ class DataEventHandler:
     def getLoadedData(self, event: Dict  ):
         if (event is not None) and (self._loaded_data is None) and self.isDataLoadEvent(event) :
             self._loaded_data = event.get('result')
+            print( f"LOADED DATA, vars = {self._loaded_data.keys()}")
 
     def getDataArray(self, varname: str ) -> Optional[xa.DataArray]:
         return self._loaded_data.data_vars.get( varname, None )

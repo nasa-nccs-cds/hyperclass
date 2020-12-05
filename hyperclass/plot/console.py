@@ -200,23 +200,34 @@ class LabelingConsole(QObject,EventClient):
             elif etype == "apply.prep": self.apply_classification( **event )
 
     def get_image_selection_marker( self, event ) -> Optional[Marker]:
+        pids, x, y = None, 0, 0
         try:
             if 'lat' in event:
                 lat, lon = event['lat'], event['lon']
                 proj = Proj( self.data.spatial_ref.crs_wkt )
                 x, y = proj( lon, lat )
+            elif 'pids' in event:
+                pids = event['pids']
             else:
                 x, y = event['x'], event['y']
-        except Exception as err: return None
+        except Exception as err:
+            print( f"Marker selection error for event: {event}")
+            return None
 
         if 'label' in event:
             self.class_selector.set_active( event['label'] )
-        pid = self.block.coords2pindex( y, x )
-        if pid < 0: return None
+
+        if pids is None:
+            pid = self.block.coords2pindex( y, x )
+            if pid < 0:
+                print(f"Marker selection error, no pints for coord: {[y, x]}")
+                return None
+            else: pids = [ pid ]
+
         cid = event.get('classification',-1)
         ic = cid if (cid > 0) else labelsManager.selectedClass
         color = labelsManager.colors[ic]
-        return Marker( color, [pid], ic )
+        return Marker( color, pids, ic )
 
 
     def point_coords( self, point_index: int ) -> Dict:

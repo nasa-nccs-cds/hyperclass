@@ -108,6 +108,7 @@ class SpectralPlot(QObject,EventClient):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
+            print( f"Plotting spectra, data = {plot_data}")
             if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
             else:                           self.plotx, self.ploty = plot_data.band,     plot_data
             if self.ploty.size > 0:
@@ -151,6 +152,7 @@ class SpectralPlot(QObject,EventClient):
     def plot_spectrum(self, cid: int, color: List[float] ):
         if (self.current_pid >= 0) and (self.nploty is not None):
             spectrum = self.nploty[self.current_pid].values
+            print(f"SPECTRA PLOT, data shape = {self.nploty.shape}, line shape = {spectrum.shape}")
             x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
             linewidth = 2 if self.overlay else 1
             if len(color) == 4: color[3] = 1.0
