@@ -12,7 +12,7 @@ from PyQt5.QtCore import *
 from hyperclass.gui.events import EventClient, EventMode
 from matplotlib.axes import Axes
 from typing import List, Union, Dict, Callable, Tuple, Optional, Any
-import collections.abc
+import collections.abc, traceback
 from hyperclass.data.google import GoogleMaps
 from hyperclass.gui.labels import labelsManager, Marker, format_colors
 from matplotlib.figure import Figure
@@ -159,6 +159,8 @@ class SatellitePlotCanvas(FigureCanvas):
             self.figure.canvas.draw_idle()
         except AttributeError:
             print( "Cant get spatial bounds for satellite image")
+        except Exception:
+            traceback.print_exc()
 
     def set_axis_limits( self, xlims, ylims ):
         if self.image is not None:

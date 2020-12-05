@@ -130,8 +130,8 @@ class SpatialAppConsole(HCMainWindow):
             if event.get('type') == 'update':
                 self.refresh_points( **event )
                 self.refresh_images( **event )
-                self.gui.update()
-                self.gui.repaint()
+                self.update()
+                self.repaint()
 
     @pyqtSlot()
     def populate_block_load_menu(self):

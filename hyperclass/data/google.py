@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from math import log, exp, tan, atan, ceil
 from PIL import Image
-import sys, math, requests
+import sys, math, requests, traceback
 
 class GoogleMaps:
     tau = 6.283185307179586
@@ -60,54 +60,61 @@ class GoogleMaps:
         return lat, lon
 
     def get_tiled_google_map( self, type: str, extent: List[float], zoom=17 ) -> Image.Image:
-        NW_lat_long = ( extent[3] * self.DEGREE, extent[0] * self.DEGREE )
-        SE_lat_long = ( extent[2] * self.DEGREE, extent[1] * self.DEGREE )
+        try:
+            NW_lat_long = ( extent[3] * self.DEGREE, extent[0] * self.DEGREE )
+            SE_lat_long = ( extent[2] * self.DEGREE, extent[1] * self.DEGREE )
 
-        ullat, ullon = NW_lat_long
-        lrlat, lrlon = SE_lat_long
+            ullat, ullon = NW_lat_long
+            lrlat, lrlon = SE_lat_long
 
-        # convert all these coordinates to pixels
-        ulx, uly = self.latlon2pixels(ullat, ullon, zoom)
-        lrx, lry = self.latlon2pixels(lrlat, lrlon, zoom)
+            print( f" get_tiled_google_map: extent = lat:{[ullat,lrlat]}, lon:{[ullon,lrlon]}")
 
-        # calculate total pixel dimensions of final image
-        dx, dy = lrx - ulx, uly - lry
+            # convert all these coordinates to pixels
+            ulx, uly = self.latlon2pixels(ullat, ullon, zoom)
+            lrx, lry = self.latlon2pixels(lrlat, lrlon, zoom)
 
-        # calculate rows and columns
-        cols, rows = ceil(dx / self.MAXSIZE), ceil(dy / self.MAXSIZE)
+            # calculate total pixel dimensions of final image
+            dx, dy = lrx - ulx, uly - lry
 
-        # calculate pixel dimensions of each small image
-        width = ceil(dx / cols)
-        height = ceil(dy / rows)
-        heightplus = height + self.LOGO_CUTOFF
+            # calculate rows and columns
+            cols, rows = ceil(dx / self.MAXSIZE), ceil(dy / self.MAXSIZE)
 
-        # assemble the image from stitched
-        final: Image.Image = Image.new('RGB', (int(dx), int(dy)))
-        for x in range(cols):
-            for y in range(rows):
-                dxn = width * (0.5 + x)
-                dyn = height * (0.5 + y)
-                latn, lonn = self.pixels2latlon( ulx + dxn, uly - dyn - self.LOGO_CUTOFF / 2, zoom)
-                position = ','.join((str(latn / self.DEGREE), str(lonn / self.DEGREE)))
-                urlparams = {
-                    'center': position,
-                    'zoom': str(zoom),
-                    'size': '%dx%d' % (width, heightplus),
-                    'maptype': 'satellite',
-                    'sensor': 'false',
-                    'scale': 1
-                }
-                urlparams['key'] = self.api_key
-                urlparams['maptype'] = type
-                url = 'http://maps.google.com/maps/api/staticmap'
-                try:
-                    response = requests.get(url, params=urlparams)
-                    response.raise_for_status()
-                except requests.exceptions.RequestException as e:
-                    print(e)
-                    return None
+            # calculate pixel dimensions of each small image
+            width = ceil(dx / cols)
+            height = ceil(dy / rows)
+            heightplus = height + self.LOGO_CUTOFF
 
-                im = Image.open(BytesIO(response.content))
-                final.paste(im, (int(x * width), int(y * height)))
+            # assemble the image from stitched
+            final: Image.Image = Image.new('RGB', (int(dx), int(dy)))
+            for x in range(cols):
+                for y in range(rows):
+                    dxn = width * (0.5 + x)
+                    dyn = height * (0.5 + y)
+                    latn, lonn = self.pixels2latlon( ulx + dxn, uly - dyn - self.LOGO_CUTOFF / 2, zoom)
+                    position = ','.join((str(latn / self.DEGREE), str(lonn / self.DEGREE)))
+                    urlparams = {
+                        'center': position,
+                        'zoom': str(zoom),
+                        'size': '%dx%d' % (width, heightplus),
+                        'maptype': 'satellite',
+                        'sensor': 'false',
+                        'scale': 1
+                    }
+                    urlparams['key'] = self.api_key
+                    urlparams['maptype'] = type
+                    url = 'http://maps.google.com/maps/api/staticmap'
+                    try:
+                        response = requests.get(url, params=urlparams)
+                        response.raise_for_status()
+                    except requests.exceptions.RequestException as e:
+                        print(e)
+                        return None
+
+                    im = Image.open(BytesIO(response.content))
+                    final.paste(im, (int(x * width), int(y * height)))
+        except Exception as err:
+            print( f"get_tiled_google_map error: {err}")
+            traceback.print_exc()
+            return  Image.new( 'RGB', (0, 0) )
 
         return final
