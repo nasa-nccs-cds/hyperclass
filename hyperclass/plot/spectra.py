@@ -131,7 +131,7 @@ class SpectralPlot(QObject,EventClient):
             reduced_data = dataEventHandler.getPointData( event, DataType.Embedding )
             if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
             else:                           self.plotx, self.ploty = plot_data.band,     plot_data
-            self.rplotx, self.rploty = reduced_data['model'], reduced_data
+#            self.rplotx, self.rploty = reduced_data['model'], reduced_data
             if self.ploty.size > 0:
                 self.normalize()
                 self.configure( event )
@@ -172,12 +172,16 @@ class SpectralPlot(QObject,EventClient):
     def plot_spectrum(self):
         if (self.current_pid >= 0) and (self.nploty is not None):
             color = labelsManager.colors[self.current_cid]
-            if self._use_reduced_data:
-                spectrum = self.rploty[self.current_pid].values
-                x = self.rplotx[ self.current_pid ].values if self.rplotx.ndim == 2 else self.rplotx.values
-            else:
-                spectrum = self.nploty[self.current_pid].values
-                x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
+
+            # if self._use_reduced_data:
+            #     spectrum = self.rploty[self.current_pid].values
+            #     x = self.rplotx[ self.current_pid ].values if self.rplotx.ndim == 2 else self.rplotx.values
+            # else:
+            #     spectrum = self.nploty[self.current_pid].values
+            #     x = self.plotx[ self.current_pid ].values if self.plotx.ndim == 2 else self.plotx.values
+
+            spectrum = self.nploty[self.current_pid].values
+            x = self.plotx[self.current_pid].values if self.plotx.ndim == 2 else self.plotx.values
             self.ymax, self.ymin = spectrum.max(), spectrum.min()
             self.xmax, self.xmin = x.max(), x.min()
             self.axes.set_ylim(self.ymin, self.ymax)
