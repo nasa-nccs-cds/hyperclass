@@ -243,6 +243,7 @@ class LabelingConsole(QObject,EventClient):
 
     def setBlock( self, block_coords: Tuple[int], **kwargs ) -> Block:
         print( f"LabelingConsole setBlock: {block_coords}")
+        self.clearLabels()
         reset = kwargs.get( 'reset', False )
         if reset: self.tile.reset()
         self.block: Block = self.tile.getBlock( *block_coords )
@@ -321,10 +322,11 @@ class LabelingConsole(QObject,EventClient):
         self.labels.attrs[ 'long_name' ] = [ "labels" ]
 
     def clearLabels( self):
-         self.initLabels()
-         labelsManager.clearMarkers()
-         if self.labels_image is not None:
-            self.labels_image.set_alpha(0.0)
+        if self.block is not None:
+             self.initLabels()
+             labelsManager.clearMarkers()
+             if self.labels_image is not None:
+                self.labels_image.set_alpha(0.0)
 
     def updateLabelsFromMarkers(self):
         labelsManager.clearTransient()

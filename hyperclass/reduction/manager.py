@@ -16,8 +16,8 @@ class ReductionManager(QObject,EventClient):
 
     def config_gui(self, base: DialogBase):
         self.methodSelector = base.createComboSelector("Method: ", ["None", "Autoencoder"], "input.reduction/method", "Autoencoder" )
-        self.nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 50)), "input.reduction/ndim", 35)
-        self.ssSelector = base.createComboSelector("Subsample: ", list(range(1, 100, 2)), "input.reduction/subsample", 1)
+        self.nDimSelector = base.createComboSelector("#Dimensions: ", list(range(3, 120)), "input.reduction/ndim", 32)
+        self.ssSelector = base.createComboSelector("Subsample: ", list(range(1, 200, 2)), "input.reduction/subsample", 1)
         return base.createGroupBox("reduction", [self.methodSelector, self.nDimSelector, self.ssSelector])
 
     def reduce(self, inputs: np.ndarray, reduction_method: str, ndim: int, nepochs: int = 1  ) -> Tuple[np.ndarray,np.ndarray]:

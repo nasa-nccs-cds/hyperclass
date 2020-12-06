@@ -151,6 +151,7 @@ class SatellitePlotCanvas(FigureCanvas):
         try:
             extent = block.extent(4326)
             print( f"Setting satellite image extent: {extent}, xlim = {block.xlim}, ylim = {block.ylim}")
+            print(f"Google Earth block center coords: {(extent[2]+extent[3])/2},{(extent[1]+extent[0])/2}")
             self.image = self.google.get_tiled_google_map(type, extent, self.google_maps_zoom_level)
             self.plot: AxesImage = self.axes.imshow(self.image, extent=extent, alpha=1.0, aspect='auto' )
             self.axes.set_xlim(extent[0],extent[1])
