@@ -257,7 +257,7 @@ class UMAPManager(QObject,EventClient):
         mapper = self.getMapper( self._point_data.attrs['dsid'], ndim )
         mapper.flow = flow
         t1 = time.time()
-        labels_data: np.ndarray = labelsManager.labels_data().values
+        labels_data: np.ndarray = labelsManager.labels_data()
         if self._point_data.shape[1] <= ndim:
             mapper.set_embedding( self._point_data )
         else:

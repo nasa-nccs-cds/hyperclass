@@ -401,7 +401,7 @@ class PointCloudImageCanvas( FigureCanvas, EventClient ):
         pass
 
     def init_plot(self, point_data: np.ndarray):
-        cids: np.ndarray = labelsManager.labels_data().values
+        cids: np.ndarray = labelsManager.labels_data()
         fcolors = np.where(cids.reshape(-1,1) > 0, self.colors[cids], self.back_color )
         pcoords = [ x.squeeze() for x in np.hsplit(point_data, self.ndims) ]
         self._plot: PathCollection = self.axes.scatter( *pcoords, s=1, c=fcolors, pickradius=4.0  )

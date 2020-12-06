@@ -127,6 +127,7 @@ class LabelingConsole(QObject,EventClient):
         self.google_maps_zoom_level = 17
         self.new_image = None
         self.nFrames = None
+        self._adding_marker = False
 
         self.figure: Figure = kwargs.pop( 'figure', None )
         self.google_figure: Figure = None
@@ -198,24 +199,36 @@ class LabelingConsole(QObject,EventClient):
             if etype == "learn.prep":   self.learn_classification( **event )
             elif etype == "apply.prep": self.apply_classification( **event )
 
-    def get_image_selection_marker( self, event ) -> Optional[Marker]:
+    def get_image_selection_marker(self, event) -> Optional[Marker]:
+        pids, x, y = None, 0, 0
         try:
             if 'lat' in event:
                 lat, lon = event['lat'], event['lon']
-                proj = Proj( self.data.spatial_ref.crs_wkt )
-                x, y = proj( lon, lat )
+                proj = Proj(self.data.spatial_ref.crs_wkt)
+                x, y = proj(lon, lat)
+            elif 'pids' in event:
+                pids = event['pids']
             else:
                 x, y = event['x'], event['y']
-        except Exception as err: return None
+        except Exception as err:
+            print(f"Marker selection error for event: {event}")
+            return None
 
         if 'label' in event:
-            self.class_selector.set_active( event['label'] )
-        pid = self.block.coords2pindex( y, x )
-        if pid < 0: return None
+            self.class_selector.set_active(event['label'])
+
+        if pids is None:
+            pid = self.block.coords2pindex(y, x)
+            if pid < 0:
+                print(f"Marker selection error, no pints for coord: {[y, x]}")
+                return None
+            else:
+                pids = [pid]
+
         cid = event.get('classification',-1)
         ic = cid if (cid > 0) else labelsManager.selectedClass
         color = labelsManager.colors[ic]
-        return Marker( color, [pid], ic )
+        return Marker( color, pids, ic )
 
 
     def point_coords( self, point_index: int ) -> Dict:
@@ -431,7 +444,6 @@ class LabelingConsole(QObject,EventClient):
                         classification = self.label_map.values[ ptindices['iy'], ptindices['ix'] ] if (self.label_map is not None) else -1
                         cid = labelsManager.selectedClass
                         marker = Marker( labelsManager.colors[cid], [pid], labelsManager.selectedClass )
-                        labelsManager.addMarker( marker )
                         self.add_marker( marker, labelsManager.selectedClass == 0, classification=classification )
                         self.dataLims = event.inaxes.dataLim
         except Exception as err:
@@ -440,17 +452,22 @@ class LabelingConsole(QObject,EventClient):
 
     def add_marker(self, marker: Marker, transient: bool, **kwargs ):
         from hyperclass.gui.events import EventClient, EventMode
-        if marker is None:
-            print( "NULL Marker: point select is probably out of bounds.")
-        else:
-            pids = [pid for pid in marker.pids if pid >= 0]
-            classification = kwargs.get( "classification", -1 )
-            etype = kwargs.get( "type", "directory" )
-            if len(pids) > 0:
-                event = dict( event="pick", type=etype, pids=pids, transient=transient, mark=True, classification=classification )
-                self.submitEvent( event, EventMode.Gui )
-                self.plot_markers_image( **kwargs )
+        if not self._adding_marker:
+            self._adding_marker = True
+            if marker is None:
+                print( "NULL Marker: point select is probably out of bounds.")
+            else:
+                labelsManager.addMarker(marker)
+                self.plot_markers_image(**kwargs)
                 self.update_canvas()
+
+                pids = [pid for pid in marker.pids if pid >= 0]
+                classification = kwargs.get( "classification", -1 )
+                etype = kwargs.get( "type", "directory" )
+                if len(pids) > 0:
+                    event = dict( event="pick", type=etype, pids=pids, transient=transient, mark=True, classification=classification )
+                    self.submitEvent( event, EventMode.Gui )
+        self._adding_marker = False
 
     # def undo_marker_selection(self, **kwargs ):
     #     if len( self.marker_list ):

@@ -46,15 +46,16 @@ class DataEventHandler:
 
     def getLoadedData(self, event: Dict  ):
         if (event is not None) and (self._loaded_data is None) and self.isDataLoadEvent(event) :
-            self._loaded_data = event.get('result')
+            result = event.get('result')
+            self._loaded_data = result
 
     def getDataArray(self, varname: str ) -> Optional[xa.DataArray]:
         return self._loaded_data.data_vars.get( varname, None )
 
-    def getPointData(self, event: Dict, type: DataType = DataType.Embedding, **kwargs ) -> Union[Dict[str,Optional[xa.DataArray]],Optional[xa.DataArray]]:
+    def getPointData(self, event: Dict, dstype: DataType = DataType.Embedding, **kwargs ) -> Union[Dict[str,Optional[xa.DataArray]],Optional[xa.DataArray]]:
         self.getLoadedData(event)
         if isinstance(self._loaded_data, Block):
-            return self._loaded_data.getPointData( subsample = self._subsample )
+            return self._loaded_data.getPointData( subsample = self._subsample, dstype= dstype )
         elif isinstance(self._loaded_data, xa.Dataset):
             dset_type = self._loaded_data.attrs['type']
             if dset_type == 'spectra':

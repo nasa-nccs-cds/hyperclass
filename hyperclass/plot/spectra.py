@@ -128,7 +128,7 @@ class SpectralPlot(QObject,EventClient):
         super().processEvent(event)
         if dataEventHandler.isDataLoadEvent(event):
             plot_data = dataEventHandler.getPointData( event, DataType.Plot )
-            reduced_data = dataEventHandler.getPointData( event, DataType.Embedding )
+#           reduced_data = dataEventHandler.getPointData( event, DataType.Embedding )
             if isinstance(plot_data, dict): self.plotx, self.ploty = plot_data["plotx"], plot_data["ploty"]
             else:                           self.plotx, self.ploty = plot_data.band,     plot_data
 #            self.rplotx, self.rploty = reduced_data['model'], reduced_data

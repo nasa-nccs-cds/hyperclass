@@ -167,9 +167,13 @@ class LabelsManager(QObject,EventClient):
             for pid in marker.pids:
                 self._labels_data[ pid ] = marker.cid
 
-    def labels_data( self ) -> xa.DataArray:
+    def labels_data( self, xa = False ) -> Union[xa.DataArray,np.ndarray,None]:
         self.updateLabels()
-        return self._labels_data.copy( self._optype == "distance" )
+        result = None
+        if self._labels_data is not None:
+            result = self._labels_data.copy( self._optype == "distance" )
+            if not xa: result = result.values
+        return result
 
     @classmethod
     def getSortedLabels(self, labels_dset: xa.Dataset ) -> Tuple[np.ndarray,np.ndarray]:
@@ -190,7 +194,7 @@ class LabelsManager(QObject,EventClient):
         resume = ( optype == "neighbors" ) and ( self._optype == "neighbors" )
         if not resume: self._flow.clear()
         self._optype = optype
-        labels_data = self.labels_data()
+        labels_data = self.labels_data(True)
         niters = self.n_spread_iters if n_iters is None else n_iters
         return self._flow.spread( labels_data, niters )
 
@@ -204,7 +208,7 @@ class LabelsManager(QObject,EventClient):
 
     def addMarker(self, marker: Marker ):
         self.clearTransient()
-        for pid in marker.pids: self.deletePid( pid )
+        for pid in [ *marker.pids ]: self.deletePid( pid )
         self._markers = list(filter( lambda m: not m.isEmpty(),  self._markers ))
         self._markers.append(marker)
 

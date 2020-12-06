@@ -151,23 +151,34 @@ class Block:
         return ( y0, y0+self.shape[0] ), ( x0, x0+self.shape[1] )
 
     def getPointData( self, **kwargs ) -> xa.DataArray:
-        if self._point_data is None:
-            subsample = kwargs.get( 'subsample', None )
-            result: xa.DataArray =  dataManager.spatial.raster2points( self.data )
-            if result.size > 0:
-                ptData: xa.DataArray = result if subsample is None else result[::subsample]
-                self._point_data =  self.reduce( ptData )
-            else:
-                self._point_data = result
-            self._samples_axis = self._point_data.coords['samples']
-            self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
-            self._point_data.attrs['type'] = 'block'
-        return self._point_data
+        from hyperclass.data.events import DataType
+        dstype = kwargs.get('dstype', DataType.Embedding)
+        if dstype == DataType.Embedding:
+            if self._point_data is None:
+                subsample = kwargs.get( 'subsample', None )
+                result: xa.DataArray =  dataManager.spatial.raster2points( self.data )
+                if result.size > 0:
+                    ptData: xa.DataArray = result if subsample is None else result[::subsample]
+                    self._point_data =  self.reduce( ptData )
+                else:
+                    self._point_data = result
+                self._samples_axis = self._point_data.coords['samples']
+                self._point_data.attrs['dsid'] = "-".join( [ str(i) for i in self.block_coords ] )
+                self._point_data.attrs['type'] = 'block'
+            return self._point_data
+        elif dstype == DataType.Plot:
+            subsample = kwargs.get('subsample', None)
+            result: xa.DataArray = dataManager.spatial.raster2points(self.data)
+            if result.size > 0:     point_data = result if subsample is None else result[::subsample]
+            else:                   point_data = result
+            point_data.attrs['dsid'] = "-".join([str(i) for i in self.block_coords])
+            point_data.attrs['type'] = 'block'
+            return point_data
 
     def reduce(self, data: xa.DataArray):
         reduction_method = dataManager.config.value("input.reduction/method", None)
         ndim = int(dataManager.config.value("input.reduction/ndim", 32 ) )
-        epochs = int( dataManager.config.value("input.reduction/epochs", 50 ) )
+        epochs = int( dataManager.config.value("input.reduction/epochs", 20 ) )
         if reduction_method != "None":
             dave, dmag =  data.values.mean(0), 2.0*data.values.std(0)
             normed_data = ( data.values - dave ) / dmag
