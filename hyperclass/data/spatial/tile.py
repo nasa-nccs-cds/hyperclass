@@ -177,8 +177,8 @@ class Block:
 
     def reduce(self, data: xa.DataArray):
         reduction_method = dataManager.config.value("input.reduction/method", None)
-        ndim = int(dataManager.config.value("input.reduction/ndim", 32 ) )
-        epochs = int( dataManager.config.value("input.reduction/epochs", 20 ) )
+        ndim = int(dataManager.config.value("input.reduction/ndim", 16 ) )
+        epochs = int( dataManager.config.value("input.reduction/epochs", 200 ) )
         if reduction_method != "None":
             dave, dmag =  data.values.mean(0), 2.0*data.values.std(0)
             normed_data = ( data.values - dave ) / dmag
